@@ -1,0 +1,154 @@
+// Builds the SHIP IT! printable reference pack from the live game data (so it never drifts from the rules).
+// node mkref.js  -> /home/claude/work/ref/ship-it-reference-pack.html (+ pdf via mkref-pdf.js)
+const fs = require("fs"), path = require("path");
+global.window = undefined;
+const SRC = process.env.SHIPIT_SRC || "/home/claude/shipit";
+const E = require(path.join(SRC, "engine.js")), D = require(path.join(SRC, "data.js"));
+const c = Object.assign(E.defaultConfig(), D.configC, { varC: 1 });
+const esc = s => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+// ---- icons (same drawings as the game) ----
+const ui = fs.readFileSync(path.join(SRC, "ui.js"), "utf8");
+const IC = (new Function("return " + ui.match(/const IC = (\{[\s\S]*?\n\});/)[1]))();
+const NAME = { ideas: "Ideas", code: "Code", process: "Process", buzz: "Buzz", progress: "Progress", hype: "Hype", marketing: "Marketing", culture: "Culture", debt: "Tech Debt", gold: "Gold" };
+const COL = { ideas: "#9a4fc4", code: "#2c7fc0", process: "#12997c", buzz: "#d9780f", progress: "#3d68d6", hype: "#d6407f", marketing: "#d9780f", culture: "#2f9e4f", debt: "#d64541", gold: "#b88a00" };
+const ic = (k, s) => `<svg class="ic" style="width:${s || 15}px;height:${s || 15}px" viewBox="0 0 16 16" fill="none" stroke="${COL[k]}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${IC[k]}</svg>`;
+const icl = k => `<span class="il">${ic(k)}<b>${NAME[k]}</b></span>`;
+const ICONS = ["ideas", "code", "process", "buzz", "progress", "hype", "marketing", "culture", "debt", "gold"];
+const RES = { Creative: "ideas", Development: "code", Operations: "process", Marketing: "buzz" };
+const catCol = { Creative: "#9a4fc4", Development: "#2c7fc0", Operations: "#12997c", Marketing: "#d9780f", Innovation: "#e67e22", Stability: "#c0392b", Reach: "#e91e63", Revenue: "#b88a00" };
+const DISC_ALIAS = { Eng: "ENG", Art: "ART", Des: "DES", QA: "QA", PX: "PX", DATA: "DATA", Adv: "ADV" };
+const dname = k => (D.disciplines[DISC_ALIAS[k] || k] || {}).name || k;
+const rolechip = k => { const d = D.disciplines[DISC_ALIAS[k] || k]; const col = d ? catCol[d.cat] : "#666"; return `<span class="rc" style="background:${col}">${esc(d ? d.name : k)}</span>`; };
+
+// ---- derived numbers ----
+const N = [2, 3, 4, 5, 6];
+const tables = N.map(n => E.rankTable(c, n));
+const gates = D.publisherGates;
+const ph = [["Concept", "1-3", "Build your resource bank. Few score spots, one Hype spot. No Crisis card."], ["Production", "4-8", "More score spots, Buzz earn spots, bigger crews. Seniors start triggering systems."], ["Polish", "9-11", "Score and build for the Beta Review. Builds stop when they cannot finish."], ["Launch", "12", "Spend everything. Convert resources into Progress or Hype."]];
+const costBuild = b => { const p = b.split("+"); const m = p[0].match(/^(\d+)([MG])$/); const n = +m[1], need = {}; const cats = []; p.slice(1).forEach(r => { const cat = D.disciplines[DISC_ALIAS[r] || r].cat; if (!cats.includes(cat)) cats.push(cat); });
+  cats.forEach((cat, i) => { const k = RES[cat]; need[k] = (need[k] || 0) + Math.floor(n * (c.sysCostMult || 1) / cats.length); });
+  return { n, cats, roles: p.slice(1) }; };
+const sysCost = s => { const raw = parseInt(s.build); const tot = Math.max(1, Math.round(raw * (c.sysCostMult || 1))); const cats = []; s.build.split("+").slice(1).forEach(r => { const cat = D.disciplines[DISC_ALIAS[r] || r].cat; if (!cats.includes(cat)) cats.push(cat); });
+  const need = {}; cats.forEach((cat, i) => { const k = RES[cat]; need[k] = (need[k] || 0) + Math.floor(tot / cats.length) + (i < tot % cats.length ? 1 : 0); });
+  const gold = c.sysGoldMult ? Math.round(tot * c.sysGoldMult) : 0; return Object.keys(need).map(k => need[k] + ic(k, 12)).join(" ") + (gold ? " " + gold + ic("gold", 12) : ""); };
+const mainRes = s => E.sysMainRes(s);
+
+// ---- page helpers ----
+const pages = [];
+const page = (title, sub, body, cls) => pages.push(`<section class="pg ${cls || "lg"}"><header><h1>${title}</h1>${sub ? `<div class="sub">${sub}</div>` : ""}<div class="brand">SHIP IT!</div></header>${body}</section>`);
+const box = (h, b, cls) => `<div class="bx ${cls || ""}"><h3>${h}</h3>${b}</div>`;
+const li = a => "<ul>" + a.map(x => `<li>${x}</li>`).join("") + "</ul>";
+
+// ============ 1. PLAYER REFERENCE (front) ============
+const steps = [["Income", `Every studio gains <b>${c.income}</b> ${ic("gold")} Gold, then pays salaries (Junior ${c.salaryJr}, Senior ${c.salarySr}).`], ["Hire", `Hire cards from your hand: <b>Junior ${c.jrCost}</b> ${ic("gold")}. You may also <i>Recruit</i> from the shared pool (${c.recruitCost} ${ic("gold")}, once per round) during Hire or Place.`], ["Place", "Take turns placing <b>one worker</b> at a time on a board tile, or a Senior on a finished system. Pass when done."], ["Build", `Start up to <b>${c.buildsPerRound}</b> system: pay resources and Gold, commit a worker for each role it needs.`], ["Rest", "Promote a Junior who worked then rested (free). Release workers. Unplaced workers recover."], ["Milestones", "Cash in any milestone you have met for Gold."], ["Upkeep", `Hype fades by ${c.hypeDecay}. Culture drifts to 0. Over-Tired workers may quit.`]];
+page("Player Reference", "Front: the round at a glance", `
+<div class="cols">
+ <div>
+  ${box("Game flow", `<div class="phases">${ph.map(p => `<div><b>${p[0]}</b><span>Rounds ${p[1]}</span><small>${p[2]}</small></div>`).join("")}</div><p class="note">Each phase after Concept opens with a <b>Crisis card</b>, then <b>Reveal</b> (draft pool of ${c.draftPool}), <b>Bid</b> (secret, every bid is paid, highest picks first and goes first all phase) and <b>Draft</b> (free). Publisher Gates are checked at the end of rounds ${c.phaseEnds.join(", ")}.</p>`)}
+  ${box("Each round (12 rounds)", `<ol class="steps">${steps.map(s => `<li><b>${s[0]}.</b> ${s[1]}</li>`).join("")}</ol>`)}
+ </div>
+ <div>
+  ${box("The board", `<table class="t"><tr><td><b>Backlog</b></td><td>Earns <b>resources</b>. The worker earns the resource of their own role: ${["ideas", "code", "process", "buzz"].map(icl).join(" ")}. Junior +${c.resJr}, Senior +${c.resSr}, times the tile's multiplier.</td></tr>
+  <tr><td><b>Prototype</b><br><small>later Vertical Slice, Beta Build, Gold Master</small></td><td>Earns ${icl("progress")}. Quality tiles fix ${icl("debt")}.</td></tr>
+  <tr><td><b>Pitch Deck</b><br><small>later Trailer Drop, Press Tour, Launch Party</small></td><td>Earns ${icl("hype")}.</td></tr>
+  <tr><td><b>Game Jam</b></td><td>Needs <b>2 or 3 different workers</b> at once, pays more.</td></tr>
+  <tr><td><b>Studio Perks</b></td><td>Talent (cheaper hire), Outsource (Gold), R&amp;D (rush a build free), Team Event, Insight, Fundraise. One worker per tile per round.</td></tr>
+  <tr><td><b>Convert</b></td><td>Round 12 only: ${c.convertRate} resources of the worker's role become 1 ${icl("progress")} or 1 ${icl("hype")}.</td></tr></table>
+  <p class="note">A worker earning resources is a worker not scoring: the central trade-off. Greyed tiles cannot be used; hover or tap to see why.</p>`)}
+  ${box("Workers", `<table class="t"><tr><td><b>Active</b></td><td>Fresh. Can work.</td></tr><tr><td><b>Tired</b></td><td>Worked last round. Works again and they become Over-Tired.</td></tr><tr><td><b>Over-Tired</b></td><td>No resource, may quit at Upkeep. Rest them.</td></tr></table>
+  <p class="note">A worker who sits out a round <b>rests</b> (one step better). <b>Junior</b> earns ${c.resJr}. <b>Senior</b> earns ${c.resSr} and is the only worker who can <b>trigger systems</b>. Promote for free a Junior who has worked and then rested. A worker on a build crew shows <b>Building</b> and cannot be placed.</p>`)}
+ </div>
+</div>`);
+
+// ============ 2. PLAYER REFERENCE (back) ============
+page("Player Reference", "Back: scoring, systems and gates", `
+<div class="cols">
+ <div>
+  ${box("How you score", `<table class="t sc"><tr><td>${icl("progress")}</td><td>Rank on the Progress race. Ties split the points. See table.</td></tr>
+  <tr><td>${icl("hype")}</td><td>Rank on the Hype race. Your ${icl("marketing")} is added to Hype at the end. Hype fades ${c.hypeDecay} per round, so build it late.</td></tr>
+  <tr><td>${icl("debt")}</td><td>Most Tech Debt loses the most VP; least loses none.</td></tr>
+  <tr><td>${icl("culture")}</td><td>Lowest Culture loses the most VP; best loses none.</td></tr>
+  <tr><td><b>Objectives</b></td><td>VP for each objective you completed (4 secret cards).</td></tr>
+  <tr><td><b>Systems</b></td><td>Printed VP of each finished system.</td></tr>
+  <tr><td><b>Synergy</b></td><td>Bonus when a finished system's <b>main resource</b> matches the resource icon of a completed objective.</td></tr>
+  <tr><td><b>Reach</b></td><td>+${c.reachMajorVP} VP to the only studio with the most Reach systems (at least 2).</td></tr>
+  <tr><td>${icl("gold")}</td><td>Every ${c.goldPerVP} leftover Gold is 1 VP.</td></tr>
+  <tr><td><b>Gates and Crisis</b></td><td>VP won or lost from Publisher Gates and Crisis cards.</td></tr></table>`)}
+  ${box("Race VP by finishing rank", `<table class="t grid"><tr><th>Players</th>${[1, 2, 3, 4, 5, 6].map(r => `<th>${r}${["st", "nd", "rd"][r - 1] || "th"}</th>`).join("")}</tr>${N.map((n, i) => `<tr><td><b>${n}</b></td>${[0, 1, 2, 3, 4, 5].map(k => `<td>${tables[i][k] != null ? tables[i][k] : ""}</td>`).join("")}</tr>`).join("")}</table><p class="note">Same table for Progress and for Hype.</p>`)}
+ </div>
+ <div>
+  ${box("Systems", `${li([`The <b>Systems for sale</b> row shows <b>${c.marketSize}</b> face up per category: Innovation, Stability, Reach, Revenue. Replace one for ${c.marketRefreshGold} ${ic("gold")} (once per round).`, "<b>Cost</b>: resources split across the roles it needs, plus Gold. You must have every resource: nothing can be covered with Gold.", "<b>Crew</b>: building commits one free worker for each role named in the cost. They sit out until it finishes.", "<b>Build time</b>: 1 to 3 crew rounds by system power. Ready at the start of round (this round + 1 + crew rounds).", `<b>Rush</b> takes one crew round off: pay ${c.crunchGold} ${ic("gold")}, tire a worker, or use R&amp;D (free).`, "<b>Trigger</b>: place a Senior of the named role on the finished system's tile, once per round.", `Limits: ${c.buildsPerRound} build per round, ${c.slotsPerCategory} per category, ${c.maxSystems} total.`])}`)}
+  ${box("Publisher Gates", `<table class="t"><tr><th>Gate</th><th>Due end of round</th><th>Pass</th><th>Miss</th></tr>${gates.map((g, i) => `<tr><td><b>${esc(g.name)}</b></td><td>${c.phaseEnds[g.phase]}</td><td>${g.fund ? "+" + g.fund + "G" : "+" + g.vp + " VP"}</td><td>-${g.penalty} VP</td></tr>`).join("")}</table><p class="note">Targets rise with player count; read the Gates panel in the game or the card.</p>`)}
+  ${box("Your studio meters", `<p class="note">${["gold", "progress", "hype", "marketing", "culture", "debt"].map(icl).join(" ")} are tracked on your studio. The four resources ${["ideas", "code", "process", "buzz"].map(icl).join(" ")} are banked and keep between rounds (up to ${c.resCap} of each). Leftover resources are worth nothing at the end, so spend or convert them.</p>`)}
+ </div>
+</div>`);
+
+// ============ 3. SETUP / COMPONENTS / KEY RULES ============
+page("Setup, Components and Key Rules", "Front: 2-6 players, 12 rounds", `
+<div class="cols">
+ <div>
+  ${box("Components (proposed for the physical game)", li(["Main board with the board tiles and the Studio Perks", "Discipline (worker) cards: 4 categories, 9 disciplines", `Systems deck: 70 cards in 4 categories (${["Innovation", "Stability", "Reach", "Revenue"].join(", ")})`, "Objective cards (48, in 4 types) and Milestone cards (40)", "Crisis cards (15, 3 phase decks) and Publisher Gate cards", "Resource tokens: Ideas, Code, Process, Buzz; Gold tokens", "Studio boards with meters for Progress, Hype, Debt and Culture", "Race tracks for Progress and Hype", "Bid tokens or a bid marker, turn order marker, shared Recruitment pool"]))}
+  ${box("Setup", `<ol class="steps">${[`Place the board. Shuffle each deck. Reveal <b>${c.marketSize}</b> systems face up in each category.`, `Each player takes a studio board and <b>${c.startGold} Gold</b>.`, "Each player is dealt 2 objectives of each of the 4 types, keeps 1 of each (4 secret objectives), and takes 3 milestones.", "Set Progress, Hype, Debt and Culture to 0. Reveal the Publisher Gates.", "Reveal the draft pool; start Round 1 (Concept has no Crisis card)."].map(x => `<li>${x}</li>`).join("")}</ol>`)}
+ </div>
+ <div>
+  ${box("Key rules", li([`<b>Place:</b> one worker per turn. Most tiles hold one worker, so turn order matters.`, `<b>Bids:</b> secret, every bid is paid, once per phase.`, `<b>Hire:</b> Junior ${c.jrCost} Gold from hand. <b>Recruit:</b> ${c.recruitCost} Gold from the shared pool, once per round, Junior now.`, `<b>Resource earn:</b> a worker earns the resource of their own role. Marketing earns Buzz.`, `<b>Build:</b> all resources needed, commit a crew, wait for it to finish.`, `<b>Convert</b> only in round 12.`, `<b>Objectives and milestones</b> do not change mid-game; Crisis cards are the only exception.`, `<b>Game end:</b> after round 12. Highest VP wins.`]))}
+  ${box("Variants", `<p class="note">The standard game uses the <b>phase-shaped economy</b> described here. Classic scoring and the pool-scoring variants exist for testing.</p>`)}
+ </div>
+</div>`);
+
+// ============ 4. TURN AND ROUND CARDS (back) ============
+const turnCard = `<div class="card"><h2>Turn card <span>Place step</span></h2>${li(["Choose one of your free workers (not Building, not already placed).", "Pick a green tile. Greyed tiles cannot be used.", "Crew tile: place all required workers together.", "Or place a <b>Senior</b> on a finished system to trigger it (once per round).", "Or <b>Recruit</b> from the shared pool (once per round).", "When you have nothing useful to place, <b>Pass</b>. Unplaced workers rest."])}<p class="note">Earn tiles pay the worker's own resource. Progress and Hype tiles pay no resources.</p></div>`;
+const roundCard = `<div class="card"><h2>Round card <span>12 rounds</span></h2><ol class="steps">${steps.map(s => `<li><b>${s[0]}</b></li>`).join("")}</ol><p class="note"><b>Phase start</b> (rounds 1, 4, 9, 12): Crisis, Reveal, Bid, Draft.<br><b>Gates</b> end of rounds ${c.phaseEnds.join(", ")}.<br><b>Round 12:</b> Convert, then score.</p></div>`;
+page("Turn and Round Cards", "Back: cut out, or keep on the table", `<div class="cards">${turnCard}${roundCard}</div>`);
+
+// ============ 5. ICONOGRAPHY + GLOSSARY ============
+const iconRows = [["ideas", "Resource from Creative workers (Designer, Artist). Spent on systems that need Creative roles."], ["code", "Resource from Development workers (Engineer, Quality)."], ["process", "Resource from Operations workers (Producer, Product Manager, Analytics)."], ["buzz", "Resource from Marketing workers (Community, Advertising)."], ["progress", "Race track. How far along your game is. Ranked for VP."], ["hype", "Race track. Excitement for your game. Fades each round. Ranked for VP."], ["marketing", "Permanent marketing weight. Added to Hype at the end of the game."], ["culture", "Studio morale. Lowest Culture loses VP; it also keeps workers from quitting."], ["debt", "Tech Debt. Most Debt loses VP. Quality and Engineers remove it."], ["gold", "Currency: hire, recruit, build, rush. 3 leftover = 1 VP."]];
+page("Iconography", "Every icon in the game", `<div class="cols"><div>${box("Icons", `<table class="t ico">${iconRows.map(r => `<tr><td>${ic(r[0], 26)}</td><td><b>${NAME[r[0]]}</b></td><td>${r[1]}</td></tr>`).join("")}</table>`)}</div>
+<div>${box("Worker categories (card header colours)", `<table class="t">${Object.keys(D.categories).map(k => `<tr><td><span class="rc" style="background:${catCol[k]}">${k}</span></td><td>${D.categories[k].discs.map(d => esc((D.disciplines[d] || {}).name || d)).join(", ")}</td><td>${icl(RES[k])}</td></tr>`).join("")}</table>`)}
+${box("System categories", `<table class="t">${[["Innovation", "Core engines, risk and reward. Often add Tech Debt."], ["Stability", "Fix Debt, protect Culture."], ["Reach", "Hype and Marketing. Most Reach systems earns a bonus."], ["Revenue", "Gold and steady income."]].map(r => `<tr><td><span class="rc" style="background:${catCol[r[0]]}">${r[0]}</span></td><td>${r[1]}</td></tr>`).join("")}</table>`)}
+${box("Tile and card markings", li(["<b>x2</b> / <b>x1</b>: multiplier on the resource a tile pays.", "Two icons joined by a slash: the worker picks the one that fits.", "<b>+1 Debt</b> corner tag: the spot or system adds Tech Debt.", "<b>Star</b> on a system: its main resource matches one of your objectives.", "<b>Dashed outline</b>: a system still being built.", "<b>Greyed tile</b>: cannot be used or bought right now."]))}</div></div>`);
+
+const glossary = [["Backlog", "Board row that earns resources."], ["Bid", "Secret Gold offer for turn order. Every bid is paid."], ["Build crew", "Workers committed to a system until it finishes."], ["Convert", "Round 12 tile: resources into Progress or Hype."], ["Crew spot", "A board tile needing 2 or 3 different workers from one player."], ["Crisis", "Event card at the start of each phase after the first."], ["Crunch / Rush", "Take one crew round off a build: pay Gold, tire a worker, or use R&D."], ["Draft", "Take face-up discipline cards for free. Hire them later."], ["Gate", "Publisher check at the end of a phase: pass for funding, miss to lose VP."], ["Junior / Senior", "Worker levels. Seniors earn more and trigger systems."], ["Main resource", "The resource a system's cost asks for most; used for Synergy."], ["Milestone", "Bonus goal that pays Gold when met."], ["Objective", "Secret goal that pays VP if completed."], ["Over-Tired", "A worker who worked while Tired. No resource, may quit."], ["Phase", "Concept, Production, Polish, Launch."], ["Recruit", "Pay Gold for a Junior from the shared pool; no card needed."], ["Resource", "Ideas, Code, Process or Buzz. Banked and spent on systems."], ["Rest", "Sit out a round to recover; step where promotions happen."], ["Synergy", "Bonus VP for system-and-objective resource matches."], ["System", "Permanent engine: scores VP and can be triggered by a Senior."], ["Trigger", "A Senior of the named role uses a finished system once per round."]];
+page("Glossary", "Terms used in the game", `<div class="gl">${glossary.map(g => `<div><b>${g[0]}</b><span>${g[1]}</span></div>`).join("")}</div>`);
+
+// ============ 6. QUICK GUIDES ============
+page("Quick Start Guide", "Your first game in five minutes", `<div class="cols"><div>${box("1. Pick goals", "<p>Keep one objective from each pair. They are secret. Note the resource icon on each: systems with the matching main resource earn bonus VP.</p>")}${box("2. Bid and draft", `<p>Bid a small amount (every bid is paid). Highest bid picks first and goes first all phase. Draft ${c.draftPool ? "from the face-up pool" : ""} for free: take a mix of roles because systems need specific workers.</p>`)}${box("3. Hire", `<p>Hire at least two Juniors (${c.jrCost} Gold each). Salaries are ${c.salaryJr} per Junior each round.</p>`)}${box("4. Place", "<p>Take turns placing one worker at a time. Early on, <b>Backlog</b> tiles build your resource bank. Leave someone unplaced so they rest.</p>")}</div>
+<div>${box("5. Build", "<p>Open <b>Systems for sale</b>. Pick one you can afford and whose roles you can free up. Its crew sits out until it finishes (1 to 3 rounds).</p>")}${box("6. Promote and trigger", "<p>In the Rest step, promote a Junior who worked then rested. Place the Senior on your finished system to trigger it.</p>")}${box("7. Race", "<p>From Production, take Progress and Hype tiles. Meet each Publisher Gate (see Gates panel) to earn funding and avoid VP loss.</p>")}${box("8. Launch", "<p>Round 12: spend everything. Convert resources on the Convert tile. Leftover Gold is worth 1 VP per 3.</p>")}</div></div>`);
+
+page("Phase Guide", "What each phase is for", `<table class="t big">${ph.map((p, i) => `<tr><td><b>${p[0]}</b><br><small>Rounds ${p[1]}</small></td><td>${[
+  `Earn resources on Backlog tiles and build your bank. Draft and hire your first team. Recruit once a round. Start your first system. Gate: ${esc(gates[0].name)} (${esc(gates[0].reqs.join(", "))} at 2P-scale).`,
+  "Crisis card at the start. Spend your bank on systems, promote Seniors and trigger systems. Take Progress and Hype tiles. Keep Debt and Culture healthy. Gate: " + esc(gates[1].name) + ".",
+  "Finish the systems you can. Builds started late cannot finish, so check build time. Push Hype late since it fades. Gate: " + esc(gates[2].name) + ".",
+  "Nothing carries over. Spend Gold and resources, convert on the Convert tile, trigger systems. Gate: " + esc(gates[3].name) + " (pass for VP)."][i]}</td><td>${i < 3 ? `Ends round ${c.phaseEnds[i]}` : "Final scoring"}</td></tr>`).join("")}</table><p class="note">Concept rounds are shown as Pre-Production in some game screens. Gate targets scale with the player count.</p>`);
+
+page("Systems and Build Guide", "Choosing, paying for and finishing a system", `<div class="cols"><div>${box("Reading a system card", li(["<b>Name</b> and the <b>main resource</b> icon (used for Synergy).", "<b>VP</b> at the end of the game.", "<b>Cost</b>: resource icons, plus Gold, and the roles needed (they join the crew).", "<b>Effect line</b> triggered by a Senior of the named role.", "<b>Passive</b> (if any): always on once finished.", "<b>Crew busy N rounds</b>: how long the crew is committed."]))}${box("Before you build", li(["Have every resource on the cost.", `Have a free worker for each role (not Building).`, `Under your limits: ${c.buildsPerRound} build per round, ${c.slotsPerCategory} per category, ${c.maxSystems} total.`, "Enough rounds left: it must be ready before the game ends."]))}</div>
+<div>${box("Timeline", `<table class="t"><tr><th>Crew rounds</th><th>Ready</th></tr><tr><td>0 (rushed small system)</td><td>start of next round</td></tr><tr><td>1</td><td>start of round +2</td></tr><tr><td>2</td><td>start of round +3</td></tr><tr><td>3</td><td>start of round +4</td></tr></table><p class="note">Crew workers are free again the round the system is ready.</p>`)}${box("Synergy", "<p>Each objective has one resource. Each system has a main resource (the one its cost needs most). When you complete an objective, every finished system with the same main resource earns synergy VP at the end.</p>")}${box("Tips", li(["Stronger systems (higher cost, a passive, more VP) take longer; cheap ones are fast.", "Plan roles: a Security Audit needs Quality and Engineer free at the same time.", "Use Rush when a late build would not finish otherwise."]))}</div></div>`);
+
+// ============ 7. CATALOGS ============
+const sysRows = c2 => D.systems.filter(s => s.cat === c2).map(s => `<tr><td><b>${esc(s.name)}</b></td><td>${sysCost(s)}</td><td>${s.build.split("+").slice(1).map(rolechip).join(" ")}</td><td>${esc(s.fx || s.pas || "")}${s.pas && s.fx ? "<br><i>Passive: " + esc(s.pas) + "</i>" : ""}${s.once ? "<br><i>Once: " + esc(s.once) + "</i>" : ""}${s.each ? "<br><i>Each: " + esc(s.each) + "</i>" : ""}</td><td>${ic(mainRes(s), 13)}</td><td>${s.vp}</td><td>${s.bt}</td><td class="trg">${dname(s.trig.replace(/^1\s*/, ""))}</td></tr>`).join("");
+["Innovation", "Stability"].forEach(cat => { });
+const sysPageHead = `<tr><th>System</th><th>Cost</th><th>Roles</th><th>Effect</th><th>Res</th><th>VP</th><th>Crew</th><th>Trigger</th></tr>`;
+["Innovation", "Stability", "Reach", "Revenue"].forEach(k => page("Systems Catalog", k, `<table class="t cat">${sysPageHead}${sysRows(k)}</table>`, "dense"));
+const resOf = o => o.res || "";
+const objTbl = t => `<h2 class="cat">${t}</h2><table class="t cat"><tr><th>Objective</th><th>VP</th><th>Res</th><th>Requirements</th></tr>${D.objectives.filter(o => o.type === t).map(o => `<tr><td><b>${esc(o.name)}</b></td><td>${o.vp}</td><td>${o.res ? ic(o.res, 13) : ""}</td><td>${o.reqs.map(esc).join("; ")}</td></tr>`).join("")}</table>`;
+page("Objectives Catalog", "Platform and Genre (keep 1 of each pair per type)", objTbl("Platform") + objTbl("Genre"), "dense lgt");
+page("Objectives Catalog", "Audience and Wild", objTbl("Audience") + objTbl("Wild"), "dense lgt");
+page("Milestones Catalog", "40 bonus goals; cash in for Gold", `<div class="cols">${["Workforce", "Economy", "Development", "Marketing"].map(k => `<div><h2 class="cat">${k}</h2><table class="t cat"><tr><th>Milestone</th><th>Gold</th><th>Requirement</th></tr>${D.milestones.filter(m => m.cat === k).map(m => `<tr><td><b>${esc(m.name)}</b></td><td>${m.gold}</td><td>${esc(m.text)}</td></tr>`).join("")}</table></div>`).join("")}</div>`, "dense lgt");
+
+const css = `@page{size:Letter;margin:.4in}*{box-sizing:border-box}body{font:11px/1.35 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1b2430;margin:0}
+.pg{page-break-after:always;min-height:10.1in}.pg:last-child{page-break-after:auto}
+header{display:flex;align-items:baseline;gap:12px;border-bottom:3px solid #1b2430;padding-bottom:4px;margin-bottom:8px}header h1{font-size:20px;margin:0}header .sub{color:#5b6775;font-size:12px}header .brand{margin-left:auto;font-weight:900;letter-spacing:.06em;font-size:14px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}.bx{border:1.5px solid #c9d1da;border-radius:7px;padding:7px 9px;margin-bottom:8px;break-inside:avoid}.bx h3{margin:0 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#3d4d60}
+ul{margin:2px 0;padding-left:16px}li{margin:2px 0}ol.steps{margin:2px 0;padding-left:18px}.note{color:#4d5a69;margin:4px 0 0;font-size:10.5px}p{margin:3px 0}
+.il{display:inline-flex;align-items:center;gap:2px;white-space:nowrap}.ic{vertical-align:-3px}
+table.t{width:100%;border-collapse:collapse}table.t td,table.t th{padding:3px 5px;border-bottom:1px solid #e2e7ec;vertical-align:top;text-align:left}table.t th{font-size:10px;text-transform:uppercase;color:#5b6775}
+table.grid td,table.grid th{text-align:center}table.ico td:first-child{width:34px;text-align:center}
+.rc{display:inline-block;color:#fff;border-radius:4px;padding:0 5px;font-size:10px;font-weight:700;margin:0 1px;white-space:nowrap}
+.phases{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}.phases div{border:1px solid #c9d1da;border-radius:5px;padding:4px}.phases b{display:block}.phases span{display:block;color:#3d68d6;font-weight:700;font-size:10px}.phases small{font-size:9.5px;color:#4d5a69}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:.25in;margin-top:.3in}.card{border:2px dashed #7a8794;border-radius:12px;padding:14px;min-height:6.2in}.card h2{margin:0 0 8px;font-size:18px}.card h2 span{font-size:11px;color:#5b6775;font-weight:500;margin-left:6px}.card li,.card ol li{font-size:12.5px;margin:6px 0}
+.gl{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px}.gl div{border-bottom:1px solid #e2e7ec;padding:4px 0}.gl b{display:block}.gl span{color:#3d4d60}
+.lg{font-size:13px}.lg .note{font-size:12px}.lg header h1{font-size:24px}.lg .phases small{font-size:11px}.lg .card li{font-size:14px}.dense{font-size:9.5px}.dense.lgt{font-size:11px}.dense table.cat td,.dense table.cat th{padding:1.5px 4px}.cat{font-size:13px;margin:8px 0 3px}.trg{white-space:nowrap}table.big td{padding:8px}table.cat td:nth-child(2){white-space:nowrap}`;
+fs.mkdirSync("/home/claude/work/ref", { recursive: true });
+fs.writeFileSync("/home/claude/work/ref/ship-it-reference-pack.html", `<!doctype html><html><head><meta charset="utf-8"><title>SHIP IT! Reference Pack</title><style>${css}</style></head><body>${pages.join("\n")}</body></html>`);
+console.log("pages", pages.length);

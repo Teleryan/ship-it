@@ -280,7 +280,7 @@ function beginRound(S) {
     p.systems.forEach(s => s.t = false);
   });
   S.occ = {}; S.passed = [];
-  if (S.cfg.varC) { completeBuilds(S); rollRecruit(S); }
+  if (S.cfg.varC) { completeBuilds(S); rollRecruit(S); S.players.forEach(p => { p.cs.crewRounds = (p.cs.crewRounds || 0) + p.workers.filter(w => w.build).length; }); }
   log(S, "--- ROUND " + S.round + " (" + D0.phases[S.phase].name + ") ---");
   S.players.forEach(p => {
     gain(S, p.id, "gold", S.cfg.income);
