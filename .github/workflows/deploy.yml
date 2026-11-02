@@ -1,0 +1,25 @@
+name: test-and-deploy
+on:
+  push: { branches: [main] }
+  pull_request:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install
+      - run: npm test
+      - run: npm run build
+      - if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: node scripts/kv-put.js
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          KV_NAMESPACE_ID: 35c54a6624ac411cb9f5bdbf5e2cf83c
+      - if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: npx wrangler deploy --config worker/wrangler.toml
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

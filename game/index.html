@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SHIP IT!: Hot-seat Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800;900&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="root"></div>
+<!-- Layered so it can lift straight onto a website:
+     data.js    pure data (editable via Data Studio)
+     engine.js  rules engine, no DOM
+     bot.js     heuristic AI (solo play + balance sims)
+     core.js    shared helpers + tuning overrides
+     net.js     online rooms client
+     analytics.js game records
+     studio.js  Data Studio + simulator UI (master account only, loaded on demand)
+     admin.js   Master panel: analytics, tuning publish, reset (master account only)
+     tutorial.js guided first game (add-on, engine untouched)
+     ui.js      hot-seat UI -->
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script src="bot.js"></script>
+<script src="core.js"></script>
+<script src="net.js"></script>
+<script src="analytics.js"></script>
+<script src="tutorial.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>

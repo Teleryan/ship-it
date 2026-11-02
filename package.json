@@ -1,0 +1,2 @@
+{"name":"ship-it","private":true,"scripts":{"test":"cd game && node test.js && node ctest.js","build":"node scripts/build.js"},
+ "devDependencies":{"terser":"^5.51.2","wrangler":"^4.156.0"}}
