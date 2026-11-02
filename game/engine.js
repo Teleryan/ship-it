@@ -325,8 +325,8 @@ function nextStep(S) {
   } else if (prev === "build") {
     S.step = "rest";
     S.players.forEach(p => {
-      p.swapObj = p.workers.filter(w => (w.disc === "PX") && ((w.lvl === "Sr" && w.placed) || (w.lvl === "Jr" && !w.placed))).length;
-      p.swapMile = p.workers.filter(w => (w.disc === "DATA") && ((w.lvl === "Sr" && w.placed) || (w.lvl === "Jr" && !w.placed))).length;
+      p.swapObj = S.cfg.noSwaps ? 0 : p.workers.filter(w => (w.disc === "PX") && ((w.lvl === "Sr" && w.placed) || (w.lvl === "Jr" && !w.placed))).length;
+      p.swapMile = S.cfg.noSwaps ? 0 : p.workers.filter(w => (w.disc === "DATA") && ((w.lvl === "Sr" && w.placed) || (w.lvl === "Jr" && !w.placed))).length;
     });
   } else if (prev === "rest") {
     S.step = "milestones";
@@ -643,6 +643,12 @@ E.parseBuild = parseBuild;
 E.srDiscount = function (S, p) { return p && p.rs ? Math.max(0, (p.rs.srPlaced || 0) * (S.cfg.srBuildDiscount || 0)) : 0; };
 E.resTotal = function (p) { return RES.reduce((t, k) => t + (p[k] || 0), 0); };
 /* A system's printed cost "4M+Eng+QA" is paid in resources of the roles it needs: the total is split evenly across their categories (the first category gets any odd unit). */
+/* Variant C synergy: a system's main resource is the one its printed cost asks for most (ties: first role listed). */
+E.sysMainRes = function (def) {
+  const b = parseBuild(def.build), need = E.buildNeed(b); let best = null;
+  RES.forEach(k => { if (need[k] > 0 && (best === null || need[k] > need[best])) best = k; });
+  return best;
+};
 E.buildNeed = function (b) {
   const need = { ideas: 0, code: 0, process: 0, buzz: 0 }; if (b.cur !== "M") return need;
   const cats = []; b.reqs.forEach(r => { const c = CAT_OF(r); if (!cats.includes(c)) cats.push(c); });
@@ -1213,7 +1219,7 @@ E.score = function (S) {
       if (!st.met && c.objPartial && st.reqs.length >= 2 && unmet === 1) { const h = Math.floor(o.vp / 2 * (c.objVPMult == null ? 1 : c.objVPMult)); s.objectives += h; s.objList[s.objList.length - 1].partial = h; }
       if (st.met) {
         s.objectives += o.vp * (c.objVPMult == null ? 1 : c.objVPMult);
-        if (c.synergyOn) p.systems.forEach(sy => { const d = sysDef(S, sy.name); if (d.sym.some(x => o.sym.includes(x))) s.synergy += d.syn * (c.synergyMult == null ? 1 : c.synergyMult); });
+        if (c.synergyOn) p.systems.forEach(sy => { const d = sysDef(S, sy.name); if (c.varC ? (o.res && E.sysMainRes(d) === o.res) : d.sym.some(x => o.sym.includes(x))) s.synergy += d.syn * (c.synergyMult == null ? 1 : c.synergyMult); });
       }
     });
     s.systems = Math.round(p.systems.reduce((a, sy) => a + sysDef(S, sy.name).vp, 0) * (c.sysVPMult == null ? 1 : c.sysVPMult) * 10) / 10;

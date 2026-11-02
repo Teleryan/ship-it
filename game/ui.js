@@ -61,6 +61,8 @@ function fxHtml(str) {
 const crewChips = spot => (spot.crew || []).map(alt => alt.map(c => `<span class="chip" style="background:${(D.categories[c] || {}).color || "#667"}">${c}</span>`).join("+")).join(' <span class="mute">or</span> ');
 const fmtBuild = s => { const p = String(s).split("+"); const m = p[0].match(/^(\d+)([MG])$/); if (!m) return s; let head; if (m[2] === "M") { const need = E.buildNeed(E.parseBuild(s)), tot = E.RES.reduce((t, k) => t + need[k], 0), gp = U.S && U.S.cfg.sysGoldMult ? Math.round(tot * U.S.cfg.sysGoldMult) : 0; head = E.resText(need) + (gp ? " + " + gp + " Gold" : ""); } else head = m[1] + "G"; return head + (p.length > 1 ? " · needs " + p.slice(1).map(nameOf).join(" and ") + " workers" : ""); };
 const chip = (d, extra) => `<span class="chip" style="background:${dcol(d)}" title="${esc(D.disciplines[d] ? D.disciplines[d].name : d)}">${esc(D.disciplines[d] ? D.disciplines[d].name : d)}${extra || ""}</span>`;
+const symTag = x => { if (U.S && U.S.cfg.varC) { const k = x.res || (x.build ? E.sysMainRes(x) : null); return k ? ic(k) : ""; } return symHtml(x.sym); };
+const symLine = x => { if (U.S && U.S.cfg.varC) return ""; return `<p class="mute">${(x.sym || []).map(s => D.symbols[s].glyph + " " + D.symbols[s].meaning).join(" · ")}</p>`; };
 const symHtml = a => (a || []).map(s => `<span class="sym" style="color:${D.symbols[s].color}" title="${D.symbols[s].meaning}">${D.symbols[s].glyph}</span>`).join("");
 const catColor = { Innovation: "#e67e22", Stability: "#c0392b", Reach: "#e91e63", Revenue: "#f5c542" };
 const P = i => U.S.players[i];
@@ -232,7 +234,7 @@ function recruitPanel(S) {
 }
 function buildingsList(S, p) {
   const b = p.building || []; if (!b.length) return "";
-  return b.map(x => { const def = E.sysDef(S, x.name); return `<div class="sys" style="border-style:dashed;border-color:${catColor[x.cat]};opacity:.85"><div class="t">${esc(x.name)} ${symHtml(def.sym)}</div><div class="meta">${x.cat} · <b>Building</b>, ready in round ${x.rdy}${x.rush ? " (rushed)" : ""}</div></div>`; }).join("");
+  return b.map(x => { const def = E.sysDef(S, x.name); return `<div class="sys" style="border-style:dashed;border-color:${catColor[x.cat]};opacity:.85"><div class="t">${esc(x.name)} ${symTag(def)}</div><div class="meta">${x.cat} · <b>Building</b>, ready in round ${x.rdy}${x.rush ? " (rushed)" : ""}</div></div>`; }).join("");
 }
 function boardView(S) {
   const ph = PH[S.phase]; const spots = E.activeSpots(S);
@@ -287,7 +289,7 @@ function playerPanel(S) {
     const def = E.sysDef(S, sy.name); let cls = "sys";
     const w = sel && U.sel != null ? p.workers.find(x => x.id === U.sel) : null; let reason = "";
     if (w) { const o = E.placementOptions(S, vi, w).find(x => x.target === "sys:" + i); if (o && o.ok) cls += " ok"; else reason = o ? o.reason : ""; }
-    h += `<button class="${cls}" style="border-color:${catColor[def.cat]}" data-act="detail" data-k="sys" data-id="${i}" data-p="${vi}" title="${esc(reason)}"><div class="t">${esc(def.name)} ${symHtml(def.sym)}</div><div class="meta">${def.cat} · trigger ${esc(fmtTrig(def.trig))}${sy.t ? " · <b>used</b>" : ""}</div><div class="e">${fxTxt(def.fx || def.each || "")}</div>${def.pas ? `<div class="e" style="color:var(--gold)">Passive: ${esc(def.pas)}</div>` : ""}<div class="vp">${def.vp} VP · synergy +${def.syn}</div></button>`;
+    h += `<button class="${cls}" style="border-color:${catColor[def.cat]}" data-act="detail" data-k="sys" data-id="${i}" data-p="${vi}" title="${esc(reason)}"><div class="t">${esc(def.name)} ${symTag(def)}</div><div class="meta">${def.cat} · trigger ${esc(fmtTrig(def.trig))}${sy.t ? " · <b>used</b>" : ""}</div><div class="e">${fxTxt(def.fx || def.each || "")}</div>${def.pas ? `<div class="e" style="color:var(--gold)">Passive: ${esc(def.pas)}</div>` : ""}<div class="vp">${def.vp} VP · synergy +${def.syn}</div></button>`;
   });
   h += "</div>";
   if ((p.building || []).length) h += `<div style="margin:10px 0 4px" class="mute">Building (finishes later; no trigger, passive or score until ready)</div><div class="row wrap">${buildingsList(S, p)}</div>`;
@@ -300,7 +302,7 @@ function playerPanel(S) {
 }
 function discCardHtml(disc, cls, attrs, hint, foot) {
   const d = D.disciplines[disc];
-  return `<div class="dcard ${cls || ""}" ${attrs || ""}><div class="hd" style="background:${dcol(disc)}">${esc(d.cat)}</div><div class="bd"><div class="code">${esc(d.name)}</div><div class="sm">${esc(d.short)}</div>${hint ? `<div class="hint">${esc(hint)}</div>` : ""}${foot ? `<div class="foot">${foot}</div>` : ""}</div></div>`;
+  return `<div class="dcard ${cls || ""}" ${attrs || ""}><div class="hd" style="background:${dcol(disc)}">${esc(d.cat)}</div><div class="bd"><div class="code">${esc(d.name)}</div><div class="sm">${esc(U.S && U.S.cfg.noSwaps && /swaps/.test(d.short) ? "Earns " + ICN[E.RES_OF[d.cat]] : d.short)}</div>${hint ? `<div class="hint">${esc(hint)}</div>` : ""}${foot ? `<div class="foot">${foot}</div>` : ""}</div></div>`;
 }
 function handCard(S, c, vi, mine) {
   const hint = mine && S.step === "hire" && !S.dq.length ? "Click to hire" : "";
@@ -312,7 +314,7 @@ function mileCard(S, id, vi, mine) {
 }
 function objCard(S, id, vi, mine) {
   const o = S.data.objectives[id]; const st = E.objectiveStatus(S, vi, id); const n = st.reqs.filter(r => r.ok).length;
-  return `<div class="sys" data-act="detail" data-k="obj" data-id="${id}" data-p="${vi}" style="width:170px;cursor:pointer;border-color:${st.met ? "var(--good)" : "var(--line)"}"><div class="t">${esc(o.name)} ${symHtml(o.sym)}</div><div class="meta">${o.type} · ${o.vp} VP · ${n}/${st.reqs.length} met</div></div>`;
+  return `<div class="sys" data-act="detail" data-k="obj" data-id="${id}" data-p="${vi}" style="width:170px;cursor:pointer;border-color:${st.met ? "var(--good)" : "var(--line)"}"><div class="t">${esc(o.name)} ${symTag(o)}</div><div class="meta">${o.type} · ${o.vp} VP · ${n}/${st.reqs.length} met</div></div>`;
 }
 function actionArea(S) {
   const a = actorName(S); if (!a || a.bot || S.dq.length) return draftView(S);
@@ -444,7 +446,7 @@ function decisionModal(S) {
   switch (d.t) {
     case "keepObj":
       h += `<h3 style="margin-bottom:8px">Choose your objectives (keep ${S.cfg.objKeep} of ${S.cfg.objDraw} per type)</h3>`;
-      Object.keys(d.opts).forEach(t => { h += `<div class="mute" style="margin:8px 0 4px">${t}</div><div class="row wrap">${d.opts[t].map((id, i) => { const o = S.data.objectives[id]; const sel = (U.keep && U.keep[t] === id) || (!U.keep || U.keep[t] == null) && i === 0; return `<div class="sys ${sel ? "ok" : ""}" style="width:220px;border-color:${sel ? "var(--gold)" : "var(--line)"}" data-act="keep" data-t="${t}" data-id="${id}"><div class="t">${esc(o.name)} ${symHtml(o.sym)}</div><div class="meta">${o.vp} VP</div>${o.reqs.map(r => `<div class="meta">• ${esc(r)}</div>`).join("")}</div>`; }).join("")}</div>`; });
+      Object.keys(d.opts).forEach(t => { h += `<div class="mute" style="margin:8px 0 4px">${t}</div><div class="row wrap">${d.opts[t].map((id, i) => { const o = S.data.objectives[id]; const sel = (U.keep && U.keep[t] === id) || (!U.keep || U.keep[t] == null) && i === 0; return `<div class="sys ${sel ? "ok" : ""}" style="width:220px;border-color:${sel ? "var(--gold)" : "var(--line)"}" data-act="keep" data-t="${t}" data-id="${id}"><div class="t">${esc(o.name)} ${symTag(o)}</div><div class="meta">${o.vp} VP</div>${o.reqs.map(r => `<div class="meta">• ${esc(r)}</div>`).join("")}</div>`; }).join("")}</div>`; });
       h += `<div style="margin-top:12px"><button class="btn primary" data-act="keep-ok">Confirm objectives</button></div>`; break;
     case "bid": {
       const isTurn = d.purpose === "turn";
@@ -459,10 +461,10 @@ function decisionModal(S) {
       const opts = S.pool.length ? S.pool : E.DISCS.map(x => ({ disc: x, lvl: "Jr" })).concat(E.srAllowed(S) ? E.DISCS.map(x => ({ disc: x, lvl: "Sr" })) : []);
       h += `<div class="row wrap">${opts.map(o => `<button class="btn sm" data-act="raid" data-disc="${o.disc}" data-lvl="${o.lvl}" ${p.gold < half(o.lvl) || (o.lvl === "Sr" && !E.srAllowed(S)) ? "disabled" : ""}>${o.lvl} ${o.disc} · ${half(o.lvl)}G</button>`).join("")}</div><div style="margin-top:10px"><button class="btn" data-act="raid-skip">Pass</button></div>`; break; }
     case "pivot": { const o = S.data.objectives[d.fresh], old = S.data.objectives[d.old];
-      h += `<h3>New Platform: ${esc(o.name)}</h3><div class="sys" style="width:240px"><div class="t">${esc(o.name)} ${symHtml(o.sym)}</div><div class="meta">${o.vp} VP</div>${o.reqs.map(r => `<div class="meta">• ${esc(r)}</div>`).join("")}</div><p class="mute">Current Platform: ${esc(old.name)} (${old.vp} VP)</p><div class="row"><button class="btn primary" data-act="pivot" data-r="1">Replace current</button><button class="btn" data-act="pivot" data-r="0">Keep both</button></div>`; break; }
+      h += `<h3>New Platform: ${esc(o.name)}</h3><div class="sys" style="width:240px"><div class="t">${esc(o.name)} ${symTag(o)}</div><div class="meta">${o.vp} VP</div>${o.reqs.map(r => `<div class="meta">• ${esc(r)}</div>`).join("")}</div><p class="mute">Current Platform: ${esc(old.name)} (${old.vp} VP)</p><div class="row"><button class="btn primary" data-act="pivot" data-r="1">Replace current</button><button class="btn" data-act="pivot" data-r="0">Keep both</button></div>`; break; }
     case "dropObj": h += `<h3>Remove ${d.left} objective(s) from scoring</h3><div class="row wrap">${p.objectives.map(id => { const o = S.data.objectives[id]; return `<div class="sys" data-act="drop" data-id="${id}" style="cursor:pointer"><div class="t">${esc(o.name)}</div><div class="meta">${o.vp} VP</div></div>`; }).join("")}</div>`; break;
     case "keepMile": h += `<h3>Keep ${d.keep} milestone(s)</h3><div class="row wrap">${d.opts.map(id => { const m = S.data.milestones[id]; return `<div class="sys" style="width:200px;cursor:pointer" data-act="keepm" data-id="${id}"><div class="t">${esc(m.name)}</div><div class="meta">${esc(m.text)}</div><div class="e" style="color:var(--gold)">+${m.gold}G</div></div>`; }).join("")}</div>`; break;
-    case "swapObjPick": { const all = [d.old].concat(d.opts); h += `<h3>Swap objective: keep one</h3><div class="row wrap">${all.map((id, i) => { const o = S.data.objectives[id]; return `<div class="sys" style="width:210px;cursor:pointer" data-act="swapp" data-id="${id}"><div class="t">${esc(o.name)} ${symHtml(o.sym)}</div><div class="meta">${i === 0 ? "current · " : ""}${o.vp} VP</div>${o.reqs.map(r => `<div class="meta">• ${esc(r)}</div>`).join("")}</div>`; }).join("")}</div>`; break; }
+    case "swapObjPick": { const all = [d.old].concat(d.opts); h += `<h3>Swap objective: keep one</h3><div class="row wrap">${all.map((id, i) => { const o = S.data.objectives[id]; return `<div class="sys" style="width:210px;cursor:pointer" data-act="swapp" data-id="${id}"><div class="t">${esc(o.name)} ${symTag(o)}</div><div class="meta">${i === 0 ? "current · " : ""}${o.vp} VP</div>${o.reqs.map(r => `<div class="meta">• ${esc(r)}</div>`).join("")}</div>`; }).join("")}</div>`; break; }
     case "patch": { const fx = S.data.crisis.find(c => c.id === "patch").params.fixes; h += `<h3>Emergency fixes</h3><p class="mute">${resNow(p)} · Tech Debt ${p.debt}</p><div class="row wrap">${fx.map((f, i) => `<button class="btn" data-act="patchfix" data-i="${i}" ${E.resTotal(p) < f[0] ? "disabled" : ""}>Spend ${f[0]} resources → −${f[1]} Debt</button>`).join("")}<button class="btn primary" data-act="patchdone">Done</button></div>`; break; }
   }
   return modalShell(h, { noClose: true });
@@ -553,11 +555,11 @@ function detailModal() {
     case "sys": case "market": {
       let def, idx = null;
       if (d.k === "sys") { idx = +d.id; const sy = P(+d.p).systems[idx]; if (!sy) return closeOnly(); def = E.sysDef(S, sy.name); } else { def = S.data.systems.find(x => x.name === d.id); if (!def) return closeOnly(); }
-      h += `<div class="dhead" style="background:${catColor[def.cat]}"><span>${def.cat}</span></div><div class="dtitle">${esc(def.name)} ${symHtml(def.sym)}</div>
+      h += `<div class="dhead" style="background:${catColor[def.cat]}"><span>${def.cat}</span></div><div class="dtitle">${esc(def.name)} ${symTag(def)}</div>
       ${def.pas ? `<p><b style="color:var(--gold)">Passive (always on):</b> ${esc(def.pas)}.</p>` : ""}<p class="mute">Trigger: place a ${esc(fmtTrig(def.trig))} worker here. Build cost: ${esc(fmtBuild(def.build))}.${def.debt ? ` Adds ${def.debt} Tech Debt when built.` : ""}</p>
       ${def.fx ? `<p><b>${esc(def.fx)}</b></p>` : ""}${def.once ? `<p>On build: ${esc(def.once)}</p>` : ""}${def.each ? `<p>Each time: ${esc(def.each)}</p>` : ""}
-      <p class="mute">${def.vp} VP at the end, plus ${def.syn} synergy VP if it shares a symbol with a completed objective.</p>
-      <p class="mute">${(def.sym || []).map(s => D.symbols[s].glyph + " " + D.symbols[s].meaning).join(" · ")}</p>`;
+      <p class="mute">${def.vp} VP at the end, plus ${def.syn} synergy VP if it shares ${U.S.cfg.varC ? "its main resource (" + ICN[E.sysMainRes(def)] + ")" : "a symbol"} with a completed objective.</p>
+      ${symLine(def)}`;
       if (d.k === "sys") h += placeSection(S, "sys:" + idx);
       else if (U.modal === "market" && S.step === "build" && mineTurn) {
         const p = P(a), free = p.freeBuilds > 0; const crd = S.cfg.varC && U.crunch ? U.crunch : undefined; const ck = E.canBuild(S, a, def.name, free, crd), ckp = free ? E.canBuild(S, a, def.name, false, crd) : ck;
@@ -571,7 +573,7 @@ function detailModal() {
       break; }
     case "obj": {
       const id = +d.id, o = S.data.objectives[id]; if (!o) return closeOnly(); const st = E.objectiveStatus(S, +d.p, id);
-      h += `<div class="dtitle">${esc(o.name)} ${symHtml(o.sym)}</div><p class="mute">${o.type} objective · ${o.vp} VP at the end if completed</p>${st.reqs.map(r => `<p style="color:${r.ok ? "var(--good)" : "var(--ink)"}">${r.ok ? "✓" : "○"} ${esc(r.r)}</p>`).join("")}<p class="mute">${(o.sym || []).map(s => D.symbols[s].glyph + " " + D.symbols[s].meaning).join(" · ")}</p>`;
+      h += `<div class="dtitle">${esc(o.name)} ${symTag(o)}</div><p class="mute">${o.type} objective · ${o.vp} VP at the end if completed</p>${st.reqs.map(r => `<p style="color:${r.ok ? "var(--good)" : "var(--ink)"}">${r.ok ? "✓" : "○"} ${esc(r.r)}</p>`).join("")}${U.S.cfg.varC && o.res ? `<p class="mute">Resource: ${ICN[o.res]}. Built systems whose main resource is ${ICN[o.res]} earn synergy VP once this is completed.</p>` : symLine(o)}`;
       if (S.step === "rest" && mineTurn && a === +d.p && P(a).swapObj > 0) h += `<div class="row" style="margin-top:12px">${actBtn("Swap this objective", `data-act="swapObj" data-obj="${id}"`, false, "", false)}</div>`;
       break; }
     case "crisis": { const c = S.crisisCard && S.data.crisis.find(x => x.id === S.crisisCard); if (!c) return closeOnly(); h += crisisCardHtml(c); break; }
@@ -586,9 +588,9 @@ function marketModal() {
   let h = `<h2>Systems Market</h2>` + (S.cfg.varC ? `<div class="row wrap" style="margin-bottom:8px;gap:8px;align-items:center"><b>Build speed:</b>${rdFree ? `<span class="mute">R&amp;D: your build is rushed for free (ready in round ${S.round + S.cfg.crunchDelay})</span>` : [["none", "Normal · ready in round " + (S.round + S.cfg.buildDelay)], ["gold", "Rush with Gold (+" + S.cfg.crunchGold + "G) · round " + (S.round + S.cfg.crunchDelay)], ["fat", "Rush by tiring a worker · round " + (S.round + S.cfg.crunchDelay)]].map(o => `<button class="tab ${(cr || "none") === o[0] ? "on" : ""}" data-act="crunch" data-v="${o[0]}">${o[1]}</button>`).join("")}</div>` : "") + `<div class="row wrap" style="margin-bottom:10px">${["All"].concat(E.CATS).map(c => `<button class="tab ${cat === c ? "on" : ""}" data-act="mcat" data-v="${c}">${c}</button>`).join("")}<span class="grow"></span><span class="mono">${resNow(a)} · Gold <b style="color:var(--gold)">${a.gold}</b> · builds ${a.builds}/${E.maxBuilds(S, a)}${free ? " · FREE build ready" : ""}</span></div>` + (cat !== "All" && D.typeRules && D.typeRules[cat] ? `<div class="mute" style="margin:0 0 8px"><b>${cat}:</b> ${esc(D.typeRules[cat])}</div>` : "");
   const cards = list.map(d => {
     const ck = E.canBuild(S, a.id, d.name, free, cr); const ckPaid = free ? E.canBuild(S, a.id, d.name, false, cr) : ck;
-    const hint = a.objectives.some(id => d.sym.some(s => S.data.objectives[id].sym.includes(s)));
+    const hint = a.objectives.some(id => S.cfg.varC ? S.data.objectives[id].res === E.sysMainRes(d) : d.sym.some(s => S.data.objectives[id].sym.includes(s)));
     return { ok: ck.ok || ckPaid.ok, html: `<div class="sys" data-act="detail" data-k="market" data-id="${esc(d.name)}" style="width:200px;cursor:pointer;border-color:${catColor[d.cat]};display:flex;flex-direction:column;gap:2px">${d.debt ? `<span class="corner" style="position:absolute;top:0;right:0;background:var(--bad);color:#fff;font-size:10px;font-weight:800;padding:0 6px 0 9px;border-radius:0 7px 0 10px">+${d.debt}D</span>` : ""}
-      <div class="t">${esc(d.name)} ${symHtml(d.sym)}${hint ? ' <span title="Shares a symbol with one of your objectives" style="color:var(--gold)">★</span>' : ""}</div><div class="meta">${d.cat} · trigger ${esc(fmtTrig(d.trig))}</div>
+      <div class="t">${esc(d.name)} ${symTag(d)}${hint ? ' <span title="Shares its main resource or symbol with one of your objectives" style="color:var(--gold)">★</span>' : ""}</div><div class="meta">${d.cat} · trigger ${esc(fmtTrig(d.trig))}</div>
       <div class="meta">Build <b style="color:var(--ink)">${esc(fmtBuild(d.build))}</b></div><div class="e">${fxTxt(d.fx || "")}</div>${d.pas ? `<div class="e" style="color:var(--gold)">Passive: ${esc(d.pas)}</div>` : ""}${d.once ? `<div class="e">★ Once: ${fxTxt(d.once)}</div>` : ""}${d.each ? `<div class="e">■ Each: ${fxTxt(d.each)}</div>` : ""}
       <div class="meta" style="color:var(--gold)">${d.vp} VP · synergy +${d.syn}</div>
       <div class="row" style="margin-top:auto;padding-top:6px;gap:4px"><button class="btn sm primary" data-act="build" data-name="${esc(d.name)}" data-free="0" ${ckPaid.ok ? "" : "disabled"} title="${esc(ckPaid.ok ? "" : ckPaid.reason)}">Build</button>${S.cfg.marketSize ? `<button class="btn sm" data-act="refresh-sys" data-name="${esc(d.name)}" ${canRefresh ? "" : "disabled"} title="Replace this tile with a new one for ${S.cfg.marketRefreshGold}G (once per round)">Replace ${S.cfg.marketRefreshGold}G</button>` : ""}${free ? `<button class="btn sm good" data-act="build" data-name="${esc(d.name)}" data-free="1" ${ck.ok ? "" : "disabled"} title="${esc(ck.ok ? "" : ck.reason)}">Free</button>` : ""}</div>${!ckPaid.ok ? `<div class="dim" style="font-size:10px">${esc(ckPaid.reason)}</div>` : ""}</div>` };
