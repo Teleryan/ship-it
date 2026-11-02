@@ -176,7 +176,7 @@ function topbar(S) {
   <span class="phasepill" style="background:${ph.color}">${ph.name.toUpperCase()}</span><b>Round ${S.round}/12</b>${stepTracker(S)}
   <div class="grow"></div>
   ${U.net ? `<span class="mute" title="Game code">${U.net.up ? "●" : "○ reconnecting"} Game ${esc(U.net.code)}</span>` : U.tut ? "" : `<button class="btn sm" data-act="undo" ${U.undo.length ? "" : "disabled"}>↶ Undo</button>`}
-  <button class="btn sm" data-act="milesref">Milestones</button><button class="btn sm" data-act="log">Log</button>${U.net ? "" : '<button class="btn sm" data-act="save">Save</button>'}
+  <button class="btn sm" data-act="rules">Rules</button><button class="btn sm" data-act="milesref">Milestones</button><button class="btn sm" data-act="log">Log</button>${U.net ? "" : '<button class="btn sm" data-act="save">Save</button>'}
   ${U.owner ? '<button class="btn sm" data-act="studio">Data Studio</button><button class="btn sm" data-act="master">Master</button>' : ""}${U.tut || (S && S.over) || (U.net && !U.net.host) ? "" : '<button class="btn sm" data-act="endgame">End game</button>'}<button class="btn sm" data-act="menu">${U.net ? "Leave" : "Menu"}</button></div>`;
 }
 function prompt(S) {
@@ -604,6 +604,11 @@ function marketStrip(S) {
   }).join("");
   return `<div class="panel" data-tut="mstrip"><h3>Systems for sale <span class="mute" style="font-weight:400;font-size:11px">· ${p ? esc(p.name) : ""} · greyed = cannot build yet · tap for details</span></h3><div class="mgrid">${rows}</div></div>`;
 }
+function rulesModal() {
+  const R = root.SHIPIT_RULES || []; const id = U.rulesTab || "start"; const cur = R.find(r => r.id === id) || R[0];
+  if (!cur) return modalShell("<h2>Rules</h2><p class=\"mute\">Rules are not loaded.</p>");
+  return modalShell(`<h2>Rules <span class="mute" style="font-size:13px;font-weight:400">· guides, icons and card lists</span></h2><style>${root.SHIPIT_RULES_CSS || ""}.paper{background:#fff;color:#1b2430;border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.4}.paper .rh{font-size:20px;margin:0 0 8px;border-bottom:3px solid #1b2430;padding-bottom:4px}.paper .rh small{font-size:12px;color:#5b6775;font-weight:400;margin-left:10px}.paper hr{border:0;border-top:2px dashed #c9d1da;margin:16px 0}.paper .cards{margin-top:10px}.paper .card{min-height:0}.rtabs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 10px}</style><div class="rtabs">${R.map(r => `<button class="tab ${r.id === cur.id ? "on" : ""}" data-act="rtab" data-v="${r.id}">${r.title}</button>`).join("")}</div><div class="scroll-y" style="max-height:68vh"><div class="paper">${cur.html}</div></div>`, { wide: true });
+}
 function marketModal() {
   const S = U.S; const a = P(E.currentActor(S)); const cat = U.marketCat || "All"; const free = a.freeBuilds > 0;
   const list = S.data.systems.filter(d => E.inMarket(S, d) && (cat === "All" || d.cat === cat)); const canRefresh = !!S.cfg.marketSize && (a.refreshed || 0) < (S.cfg.marketRefreshesPerRound || 1) && a.gold >= S.cfg.marketRefreshGold;
@@ -662,6 +667,7 @@ function render() {
     else if (U.modal === "master" && U.owner) h += masterModal();
     else if (U.modal === "endgame") h += endGameModal();
     else if (U.modal === "milesref") h += milesModal(S);
+    else if (U.modal === "rules") h += rulesModal();
     else if (U.modal === "market" && S.step === "build") h += marketModal();
     else if (S.over && U.modal !== "noresults") h += resultsModal();
     else if (hasHuman && !U.tut && S.crisisCard && U.seenCrisis !== (S.phase + S.crisisCard) && !S.over && !humanDecision) h += crisisIntroModal(S.data.crisis.find(c => c.id === S.crisisCard));
@@ -798,7 +804,8 @@ $root.addEventListener("click", e => {
   const t = e.target.closest("[data-act]"); if (!t) return;
   if (t.classList.contains("overlay") && e.target !== t) return;
   if (U.tut && (t.dataset.act === "detail") && !t.closest(".coach") && !SI.tutAllowsDetail()) { toast("We will cover that in a moment"); return; }
-  if (U.tut) { const lm = SI.tutLockMode(); if (lm && !t.closest(".coach") && !(lm === "soft" && t.closest(".overlay"))) return; }
+  const rulesAct = t.dataset.act === "rules" || t.dataset.act === "rtab" || (U.modal === "rules" && (t.dataset.act === "close" || t.dataset.act === "overlay"));
+  if (U.tut && !rulesAct) { const lm = SI.tutLockMode(); if (lm && !t.closest(".coach") && !(lm === "soft" && t.closest(".overlay"))) return; }
   const v = t.dataset.v; const S = U.S; const a = S ? E.currentActor(S) : -1;
   switch (t.dataset.act) {
     case "gate": tryGate(); return;
@@ -851,6 +858,8 @@ $root.addEventListener("click", e => {
     case "menu": if (U.net) { leaveRoom(); return; } SI.an.abandon(U.S); U.screen = "menu"; U.modal = null; clearTimeout(U.botT); clearAuto(); render(); return;
     case "milesref": U.modal = "milesref"; render(); return;
     case "log": U.logOpen = !U.logOpen; render(); return;
+    case "rules": U.modal = "rules"; render(); return;
+    case "rtab": U.rulesTab = v; render(); return;
     case "save": save(); return;
     case "undo": if (U.undo.length) { restore(U.undo.pop()); U.sel = null; render(); scheduleBots(); } return;
     case "view": U.view = +v; render(); return;
