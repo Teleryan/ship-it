@@ -412,7 +412,7 @@ function crisisCardHtml(c) {
 function gameView() {
   const S = U.S;
   const crisis = S.crisisCard ? S.data.crisis.find(c => c.id === S.crisisCard) : null;
-  return `<div class="app">${topbar(S)}<div class="main"><div class="left">${banner(S)}${actionArea(S)}${recruitPanel(S)}${boardView(S)}${playerPanel(S)}</div>
+  return `<div class="app">${topbar(S)}<div class="main"><div class="left">${banner(S)}${actionArea(S)}${recruitPanel(S)}${boardView(S)}${marketStrip(S)}${playerPanel(S)}</div>
   <div class="right"><div class="panel"><h3>Studios</h3><div class="col">${playersPanel(S)}</div></div>${racePanel(S)}${gatesPanel(S)}${crisis ? `<div class="panel" data-tut="crisis" data-act="detail" data-k="crisis" style="cursor:pointer"><h3>Active crisis</h3>${crisisCardHtml(crisis)}</div>` : ""}
   <div class="panel"><h3>Game log <button class="btn sm" data-act="log">${U.logOpen ? "Hide" : "Show all"}</button></h3><div class="log" style="${U.logOpen ? "max-height:60vh" : ""}">${S.log.slice(U.logOpen ? -300 : -14).reverse().map(l => `<div><span class="r">R${l.r}</span> ${esc(l.m)}</div>`).join("")}</div></div></div></div></div>`;
 }
@@ -581,6 +581,28 @@ function detailModal() {
   }
   return modalShell(h, { cls: "detail" + (h.indexOf('class="dhead"') >= 0 ? " hashead" : "") });
 }
+const buildChips = str => {
+  const p = String(str).split("+"), m = p[0].match(/^(\d+)([MG])$/); if (!m) return esc(str);
+  let h = "";
+  if (m[2] === "M") { const need = E.buildNeed(E.parseBuild(str)), tot = E.RES.reduce((t, k) => t + need[k], 0), gp = U.S && U.S.cfg.sysGoldMult ? Math.round(tot * U.S.cfg.sysGoldMult) : 0; E.RES.forEach(k => { if (need[k] > 0) h += `<span class="bc">${need[k]}${ic(k)}</span>`; }); if (gp) h += `<span class="bc">${gp}${ic("gold")}</span>`; }
+  else h = `<span class="bc">${m[1]}${ic("gold")}</span>`;
+  const roles = p.slice(1).map(nameOf); return h + (roles.length ? `<span class="roles">${esc(roles.join(" + "))}</span>` : "");
+};
+/* Compact system tile: name, main resource, VP, cost icons, one effect line. Detail lives in the popup. */
+function sysTile(d, ok, extra) {
+  const hint = U.S && U.S.cfg.varC && viewHasSyn(d);
+  return `<div class="sys2 ${ok ? "" : "off"}" data-act="detail" data-k="market" data-id="${esc(d.name)}" style="border-color:${catColor[d.cat]}"><div class="h"><span class="n">${esc(d.name)}</span>${symTag(d)}${hint ? '<span class="star" title="Matches the resource of one of your objectives">★</span>' : ""}<span class="vp">${d.vp} VP</span></div><div class="c">${buildChips(d.build)}</div><div class="e">${fxTxt(d.fx || d.pas || "")}</div><div class="trg">Trigger ${esc(fmtTrig(d.trig))}${d.debt ? ` · <b class="bad">+${d.debt} Debt</b>` : ""}</div>${extra || ""}</div>`;
+}
+const viewHasSyn = d => { const S = U.S, p = S.players[viewIndex(S)]; return !!p && p.objectives.some(id => S.data.objectives[id].res && S.data.objectives[id].res === E.sysMainRes(d)); };
+function marketStrip(S) {
+  if (!S.cfg.varC || !S.cfg.marketSize) return "";
+  const vi = viewIndex(S), p = S.players[vi]; const cr = U.crunch;
+  const rows = E.CATS.map(cat => {
+    const tiles = (S.market[cat] || []).map(n => { const d = E.sysDef(S, n); const ck = E.canBuild(S, vi, n, false, cr); return sysTile(d, ck.ok); }).join("") || '<span class="mute">Sold out</span>';
+    return `<div class="mrow"><div class="lab" style="color:${catColor[cat]}">${cat}</div><div class="tiles">${tiles}</div></div>`;
+  }).join("");
+  return `<div class="panel" data-tut="mstrip"><h3>Systems for sale <span class="mute" style="font-weight:400;font-size:11px">· ${p ? esc(p.name) : ""} · greyed = cannot build yet · tap for details</span></h3>${rows}</div>`;
+}
 function marketModal() {
   const S = U.S; const a = P(E.currentActor(S)); const cat = U.marketCat || "All"; const free = a.freeBuilds > 0;
   const list = S.data.systems.filter(d => E.inMarket(S, d) && (cat === "All" || d.cat === cat)); const canRefresh = !!S.cfg.marketSize && (a.refreshed || 0) < (S.cfg.marketRefreshesPerRound || 1) && a.gold >= S.cfg.marketRefreshGold;
@@ -589,11 +611,7 @@ function marketModal() {
   const cards = list.map(d => {
     const ck = E.canBuild(S, a.id, d.name, free, cr); const ckPaid = free ? E.canBuild(S, a.id, d.name, false, cr) : ck;
     const hint = a.objectives.some(id => S.cfg.varC ? S.data.objectives[id].res === E.sysMainRes(d) : d.sym.some(s => S.data.objectives[id].sym.includes(s)));
-    return { ok: ck.ok || ckPaid.ok, html: `<div class="sys" data-act="detail" data-k="market" data-id="${esc(d.name)}" style="width:200px;cursor:pointer;border-color:${catColor[d.cat]};display:flex;flex-direction:column;gap:2px">${d.debt ? `<span class="corner" style="position:absolute;top:0;right:0;background:var(--bad);color:#fff;font-size:10px;font-weight:800;padding:0 6px 0 9px;border-radius:0 7px 0 10px">+${d.debt}D</span>` : ""}
-      <div class="t">${esc(d.name)} ${symTag(d)}${hint ? ' <span title="Shares its main resource or symbol with one of your objectives" style="color:var(--gold)">★</span>' : ""}</div><div class="meta">${d.cat} · trigger ${esc(fmtTrig(d.trig))}</div>
-      <div class="meta">Build <b style="color:var(--ink)">${esc(fmtBuild(d.build))}</b></div><div class="e">${fxTxt(d.fx || "")}</div>${d.pas ? `<div class="e" style="color:var(--gold)">Passive: ${esc(d.pas)}</div>` : ""}${d.once ? `<div class="e">★ Once: ${fxTxt(d.once)}</div>` : ""}${d.each ? `<div class="e">■ Each: ${fxTxt(d.each)}</div>` : ""}
-      <div class="meta" style="color:var(--gold)">${d.vp} VP · synergy +${d.syn}</div>
-      <div class="row" style="margin-top:auto;padding-top:6px;gap:4px"><button class="btn sm primary" data-act="build" data-name="${esc(d.name)}" data-free="0" ${ckPaid.ok ? "" : "disabled"} title="${esc(ckPaid.ok ? "" : ckPaid.reason)}">Build</button>${S.cfg.marketSize ? `<button class="btn sm" data-act="refresh-sys" data-name="${esc(d.name)}" ${canRefresh ? "" : "disabled"} title="Replace this tile with a new one for ${S.cfg.marketRefreshGold}G (once per round)">Replace ${S.cfg.marketRefreshGold}G</button>` : ""}${free ? `<button class="btn sm good" data-act="build" data-name="${esc(d.name)}" data-free="1" ${ck.ok ? "" : "disabled"} title="${esc(ck.ok ? "" : ck.reason)}">Free</button>` : ""}</div>${!ckPaid.ok ? `<div class="dim" style="font-size:10px">${esc(ckPaid.reason)}</div>` : ""}</div>` };
+    return { ok: ck.ok || ckPaid.ok, html: sysTile(d, ck.ok || ckPaid.ok, `<div class="row" style="margin-top:6px;gap:4px"><button class="btn sm primary" data-act="build" data-name="${esc(d.name)}" data-free="0" ${ckPaid.ok ? "" : "disabled"} title="${esc(ckPaid.ok ? "" : ckPaid.reason)}">Build</button>${S.cfg.marketSize ? `<button class="btn sm" data-act="refresh-sys" data-name="${esc(d.name)}" ${canRefresh ? "" : "disabled"} title="Replace this tile with a new one for ${S.cfg.marketRefreshGold}G (once per round)">Replace ${S.cfg.marketRefreshGold}G</button>` : ""}${free ? `<button class="btn sm good" data-act="build" data-name="${esc(d.name)}" data-free="1" ${ck.ok ? "" : "disabled"} title="${esc(ck.ok ? "" : ck.reason)}">Free</button>` : ""}</div>${!ckPaid.ok ? `<div class="dim" style="font-size:10px">${esc(ckPaid.reason)}</div>` : ""}`) };
   });
   const can = cards.filter(c => c.ok), cant = cards.filter(c => !c.ok);
   h += `<div class="scroll-y"><div class="mute" style="margin:0 0 6px;font-weight:700">You can build now (${can.length})</div>${can.length ? `<div class="row wrap" style="align-items:stretch">${can.map(c => c.html).join("")}</div>` : '<p class="mute">Nothing available right now. See below for what each system needs.</p>'}
