@@ -200,8 +200,8 @@ function buildingsList(S, p) {
 }
 function boardView(S) {
   const ph = PH[S.phase]; const spots = E.activeSpots(S);
-  const SIDE = ["team", "insight", "outsource", "workshop", "mentor", "crunch", "fundraise"]; const isSide = s => s.mode === "shared" || SIDE.includes(s.id); const main = spots.filter(s => !isSide(s)); const shared = spots.filter(isSide);
-  const rows = []; main.forEach(s => { let r = rows.find(x => x.name === s.row && !(S.phase === 3)); if (!r) { r = { name: s.row, items: [] }; rows.push(r); } r.items.push(s); });
+  const SIDE = ["team", "insight", "outsource", "workshop", "mentor", "crunch", "fundraise"]; const isSide = s => s.mode === "shared" || SIDE.includes(s.id) || (S.cfg.varC && (s.id === "talent1" || s.id === "rd")); const main = spots.filter(s => !isSide(s)); const shared = spots.filter(isSide);
+  const rows = []; main.forEach(s => { let r = rows.find(x => x.name === s.row && !(S.phase === 3)); if (!r) { r = { name: s.row, items: [] }; rows.push(r); } r.items.push(s); }); if (S.cfg.varC) { const ORD = ["EARN", "PROGRESS", "HYPE", "CREW"]; rows.sort((a, b) => (ORD.indexOf(a.name) < 0 ? 9 : ORD.indexOf(a.name)) - (ORD.indexOf(b.name) < 0 ? 9 : ORD.indexOf(b.name))); }
   const launch = S.phase === 3;
   return `<div class="panel"><h3><span style="color:${ph.color}">Main board: ${ph.name}</span><span class="mute" style="text-transform:none;letter-spacing:0">${S.cfg.spotResOr ? `Resource spots earn the resource of the role: Jr +${S.cfg.resJr} · Sr +${S.cfg.resSr} (times the spot's ×). Progress and Hype spots earn no resources.` : `Each placement earns 1 resource of the role: Jr +${S.cfg.resJr} · Sr +${S.cfg.resSr} (+${S.cfg.srBonus} Progress or Marketing) · Over-Tired +${S.cfg.resOver}`}</span></h3>
   <div class="board" data-tut="board"><div class="rows">${launch ? `<div class="spots">${main.map(s => spotTile(S, s)).join("")}</div>` : rows.map(r => `<div class="brow" data-row="${esc(r.name)}"><div class="lab" style="color:${ph.color}">${esc(r.name)}</div><div class="spots">${r.items.map(s => spotTile(S, s)).join("")}</div></div>`).join("")}
