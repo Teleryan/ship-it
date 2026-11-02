@@ -29,7 +29,7 @@ const g1=q.gold;r=E.act(S,{type:'build',p:pi,name:'Version Control',crunch:'gold
 let rr=S.round;while(S.round===rr&&!S.over){const x=B.decide(S);if(!x||!E.act(S,x).ok)break}
 ok(q.systems.some(s=>s.name==='Version Control')||q.building.length===0,'rushed system finished at the next round');
 // late builds blocked
-S=mk(7);toStep(S,'build',11);pi=E.currentActor(S);ok(S.round===11,'reached round 11 build step');q=S.players[pi];q.gold=40;['ideas','code','process','buzz'].forEach(k=>q[k]=10);q.workers=[{id:901,disc:'ENG',lvl:'Jr',fat:0,placed:false,as:null,worked:false}];S.market.Stability=['Version Control'];S.sysAvail['Version Control']=true;
+S=mk(7);toStep(S,'build',11);pi=E.currentActor(S);ok(S.round===11,'reached round 11 build step');q=S.players[pi];q.systems=[];q.building=[];q.gold=40;['ideas','code','process','buzz'].forEach(k=>q[k]=10);q.workers=[{id:901,disc:'ENG',lvl:'Jr',fat:0,placed:false,as:null,worked:false}];S.market.Stability=['Version Control'];S.sysAvail['Version Control']=true;
 ok(!E.canBuild(S,pi,'Version Control',false,undefined).ok,'normal build blocked in round 11');ok(E.canBuild(S,pi,'Version Control',false,'gold').ok,'crunched build allowed in round 11');
 // conversion
 S=mk(8);toStep(S,'place',12);pi=E.currentActor(S);q=S.players[pi];q.ideas=7;q.workers.push({id:902,disc:'ART',lvl:'Jr',fat:0,placed:false,as:null,worked:false});const pr0=q.prod;
