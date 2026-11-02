@@ -7,12 +7,15 @@ const KEY = "shipit.studio.v2"; // v2 stores only deliberate edits (differences 
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 SI.esc = esc;
 
+// array data normally has to match the default length; the tutorial list is matched by row id so rows can be added later without losing edits
+const mergeRows = (def, over) => { const m = {}; (over || []).forEach(r => { if (r && r.id) m[r.id] = r; }); return def.map(r => m[r.id] ? Object.assign({}, r, { title: m[r.id].title, btn: m[r.id].btn, text: m[r.id].text }) : r); };
+const putData = (d, k, v) => { if (!Array.isArray(v)) return; if (k === "tutorial") d.data[k] = mergeRows(d.data[k], v); else if (v.length === d.data[k].length) d.data[k] = v; };
 SI.defaults = () => { const config = E.defaultConfig(); return { config, data: E.defaultData(config) }; };
 SI.loadStudio = function () {
   const d = SI.defaults();
   try {
     const raw = root.localStorage && root.localStorage.getItem(KEY);
-    if (raw) { const o = JSON.parse(raw); if (o.config) Object.assign(d.config, o.config); if (o.data) Object.keys(o.data).forEach(k => { if (Array.isArray(o.data[k]) && o.data[k].length === d.data[k].length) d.data[k] = o.data[k]; }); }
+    if (raw) { const o = JSON.parse(raw); if (o.config) Object.assign(d.config, o.config); if (o.data) Object.keys(o.data).forEach(k => putData(d, k, o.data[k])); }
   } catch (e) {}
   return d;
 };
@@ -36,7 +39,7 @@ SI.diffOf = function (st) {
 SI.applyDiff = function (o) {
   const d = SI.defaults(); if (!o) return d;
   if (o.config) Object.assign(d.config, o.config);
-  if (o.data) Object.keys(o.data).forEach(k => { if (Array.isArray(o.data[k]) && o.data[k].length === d.data[k].length) d.data[k] = o.data[k]; });
+  if (o.data) Object.keys(o.data).forEach(k => putData(d, k, o.data[k]));
   return d;
 };
 })(typeof window !== "undefined" ? window : globalThis);

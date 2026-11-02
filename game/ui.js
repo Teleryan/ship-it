@@ -78,7 +78,7 @@ function scheduleBots() {
 }
 function newGame() {
   const seats = U.seats.map((s, i) => ({ name: s.name || ("Player " + (i + 1)), bot: s.bot }));
-  const st = U.studio;
+  const st = U.studio; U.tutDone = false;
   U.S = E.newGame(seats, { config: E.clone(st.config), data: E.clone(st.data) });
   SI.an.abandon(U.prev); U.prev = null;
   SI.an.begin(U.S, { mode: "hotseat", site: SI.net.site(), tuned: U.tuned, test: U.testEnv, seats: [] }); U.prev = U.S;
@@ -86,7 +86,7 @@ function newGame() {
   render(); scheduleBots();
 }
 function startTutorial() {
-  clearTimeout(U.botT); U.S = SI.tutNew(); U.tut = SI.tutInit();
+  clearTimeout(U.botT); U.S = SI.tutNew(); U.tut = SI.tutInit(); U.tutDone = false;
   U.detail = null; U.screen = "game"; U.undo = []; U.sel = null; U.pop = null; U.cover = null; U.modal = null; U.view = null; U.seenCrisis = null; U.keep = null; U.marketCat = null;
   render(); scheduleBots();
 }
@@ -158,6 +158,13 @@ function banner(S) {
   ${S.step === "place" && a && !a.bot ? '<button class="btn" data-tut="pass" data-act="pass">Pass (done placing)</button>' : ""}
   ${["hire","build","rest","milestones"].includes(S.step) && a && !a.bot && !S.dq.length ? `<button class="btn primary" data-act="done">Done</button>` : ""}</div>`;
 }
+// which resource an earn spot pays: the worker's own role decides, so a spot whose roles share one category pays that resource, otherwise it is "by worker"
+function earnLabel(spot) {
+  const names = []; (spot.discs || []).forEach(d => { if (d === "ANY") return; const c = E.CAT_OF(d), n = c && E.RES_NAME[E.RES_OF[c]]; if (n && !names.includes(n)) names.push(n); });
+  const x = spot.r > 1 ? " ×" + spot.r : "";
+  if ((spot.discs || []).includes("ANY") || !names.length) return "Earn resources" + x + " (worker's role)";
+  return "Earn " + names.join(" or ") + x + (names.length > 1 ? " (by worker)" : "");
+}
 function spotTile(S, spot, view) {
   const occ = (S.occ[spot.id] || []);
   let cls = "spot", reason = "";
@@ -167,7 +174,7 @@ function spotTile(S, spot, view) {
   if (spot.mode === "shared" || ["team", "outsource", "workshop", "mentor", "crunch", "fundraise"].includes(spot.id)) cls += " shared-s";
   const mode = spot.mode === "shared" ? "SHARED" : spot.mode === "multi" ? "MULTI" : spot.excl ? "EXCL" : "";
   let fx = spot.fx || spot.tile || spot.note || "";
-  if (S.cfg.spotResOr && spot.r) fx = (spot.fx ? spot.fx + " · " : "") + "Earn resources" + (spot.r > 1 ? " ×" + spot.r : "");
+  if (S.cfg.spotResOr && spot.r) fx = (spot.fx ? spot.fx + " · " : "") + earnLabel(spot);
   const m = S.phase === 3 && S.cfg.launchMult !== 1 ? ` ×${S.cfg.launchMult}` : "";
   return `<button class="${cls}" data-act="detail" data-k="spot" data-id="${spot.id}" title="${esc(reason || spot.note || "")}" ${cls.includes("ok") ? "" : 'aria-disabled="true"'}>
     ${spot.debt ? `<span class="corner" title="Adds Tech Debt">+${spot.debt}</span>` : ""}
@@ -544,7 +551,7 @@ function poolResults(S, rows) {
   const cell = (x, vp) => { const o = x.obj + x.syn; return `<td>${x.total} <span class="dim">(${Math.round(x.base)} base · ${Math.round(x.sys)} sys · ${Math.round(o)} obj${x.adj ? " · " + (x.adj > 0 ? "+" : "") + Math.round(x.adj) + " gates/events" : ""}${x.debt ? " · " + Math.round(x.debt) + " debt" : ""})</span></td><td><b>${vp.toFixed(1)}</b></td>`; };
   let h = `<h2>${esc(P(S.winner).name)} ships the best game!</h2><div class="scroll-y"><table class="scoretbl"><thead><tr><th>Studio</th><th>Progress pts</th><th>VP</th><th>Hype pts</th><th>VP</th><th>TOTAL</th></tr></thead><tbody>`;
   rows.forEach(r => { h += `<tr class="${r.id === S.winner ? "win" : ""}"><td><span class="dot" style="background:${P(r.id).color};display:inline-block;margin-right:6px"></span>${esc(r.name)}</td>${cell(r.parts.pool.P, r.parts.prodShare)}${cell(r.parts.pool.H, r.parts.hypeStrength)}<td><b>${r.total.toFixed(0)}</b></td></tr>`; });
-  h += `</tbody></table>${U.tut ? SI.tutScoreExplainer(S) : ""}</div><div class="row" style="margin-top:14px"><button class="btn primary" data-act="${U.net ? "online-again" : "start"}">${U.tut ? "Start a real game" : "Play again"}</button><button class="btn" data-act="menu">Menu</button><button class="btn" data-act="close">Close</button></div>`;
+  h += `</tbody></table>${U.tut || U.tutDone ? SI.tutScoreExplainer(S) : ""}</div><div class="row" style="margin-top:14px"><button class="btn primary" data-act="${U.net ? "online-again" : "start"}">${U.tut || U.tutDone ? "Start a real game" : "Play again"}</button><button class="btn" data-act="menu">Menu</button><button class="btn" data-act="close">Close</button></div>`;
   return modalShell(h, { wide: true });
 }
 function resultsModal() {
@@ -554,7 +561,7 @@ function resultsModal() {
   const cols = [["prodShare", race ? "Progress race" : "Progress %"]].concat(race ? [] : [["mktShare","Marketing %"]]).concat([["hypeStrength", race ? "Hype race" : "Hype"]]).concat(race ? [] : [["delivery","Deliv."]]).concat([["debtPenalty","Debt"],["culture","Culture"],["objectives","Obj."],["synergy","Synergy"],["systems","Sys"]]).concat(race ? [] : [["launch","Launch"]]).concat([["reach","Reach"],["gold","Gold"],["crisis","Crisis/Gates"]]);
   let h = `<h2>${esc(P(S.winner).name)} ships the best game!</h2><div class="scroll-y"><table class="scoretbl"><thead><tr><th>Studio</th>${cols.map(c => `<th>${c[1]}</th>`).join("")}<th>TOTAL</th></tr></thead><tbody>`;
   rows.forEach(r => { h += `<tr class="${r.id === S.winner ? "win" : ""}"><td><span class="dot" style="background:${P(r.id).color};display:inline-block;margin-right:6px"></span>${esc(r.name)} <span class="dim">${race ? "Debt " + P(r.id).debt + " · Mktg " + P(r.id).mktg : r.parts.threshold + " " + r.parts.debtPct + "%"}</span></td>${cols.map(c => `<td>${(+r.parts[c[0]]).toFixed(c[0].includes("Share") && !S.cfg.raceScoring ? 1 : 0)}</td>`).join("")}<td><b>${r.total.toFixed(0)}</b></td></tr>`; });
-  h += `</tbody></table>${U.tut ? SI.tutScoreExplainer(S) : ""}</div><div class="row" style="margin-top:14px"><button class="btn primary" data-act="${U.net ? "online-again" : "start"}">${U.tut ? "Start a real game" : "Play again"}</button><button class="btn" data-act="menu">Menu</button><button class="btn" data-act="close">Close</button></div>`;
+  h += `</tbody></table>${U.tut || U.tutDone ? SI.tutScoreExplainer(S) : ""}</div><div class="row" style="margin-top:14px"><button class="btn primary" data-act="${U.net ? "online-again" : "start"}">${U.tut || U.tutDone ? "Start a real game" : "Play again"}</button><button class="btn" data-act="menu">Menu</button><button class="btn" data-act="close">Close</button></div>`;
   return modalShell(h, { wide: true });
 }
 function masterCtx() { return { U, render, toast, SI, E, D, closeModal: () => { U.modal = null; render(); } }; }
@@ -732,11 +739,11 @@ $root.addEventListener("click", e => {
     case "lobby-exit": leaveRoom(); return;
     case "master": U.modal = "master"; if (SI.adminOpen) SI.adminOpen(masterCtx()); render(); return;
     case "tutorial": U.modal = null; startTutorial(); return;
-    case "tut-next": SI.tutAck(); render(); return;
+    case "tut-next": SI.tutAck(); if (SI.tutFinished()) { U.tut = null; U.tutDone = true; render(); scheduleBots(); return; } render(); return;
     case "tut-back": SI.tutBack(); render(); return;
     case "tut-fwd": SI.tutFwd(); render(); return;
     case "tut-auto": SI.tutAuto(); U.pop = null; U.detail = null; U.sel = null; U.modal = null; render(); scheduleBots(); return;
-    case "tut-free": U.tut = null; render(); scheduleBots(); return;
+    case "tut-free": U.tut = null; U.tutDone = true; render(); scheduleBots(); return;
     case "tut-exit": U.tut = null; U.screen = "menu"; U.modal = null; clearTimeout(U.botT); clearAuto(); render(); return;
     case "resume": if (loadSave()) { render(); scheduleBots(); } return;
     case "studio": U.modal = "studio"; render(); return;

@@ -65,7 +65,7 @@ E.describeEffect = function (str) { return str || ""; };
 
 /* ---------- Config / data ---------- */
 E.defaultData = function (cfg) {
-  return clone({ spots:(cfg && cfg.varC && D0.spotsC) ? D0.spotsC : D0.spots, systems:D0.systems, milestones:D0.milestones, objectives:D0.objectives, crisis:D0.crisis, publisherGates:D0.publisherGates, gatePool:D0.gatePool });
+  return clone({ spots:(cfg && cfg.varC && D0.spotsC) ? D0.spotsC : D0.spots, systems:D0.systems, milestones:D0.milestones, objectives:D0.objectives, crisis:D0.crisis, publisherGates:D0.publisherGates, gatePool:D0.gatePool, tutorial:D0.tutorial });
 };
 E.rawConfig = function () { return clone(D0.config); };
 E.defaultConfig = function () { const c = clone(D0.config); if (c.varC && D0.configC) Object.assign(c, D0.configC, { varC: 1 }); return c; };

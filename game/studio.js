@@ -21,6 +21,7 @@ const CFG_GROUPS = [
   ["Race scoring", ["raceScoring","mktgToHype","raceCurve","racePot","debtLossMax","cultLossMax","trackScoring"]],
   ["Scoring (older)", ["scoreShareScale","scoreShareNormalize","debtPenaltyMult","debtPenaltyCap","cleanThresh","stdThresh","roughThresh","cleanBonus","blockedPenalty","roughHypeMult","goldPerVP","synergyOn"]]
 ];
+const TUT_TOKENS = "{income} {salaryJr} {salarySr} {jrCost} {resJr} {resSr} {hypeDecay} {draftPool} {picks} {recruitCost} {recruitN} {buildDelay} {crunchGold} {buildsPerRound} {bank} {convertRate} {refreshGold} {gateName} {gate2Name} {gateReqs} {gateEnd} {gateFund} {gatePenalty} {gateResult} {crisisLine} {freeBuild} {hint} {n} {total}";
 const COLS = {
   spots: [["id","ID","ro"],["row","Row","str"],["discs","Disciplines","csv"],["fx","Effect","str"],["r","Resources ×","num"],["debt","Debt","num"],["mode","Mode","str"],["phases","Phases","csvn"],["note","Note","str"]],
   systems: [["name","Name","str"],["cat","Category","str"],["build","Build","str"],["trig","Trigger","str"],["fx","Effect","str"],["once","Once (on build)","str"],["each","Each","str"],["debt","Debt","num"],["vp","VP","num"],["syn","Syn","num"],["sym","Symbols","csv"]],
@@ -34,7 +35,7 @@ function dirtyCfg(st, k) { return JSON.stringify(st.config[k]) !== JSON.stringif
 function cellVal(v, kind) { return kind === "csv" || kind === "csvn" ? (v || []).join(",") : kind === "semi" ? (v || []).join("; ") : (v == null ? "" : v); }
 
 SI.renderStudio = function (st, tab, sim) {
-  const tabs = [["rules","Rules"],["spots","Board spots"],["systems","Systems"],["milestones","Milestones"],["objectives","Objectives"],["crisis","Crisis cards"],["sim","Simulator"],["io","Import / Export"]];
+  const tabs = [["rules","Rules"],["spots","Board spots"],["systems","Systems"],["milestones","Milestones"],["objectives","Objectives"],["crisis","Crisis cards"],["tutorial","Tutorial"],["sim","Simulator"],["io","Import / Export"]];
   let h = '<div class="tabs">' + tabs.map(t => `<button class="tab ${tab === t[0] ? "on" : ""}" data-act="studio-tab" data-v="${t[0]}">${t[1]}</button>`).join("") + "</div>";
   if (tab === "rules") {
     h += '<p class="mute" style="margin:0 0 8px">Every value below is a live knob. Yellow = changed from the v47 default. Changes apply to the <b>next new game</b>.</p><div class="scroll-y">';
@@ -57,6 +58,18 @@ SI.renderStudio = function (st, tab, sim) {
       }).join("") + "</tr>";
     });
     h += "</tbody></table></div>";
+  } else if (tab === "tutorial") {
+    const list = st.data.tutorial || [], def = E.defaultData(E.defaultConfig()).tutorial;
+    h += `<p class="mute" style="margin:0 0 6px">${list.length} tutorial strings for the guided game (Variant C). Edits apply to the <b>next tutorial</b> you start. Markup: <span class="mono">**bold**</span>, a blank line starts a new paragraph, and <span class="mono">{token}</span> is replaced by a live value: <span class="mono">${esc(TUT_TOKENS)}</span>. Leave a token in place if the sentence needs the number. Step order follows the Step numbers.</p><div class="scroll-y">`;
+    list.forEach((row, i) => {
+      const d = def[i] && def[i].id === row.id ? def[i] : (def.find(x => x.id === row.id) || {});
+      const dirty = f => (row[f] || "") !== (d[f] || "") ? " dirty" : "";
+      h += `<div class="panel" style="margin:6px 0;padding:8px"><div class="row" style="gap:10px;margin-bottom:4px"><b class="mono">${esc(row.id)}</b><span class="mute">${esc(row.when)}</span></div>`;
+      if (row.title || d.title) h += `<div class="row" style="gap:8px;margin:3px 0"><label class="mute" style="width:60px">Title</label><input class="grow${dirty("title")}" data-path="tutorial.${i}.title" data-kind="str" value="${esc(row.title)}"></div>`;
+      if (row.btn || d.btn) h += `<div class="row" style="gap:8px;margin:3px 0"><label class="mute" style="width:60px">Button</label><input class="grow${dirty("btn")}" data-path="tutorial.${i}.btn" data-kind="str" value="${esc(row.btn)}"></div>`;
+      h += `<div class="row" style="gap:8px;margin:3px 0;align-items:flex-start"><label class="mute" style="width:60px">Text</label><textarea class="grow${dirty("text")}" rows="${Math.min(10, Math.max(2, Math.ceil((row.text || "").length / 90) + (row.text || "").split("\n").length - 1))}" data-path="tutorial.${i}.text" data-kind="str" style="width:100%">${esc(row.text)}</textarea></div></div>`;
+    });
+    h += "</div>";
   } else if (tab === "sim") {
     h += `<p class="mute" style="margin:0 0 8px">Runs bot-only games with the values currently in the Studio and reports where the VP comes from. Use it to tune the economy before human playtests.</p>
     <div class="row wrap" style="margin-bottom:10px"><label>Players <select id="sim-n">${[2,3,4,5,6].map(n => `<option ${((sim && sim.n) || 4) === n ? "selected" : ""}>${n}</option>`).join("")}</select></label>

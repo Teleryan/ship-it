@@ -176,66 +176,112 @@ const STEPS_A = [
 ];
 
 let STEPS;
-/* ---------- Variant C tutorial (phase-shaped economy) ---------- */
-const sid = id => STEPS_A.find(x => x.id === id);
-const withText = (id, over) => Object.assign({}, sid(id), over);
+/* ---------- Variant C tutorial: a full play-through. Every string lives in D.tutorial (Data Studio > Tutorial) ---------- */
+let ROWS = null;
+function loadRows() {
+  ROWS = {}; (D.tutorial || []).forEach(r => { ROWS[r.id] = r; });
+  const u = U(), over = u && u.studio && u.studio.data && u.studio.data.tutorial;
+  (over || []).forEach(r => { if (r && r.id && ROWS[r.id]) ROWS[r.id] = Object.assign({}, ROWS[r.id], { title: r.title, btn: r.btn, text: r.text }); });
+}
+const rw = id => { if (!ROWS) loadRows(); return ROWS[id] || { title: "", btn: "", text: "" }; };
+const MSG = id => rw(id).text;
+// text markup: **bold**, blank line = paragraph, single newline = line break, {token} = live value
+function fmt(s, tok) {
+  const h = esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\n\n/g, "<br><br>").replace(/\n/g, "<br>");
+  return h.replace(/\{(\w+)\}/g, (m, k) => tok && tok[k] != null ? tok[k] : m);
+}
+const hintId = S => ({ hire: "hint_hire", place: "hint_place", build: "hint_build", rest: "hint_rest", milestones: "hint_miles", bid: "free_bid", draft: "free_draft" }[S.step] || "hint_wait");
+function tokens(S) {
+  const c = S.cfg, p = me(S), gs = S.gateSet && S.gateSet.length ? S.gateSet : S.data.publisherGates;
+  const g = gs.find(x => x.phase === 0) || gs[0] || {}, g2 = gs.find(x => x.phase === 1) || gs[1] || {};
+  const done = (S.gates || []).find(x => x.phase === 0);
+  const crisis = S.crisisCard && S.data.crisis.find(x => x.id === S.crisisCard);
+  const t = {
+    income: c.income, salaryJr: c.salaryJr, salarySr: c.salarySr, jrCost: c.jrCost, resJr: c.resJr, resSr: c.resSr, hypeDecay: c.hypeDecay,
+    draftPool: c.draftPool || 8, picks: S.draft ? S.draft.per : "", recruitCost: c.recruitCost, recruitN: S.recruit ? S.recruit.length : E.recruitSize(S),
+    buildDelay: c.buildDelay, crunchGold: c.crunchGold, buildsPerRound: c.buildsPerRound, bank: p.ideas + p.code + p.process + p.buzz,
+    convertRate: c.convertRate || 3, refreshGold: c.marketRefreshGold, gateName: esc(g.name || ""), gate2Name: esc(g2.name || ""), gateReqs: esc((g.reqs || []).join(", ")),
+    gateEnd: (c.phaseEnds || [])[g.phase || 0] || "", gateFund: g.fund || 0, gatePenalty: g.penalty || 0,
+    crisisLine: crisis ? ": <b>" + esc(crisis.name) + "</b>. " + esc(crisis.text) : "",
+    freeBuild: p.freeBuilds ? "<br><br><b>A free build is on the house this round.</b>" : ""
+  };
+  t.gateResult = done ? fmt(rw(done.passed.includes(0) ? "gate_pass" : "gate_miss").text, t) : "";
+  t.hint = fmt(rw(hintId(S)).text, t);
+  return t;
+}
+const sysOpt = S => me(S).workers.some(w => w.lvl === "Sr" && !w.placed && E.placementOptions(S, 0, w).some(o => o.kind === "sys" && o.ok));
+const srIds = S => me(S).workers.filter(w => w.lvl === "Sr" && !w.placed && E.placementOptions(S, 0, w).some(o => o.kind === "sys" && o.ok)).map(w => w.id);
+const convOpt = S => me(S).workers.some(w => !w.placed && E.placementOptions(S, 0, w).some(o => o.ok && o.spot && o.spot.special === "convert"));
+const trigOk = (S, w) => { const lv = w.lvl, pl = w.placed; w.lvl = "Sr"; w.placed = false; let ok = false; try { ok = E.placementOptions(S, 0, w).some(o => o.kind === "sys" && o.ok); } finally { w.lvl = lv; w.placed = pl; } return ok; };
+const eligibleJr = S => me(S).workers.filter(w => w.lvl === "Jr" && w.worked && !w.placed);
+// make a step whose title, button and text come from the editable rows
+function mk(id, o) {
+  const st = Object.assign({ id, rid: id }, o);
+  Object.defineProperty(st, "title", { get: () => rw(st.rid).title, enumerable: true });
+  Object.defineProperty(st, "btn", { get: () => rw(st.rid).btn || "Next", enumerable: true });
+  st.text = (S, T) => fmt(rw(st.vid ? st.vid(S) : st.rid).text, tokens(S));
+  return st;
+}
+const info = (id, o) => mk(id, Object.assign({ kind: "info", allow: () => MSG("msg_next") }, o));
+const softInfo = (id, o) => info(id, Object.assign({ soft: true, allow: () => null }, o));
+const doing = (id, o) => mk(id, Object.assign({ kind: "do" }, o));
+const play = (id, o) => mk(id, Object.assign({ kind: "free", allow: () => null }, o));
+const reachedRound = (S, r, stage) => S.round > r || (S.round === r && RANK[S.step] >= RANK[stage]);
+
 const STEPS_C = [
-  withText("welcome", { text: () => `You run a game studio racing a Rival to ship the best game. Over 12 rounds you build a team, put it to work on the board, and build systems that score ${b("Victory Points (VP)")}. Most VP wins.<br><br>This version of the game is shaped by ${b("four phases")}: ${b("Concept")} (rounds 1-3) builds your resource bank, ${b("Production")} (4-8) and ${b("Polish")} (9-11) balance resources with Progress and Hype, and ${b("Launch")} (round 12) is the final push.<br><br>This guided game plays the first rounds with you and then lets you continue. You can leave at any time with the × button.` }),
-  sid("loop"),
-  sid("objectives"),
-  sid("phasestart"),
-  { id: "boardintro", kind: "info", title: "The board: earn or score", btn: "Next", hl: () => "[data-tut=board]",
-    text: () => `The ${b("main board")} is where your workers go. Every spot does ${b("one")} of two jobs, never both:<br><br>${b("Earn spots")} give you ${b("resources")}: Ideas, Code, Process or Buzz. They say ${b("Earn resources ×1")} or ${b("×2")}.<br>${b("Score spots")} give you ${b("Progress")} or ${b("Hype")} (and sometimes Culture or Gold), but no resources.<br><br>That is the central trade-off of this version: a worker who earns resources is a worker who did not score. Resources are what you spend on systems, so you need both. There are fewer spots than workers, so some of your team will go without.`,
-    allow: blk },
-  { id: "rows", kind: "info", title: "Which workers fit where", btn: "Next", hl: () => "[data-row=BRAINSTORM],[data-row=WORKBENCH],[data-row=PLANNING],[data-row=COMMUNITY]",
-    text: () => `Each tile shows ${b("which roles can use it")} as colored chips.<br><br>The first rows are ${b("earn spots")}: ${b("Brainstorm")} (Designers and Artists) earns Ideas, ${b("Workbench")} (Engineers and QA) earns Code, ${b("Planning")} (Analytics and Designers) earns Process. A ${b("Community")} row (Community and Advertising, earns Buzz) joins from Production. The ${b("Crew")} row needs two or three different workers at once, and pays more.<br><br>In Concept there is ${b("exactly one Hype spot")} (Pitch) and very little Progress, so use this phase to build a bank. Later phases add many more score spots.`,
-    allow: blk },
-  { id: "boardshared", kind: "info", title: "Utility spots and Recruitment", btn: "Next", hl: () => ".shared",
-    text: () => `The dashed tiles on the right are ${b("utility spots")}: R&D, Team Event, Insight, Talent, Outsource and more. Most hold ${b("one worker")} per round, so turn order matters.<br><br>${b("R&D")} gives your build this round a free crunch, so it is ready sooner (more on that when you build).<br>${b("Team Event")} needs any two workers and gives Culture.`,
-    allow: blk },
-  withText("bid", {}),
-  withText("draft", { text: S => `Now the ${b("Draft")}. Players take turns picking one face-up card: press ${b("Draft")} on a card to take it, or tap it first to read more. You get ${b(S.draft.per)} picks. Each card is a discipline (ENG, ART, DES and so on) and goes to your hand. ${b("Drafting costs no gold")}: you pay only when you hire. Pick a mix of disciplines, because systems need particular roles.` }),
-  withText("hireintro", { text: S => `Round 1 begins with ${b("Income")}: every studio just received ${b(S.cfg.income + "G")}. Right after, every worker is paid a ${b("salary")}: ${b(S.cfg.salaryJr + "G")} per Junior and ${b(S.cfg.salarySr + "G")} per Senior. You have no workers yet, so you pay nothing this round.<br><br>More workers means more salaries, so growing your team has a cost every round.<br><br>Next is ${b("Hire")}.` }),
-  withText("hire", { text: S => `Your hand shows the cards you drafted. A card is not a worker until you hire it, and ${b("hiring is where gold is spent")}.<br><br>${b("Hire Junior")} costs ${b(S.cfg.jrCost + "G")}. A ${b("Junior")} earns 1 resource and works board spots only. ${b("Seniors")} cannot be hired: a Junior who has worked and then rested is ${b("promoted for free")} (you will see this at the Rest step). Seniors earn 2 resources and are the only workers who can trigger your systems.<br><br>Click a card, then press ${b("Hire Junior")}. Hire at least 2, then press ${b("Done")}.`,
-    allow: (a, S) => a.type === "hire" ? (a.lvl === "Jr" ? null : "Seniors are promoted, not hired") : a.type === "discard" ? null :
-      a.type === "done" ? (me(S).workers.length < Math.min(2, hireable(S) + me(S).workers.length) ? "Hire at least 2 workers so you have something to place" : null) : "Hire from your hand, then press Done" }),
-  sid("placeintro"),
-  sid("place1"),
-  withText("stats", { text: S => `The spot paid out instantly. What each number is for:<br><br>${b("Gold")} hires workers, recruits, and pays for systems and crunch.<br>${b("Ideas, Code, Process and Buzz")} come from earn spots. A Junior earns ${S.cfg.resJr} (×1 or ×2 depending on the spot), a Senior ${S.cfg.resSr}. Each resource is spent on systems that need that role. They keep between rounds.<br>${b("Progress")} and ${b("Hype")} come from score spots and are what the race scoring rewards. Hype fades by ${S.cfg.hypeDecay} every round.<br>${b("Debt")} is Tech Debt: high Debt costs VP. ${b("Culture")} is morale.` }),
-  { id: "recruitspot", kind: "info", title: "Recruitment: the shared talent pool", btn: "Next", hl: () => "[data-tut=recruit]",
-    text: S => `The ${b("Recruitment")} panel above the board is a ${b("shared pool")}: one worker from each of ${b(S.recruit ? S.recruit.length : 3)} different categories. It re-rolls every round.<br><br>Recruiting costs ${b(S.cfg.recruitCost + "G")} and ${b("no worker")}. You get one hire per round, and the worker can be placed the same round. If you want a particular discipline, take it before a rival does.<br><br>You will use this from Round 2 on. For now, keep placing.`,
-    allow: blk },
-  sid("place2"),
-  { id: "buildintro", kind: "info", title: "Build: systems take time", btn: "Next", hl: () => "[data-tut=steps]",
-    text: S => `You have ${b((me(S).ideas + me(S).code + me(S).process + me(S).buzz) + " resources")} banked. The ${b("Build")} step is where you spend them. Building needs ${b("no worker")}, just resources and Gold.<br><br>A ${b("System")} is a permanent engine: placing a ${b("Senior")} of the matching discipline on it later gives a bonus, and it scores VP at the end. You can start ${b(S.cfg.buildsPerRound + " build per round")}.<br><br>New in this version: a system takes ${b(S.cfg.buildDelay + " rounds")} to finish. Until then it scores nothing and cannot be used. You can ${b("Crunch")} it for ${b(S.cfg.crunchGold + "G")} (or by tiring one worker) to finish next round. Very late builds are blocked: nothing can start after the time runs out.`,
-    allow: blk },
-  withText("build", { text: S => `Press ${b("Open Systems Market")}. Each card shows its cost in resources, plus Gold, and which workers it needs. Only systems you can afford are enabled. At the bottom pick ${b("Build speed")}: normal, or Crunch.${me(S).freeBuilds ? `<br><br>${b("A free build is on the house this round.")}` : ""}<br><br>Build one, close the market with ${b("×")}, then press ${b("Done")}. Your system will appear under ${b("Building")} in your studio panel with the round it finishes.`,
-    done: S => after(S, "build", 1) }),
-  sid("restintro"),
-  { id: "rest", kind: "do", title: "Rest step: promote a Senior", hl: () => "[data-tut=rest]",
-    text: () => `A Junior who ${b("worked")} and then ${b("sat out")} a round can be ${b("promoted to Senior for free")}. A worker who is pushed on without rest becomes Over-Tired, which hurts your Culture.<br><br>Nothing is ready yet this round. You will see Promote buttons here from Round 2, once someone has worked and rested. Press ${b("Done")}.`,
-    done: S => after(S, "rest", 1),
-    allow: a => (a.type === "done" || a.type === "promote" || a.type === "fire" || a.type === "swapObj" || a.type === "swapMile") ? null : "Press Done to continue" },
-  sid("miles"),
-  sid("upkeep"),
-  sid("gates"),
-  withText("r2intro", { text: S => `Every round runs the same steps. This time you choose freely:<br><br>${b("Recruit")} from the shared pool or hire from your hand (one hire per round).<br>${b("Rest")} workers, then ${b("promote")} the ones that worked and rested.<br>Build a second system, and use ${b("Crunch")} when the clock matters.<br><br>The coach will give a short hint at each step.` }),
-  sid("r2free"),
-  sid("crisis"),
-  sid("r3free"),
-  withText("wrap", { text: S => `Every round: ${b("Income, Hire, Place, Build, Rest, Milestones, Upkeep")}. Every phase starts with ${b("Crisis, Reveal, Bid, Draft")}.<br><br>Still ahead: Production runs to round 8, Polish to round 11, and ${b("Launch is round 12")}. Scoring has four races: ${b("Progress")} and ${b("Hype")} earn VP by rank, while ${b("Debt")} (most loses most) and ${b("Culture")} (lowest loses most) cost VP. Systems, objectives, gold and the publisher gates add to that.<br><br>How do you want to continue?` }),
-  sid("full1"),
-  withText("polish", { text: S => `${b("Polish")} runs rounds 9 to 11. Check the ${b("Publisher Gates")}. Remember that a system you start now needs two rounds to finish (one with Crunch), and ${b("builds stop in the last rounds")} because they could not finish in time. Hype fades every round, so build it late.` }),
-  sid("full2"),
-  withText("launch", { text: S => `${b("Round 12 is Launch.")} Nothing carries over, so spend your resources and Gold now. Look for the ${b("Convert")} spot: each worker placed there turns ${b("3 resources of their own role")} into ${b("1 Progress or 1 Hype")}. Leftover resources are otherwise worth nothing. When the round ends, final scoring adds the race tracks, systems, objectives, milestones and gate results.` }),
-  sid("full3")
+  info("welcome", { center: true, hold: true, hl: () => null, allow: () => MSG("msg_start") }),
+  info("loop", { hl: () => "[data-tut=steps]" }),
+  doing("objectives", { hl: () => ".modal", done: S => !S.dq.some(d => d.t === "keepObj" && d.p === 0), allow: a => a.type === "keepObj" ? null : MSG("msg_obj") }),
+  info("phasestart", { hl: () => "[data-tut=steps]" }),
+  info("boardintro", { hl: () => "[data-tut=board]" }),
+  doing("bid", { hl: () => ".modal", done: S => after(S, "bid", 1), allow: a => a.type !== "bid" ? MSG("msg_bid") : (a.amount > 3 ? MSG("msg_bid_small") : null) }),
+  doing("draft", { hl: () => ".draftbtn", done: S => after(S, "draft", 1), allow: a => a.type === "pick" ? null : MSG("msg_draft") }),
+  doing("hire", { hl: () => "[data-tut=hand]", done: S => after(S, "hire", 1),
+    allow: (a, S) => a.type === "hire" ? (a.lvl === "Jr" ? null : MSG("msg_hire_sr")) : a.type === "discard" ? null :
+      a.type === "done" ? (me(S).workers.length < Math.min(2, hireable(S) + me(S).workers.length) ? MSG("msg_hire_min") : null) : MSG("msg_hire_do") }),
+  info("placeintro", { hl: () => "[data-tut=board]" }),
+  doing("place1", { hl: () => (U().sel == null ? "[data-tut=workers] .wk:not(.placed)" : ".spot.ok"),
+    vid: S => !actorIsMe(S) ? "place1w" : U().detail && U().detail.k === "spot" ? "place1c" : U().detail && U().detail.k === "worker" ? "place1d" : U().sel == null ? "place1" : "place1b",
+    done: S => after(S, "place", 1) || (S.round === 1 && S.step === "place" && me(S).rs.placed >= 1),
+    allow: a => a.type === "place" ? null : a.type === "pass" ? MSG("msg_place_first") : MSG("msg_place") }),
+  info("stats", { hl: () => ".pt[data-pid='0'] .stats" }),
+  doing("place2", { hl: () => "[data-tut=workers]", done: S => after(S, "place", 1), allow: a => (a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
+  doing("build", { hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"), done: S => after(S, "build", 1),
+    allow: (a, S) => a.type === "build" ? null : a.type === "done" ? ((me(S).builds >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : MSG("msg_build_first")) : MSG("msg_build") }),
+  doing("rest1", { hl: () => "[data-tut=workers]", done: S => after(S, "rest", 1), allow: a => (a.type === "done" || a.type === "fire" || a.type === "swapObj" || a.type === "swapMile") ? null : MSG("msg_rest") }),
+  doing("miles", { hl: () => "[data-tut=miles]", done: S => after(S, "milestones", 1), allow: a => (a.type === "claim" || a.type === "done") ? null : MSG("msg_miles") }),
+  info("upkeep", { hl: () => "[data-tut=steps]" }),
+  info("gates", { hl: () => "[data-tut=gates]" }),
+  /* ---- round 2: recruit, rest, crunch ---- */
+  play("r2hire", { hl: () => "[data-tut=hand]", done: S => reachedRound(S, 2, "place") }),
+  doing("r2recruit", { hl: () => "[data-tut=recruit]", done: S => me(S).recruited >= 1 || S.round > 2,
+    allow: (a, S) => (a.type === "place" || a.type === "recruit") ? null : a.type === "pass" ? MSG("msg_recruit") : MSG("msg_recruit") }),
+  doing("r2place", { hl: () => "[data-tut=workers]", done: S => reachedRound(S, 2, "build"), allow: a => (a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
+  doing("r2crunch", { hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"), done: S => reachedRound(S, 2, "rest"),
+    allow: (a, S) => a.type === "build" ? (a.crunch || (S.cfg.rdCrunch && me(S).rd) ? null : MSG("msg_crunch")) : a.type === "done" ? ((me(S).cs.crunched >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : MSG("msg_crunch")) : null }),
+  play("r3", { hl: () => null, done: S => S.round >= 4 }),
+  /* ---- production ---- */
+  softInfo("gateresult", { hl: () => "[data-tut=gates]" }),
+  softInfo("crisis", { hl: () => "[data-tut=crisis]" }),
+  play("r4play", { hl: () => null, done: S => reachedRound(S, 4, "rest") }),
+  doing("promote", { hl: () => "[data-tut=rest]", done: S => me(S).workers.some(w => w.lvl === "Sr") || reachedRound(S, 4, "milestones"),
+    allow: (a, S) => a.type === "promote" ? (eligibleJr(S).some(w => trigOk(S, w)) && !trigOk(S, me(S).workers.find(w => w.id === a.worker) || {}) ? MSG("msg_promote_fit") : null) : a.type === "done" ? (eligibleJr(S).length ? MSG("msg_promote") : null) : MSG("msg_promote") }),
+  doing("trigger", { hl: () => "[data-tut=workers]", done: S => me(S).rs.triggers >= 1 || reachedRound(S, 5, "build") || (S.round >= 5 && !sysOpt(S)),
+    allow: (a, S) => a.type === "place" ? (srIds(S).includes(a.worker) && !String(a.target).startsWith("sys:") ? MSG("msg_trigger") : null) : a.type === "pass" ? MSG("msg_trigger") : null }),
+  play("prod", { hl: () => null, done: S => S.round >= 9 }),
+  softInfo("polish", { hl: () => "[data-tut=gates]" }),
+  play("polishfree", { hl: () => null, done: S => S.round >= 12 }),
+  /* ---- launch and hand-over ---- */
+  doing("convert", { hl: () => ".spot[data-id=convert]", done: S => me(S).cs.converted > 0 || reachedRound(S, 12, "build") || (S.round === 12 && S.step === "place" && !convOpt(S)),
+    allow: a => a.type === "pass" ? MSG("msg_convert") : null }),
+  info("handover", { final: true, soft: true, hl: () => null, allow: () => null })
 ];
-STEPS = STEPS_A;
+STEPS = E.rawConfig().varC ? STEPS_C : STEPS_A;
 
 /* ---------- lifecycle ---------- */
 SI.tutNew = function () {
   const isC = !!E.rawConfig().varC;
-  STEPS = isC ? STEPS_C : STEPS_A; SI.tutSteps = STEPS;
+  STEPS = isC ? STEPS_C : STEPS_A; SI.tutSteps = STEPS; loadRows();
   const cfg = isC ? Object.assign(E.defaultConfig(), SI.TUT_CONFIG_C) : Object.assign(E.rawConfig(), SI.TUT_CONFIG);
   const S = E.newGame([{ name: "You", bot: false }, { name: "Rival", bot: true }], { seed: SI.TUT_SEED, config: cfg, data: E.clone(E.defaultData(cfg)) });
   // rig: the first face-up pool shows a mix of all four categories (cards are drawn from the end of the deck)
@@ -254,14 +300,25 @@ SI.tutTick = function () {
     if (!done) break;
     T.idx++; u.sel = null;
   }
-  // rig: make sure the player can build something in round 1
-  const st = STEPS[T.idx];
-  if (st.id === "build" && !T.gaveFree && actorIsMe(S) && !S.dq.length) {
-    T.gaveFree = true;
-    if (!canBuildAny(S, false) && me(S).freeBuilds < 1) me(S).freeBuilds = 1;
+  // rigs: make sure the player can do what the current step teaches
+  const st = STEPS[T.idx]; T.gave = T.gave || {};
+  const key = st.id + ":" + S.round;
+  if (st.id === "build" || st.id === "r2crunch") {
+    if (!T.gaveFree && st.id === "build" || (st.id === "r2crunch" && !T.gave[key])) {
+      if (actorIsMe(S) && !S.dq.length && S.step === "build") {
+        T.gaveFree = true; T.gave[key] = true;
+        if (!canBuildAny(S, false) && me(S).freeBuilds < 1) me(S).freeBuilds = 1;
+        if (st.id === "r2crunch") me(S).gold += (S.cfg.crunchGold || 2) + 2;   // so a gold crunch is affordable
+      }
+    }
+  }
+  if (st.id === "r2recruit" && !T.gave[key] && S.step === "place" && actorIsMe(S)) { T.gave[key] = true; const cost = E.recruitCost(S, 0); if (me(S).gold < cost) me(S).gold = cost; }
+  if (st.id === "promote" && !T.gave[key] && S.step === "rest" && actorIsMe(S) && !S.dq.length) {
+    T.gave[key] = true;
+    // make sure a Junior who fits one of the player's systems can be promoted, so the next lesson (a Senior triggers a system) can be played
+    if (!eligibleJr(S).some(w => trigOk(S, w))) { const w = me(S).workers.find(x => x.lvl === "Jr" && trigOk(S, x)) || (eligibleJr(S).length ? null : me(S).workers.find(x => x.lvl === "Jr")); if (w) { w.worked = true; w.placed = false; } }
   }
 };
-// popups that belong to a later step stay hidden while a guide is on screen
 SI.tutHold = () => SI.tutLockMode() === "hard";
 SI.tutGate = function (a) {
   const u = U(), T = u.tut; if (!T || T.auto) return null;
@@ -279,26 +336,30 @@ SI.tutLockMode = function () {
 SI.tutBack = function () { const T = U().tut; if (!T) return; if (T.rev == null) T.rev = Math.max(0, T.idx - 1); else T.rev = Math.max(0, T.rev - 1); };
 SI.tutFwd = function () { const T = U().tut; if (!T || T.rev == null) return; T.rev++; if (T.rev >= T.idx) T.rev = null; };
 SI.tutAck = function () { const T = U().tut, st = cur(); if (T && st) T.ack[st.id] = true; };
+SI.tutFinished = function () { const T = U().tut, st = cur(); return !!(T && st && st.final && T.ack[st.id]); };
 
 /* ---------- coach card ---------- */
 SI.tutCoach = function () {
   const u = U(), T = u.tut; if (!T) return "";
   const S = u.S; const rv = T.rev != null; const st = rv ? STEPS[T.rev] : cur(); const n = STEPS.length; const at = rv ? T.rev : T.idx;
+  const isC = STEPS === STEPS_C, L = (id, fb) => isC ? esc(rw(id).text) : fb;
   if (T.auto) {
     if (S.over) return "";
     return `<div class="coach"><button class="x" data-act="tut-exit" aria-label="Exit tutorial">×</button><div class="cp">Fast-forward</div><div class="ct">Round ${S.round} of 12 · ${esc(D.phases[S.phase].name)}…</div></div>`;
   }
   let body = SI.L(typeof st.text === "function" ? st.text(S, T) : st.text);
   const waiting = !rv && st.kind === "do" && S.dq.length === 0 && E.currentActor(S) > 0;
-  const back = at > 0 ? `<button class="btn" data-act="tut-back">← Back</button>` : "";
+  const back = at > 0 ? `<button class="btn" data-act="tut-back">${L("ui_back", "← Back")}</button>` : "";
+  const stop = isC && !rv && !st.final && !st.center ? `<button class="btn" data-act="tut-free">${L("ui_stop")}</button>` : "";
   let btns = "";
-  if (rv) btns = back + `<button class="btn primary" data-act="tut-fwd">${T.rev + 1 >= T.idx ? "Back to the game" : "Next"}</button>`;
+  if (rv) btns = back + `<button class="btn primary" data-act="tut-fwd">${T.rev + 1 >= T.idx ? L("ui_fwd_end", "Back to the game") : L("ui_fwd", "Next")}</button>`;
   else if (st.wrap) btns = `<button class="btn primary" data-act="tut-next">Play the full game with the coach</button><button class="btn" data-act="tut-auto">Fast-forward &amp; explain the score</button><button class="btn" data-act="tut-free">Keep playing without the coach</button>${back}<button class="btn" data-act="tut-exit">Back to menu</button>`;
-  else if (st.kind === "info") btns = back + `<button class="btn primary" data-act="tut-next">${esc(st.btn || "Next")}</button>`;
-  else btns = back;
+  else if (st.kind === "info") btns = back + `<button class="btn primary" data-act="tut-next">${esc(st.btn || "Next")}</button>` + stop;
+  else btns = back + stop;
+  const stepTxt = isC ? fmt(rw("ui_step").text, { n: Math.min(at + 1, n), total: n }) : `Step ${Math.min(at + 1, n)} of ${n}`;
   return `<div class="coach ${st.center ? "center" : ""}">${st.center ? "" : '<button class="x" data-act="tut-exit" aria-label="Exit tutorial">×</button>'}
-    <div class="cp">Step ${Math.min(at + 1, n)} of ${n}${rv ? " · review" : ""}</div><div class="ctt">${esc(st.title)}</div><div class="ct">${body}</div>
-    ${waiting ? '<div class="cw">Rival is taking their turn…</div>' : ""}${btns ? `<div class="cb">${btns}</div>` : ""}
+    <div class="cp">${stepTxt}${rv ? " · " + L("ui_review", "review") : ""}</div><div class="ctt">${esc(st.title)}</div><div class="ct">${body}</div>
+    ${waiting ? `<div class="cw">${L("ui_wait", "Rival is taking their turn…")}</div>` : ""}${btns ? `<div class="cb">${btns}</div>` : ""}
     <div class="prog"><i style="width:${Math.round((at + 1) / n * 100)}%"></i></div></div>${st.center ? '<div class="coach-dim"></div>' : ""}`;
 };
 SI.tutHighlight = function (rootEl) {
@@ -332,13 +393,15 @@ const PARTS = [
 ];
 SI.tutScoreExplainer = function (S) {
   const r = S.scores.find(x => x.id === 0); if (!r) return "";
+  const isC = !!S.cfg.varC, note = isC ? esc(rw("explain_note").text) : "The bot played your studio after the tutorial, so this score shows the rules rather than your skill. Start a real game to play for it.";
+  const PT = PARTS.map(p => isC ? [p[0], rw("explain_" + p[0]).title || p[1], rw("explain_" + p[0]).text || p[2]] : p);
   const q = r.parts;
   if (S.cfg.poolScoring) { const pl = q.pool, row = (n, x, vp, why) => `<tr><td style="white-space:nowrap">${n}</td><td class="mono" style="text-align:right;padding:0 10px">${x.total} pts</td><td class="mono" style="text-align:right;padding:0 10px">${vp.toFixed(1)} VP</td><td class="mute" style="font-size:12px;text-align:left">${why}</td></tr>`;
-    return `<div class="explain"><h3>How your ${b(Math.round(r.total) + " VP")} was made</h3><p class="mute" style="margin:2px 0 8px">Everything you do feeds one of two pools. Your VP is your share of each pool.</p><table class="scoretbl"><tbody>${row("Progress pool", pl.P, q.prodShare, "Progress " + Math.round(pl.P.base) + " + systems " + Math.round(pl.P.sys) + " + objectives " + Math.round(pl.P.obj + pl.P.syn) + (pl.P.adj ? " + gates/events " + Math.round(pl.P.adj) : "") + " − Debt " + Math.round(-pl.P.debt))}${row("Hype pool", pl.H, q.hypeStrength, "Hype + Marketing " + Math.round(pl.H.base) + " + systems " + Math.round(pl.H.sys) + " + objectives " + Math.round(pl.H.obj + pl.H.syn) + (pl.H.adj ? " + spotlight " + Math.round(pl.H.adj) : ""))}</tbody></table><p class="mute" style="margin-top:8px">The bot played your studio after the tutorial, so this score shows the rules rather than your skill. Start a real game to play for it.</p></div>`; }
+    return `<div class="explain"><h3>How your ${b(Math.round(r.total) + " VP")} was made</h3><p class="mute" style="margin:2px 0 8px">Everything you do feeds one of two pools. Your VP is your share of each pool.</p><table class="scoretbl"><tbody>${row("Progress pool", pl.P, q.prodShare, "Progress " + Math.round(pl.P.base) + " + systems " + Math.round(pl.P.sys) + " + objectives " + Math.round(pl.P.obj + pl.P.syn) + (pl.P.adj ? " + gates/events " + Math.round(pl.P.adj) : "") + " − Debt " + Math.round(-pl.P.debt))}${row("Hype pool", pl.H, q.hypeStrength, "Hype + Marketing " + Math.round(pl.H.base) + " + systems " + Math.round(pl.H.sys) + " + objectives " + Math.round(pl.H.obj + pl.H.syn) + (pl.H.adj ? " + spotlight " + Math.round(pl.H.adj) : ""))}</tbody></table><p class="mute" style="margin-top:8px">${note}</p></div>`; }
   return `<div class="explain"><h3>How your ${b(Math.round(r.total) + " VP")} was made</h3>
   <p class="mute" style="margin:2px 0 8px">Your row, in plain language. You finished with ${b(S.players[0].debt + " Debt")} and ${b(S.players[0].mktg + " Marketing")}.</p>
-  <table class="scoretbl"><tbody>${PARTS.map(p => `<tr><td style="white-space:nowrap">${esc(p[1])}</td><td class="mono" style="text-align:right;padding:0 10px">${(+q[p[0]]).toFixed(p[0].includes("Share") && !S.cfg.raceScoring ? 1 : 0)}</td><td class="mute" style="font-size:12px;text-align:left">${esc(p[2])}</td></tr>`).join("")}</tbody></table>
-  <p class="mute" style="margin-top:8px">The bot played your studio after the tutorial, so this score shows the rules rather than your skill. Start a real game to play for it.</p></div>`;
+  <table class="scoretbl"><tbody>${PT.map(p => `<tr><td style="white-space:nowrap">${esc(p[1])}</td><td class="mono" style="text-align:right;padding:0 10px">${(+q[p[0]]).toFixed(p[0].includes("Share") && !S.cfg.raceScoring ? 1 : 0)}</td><td class="mute" style="font-size:12px;text-align:left">${esc(p[2])}</td></tr>`).join("")}</tbody></table>
+  <p class="mute" style="margin-top:8px">${note}</p></div>`;
 };
 
 SI.tutSteps = STEPS || STEPS_A;
