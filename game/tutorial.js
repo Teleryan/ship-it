@@ -14,6 +14,7 @@ const actorIsMe = S => E.currentActor(S) === 0;
 const b = t => "<b>" + t + "</b>";
 
 SI.TUT_SEED = 20261031;
+SI.TUT_CONFIG_C = { gatesRandom: 0, qaAllowedPreProd: 1 };
 SI.TUT_CONFIG = { varC: 0, headhuntsPerRest: 0, qaAllowedPreProd: 1, gatesRandom: 0 };   // headhunting is left for later; QA is hireable so any card can be recruited
 
 function canBuildAny(S, free) { return S.data.systems.some(d => E.canBuild(S, 0, d.name, free).ok); }
@@ -33,7 +34,7 @@ const FREE_HINT = S => ({
       rest: `${b("Rest.")} Promote or release if you like. Press ${b("Done")}.`,
       milestones: `${b("Milestones.")} Cash in anything that is met, then press ${b("Done")}.`
     }[S.step] || "Resolving…");
-const STEPS = [
+const STEPS_A = [
   { id: "welcome", kind: "info", center: true, hold: true, title: "Welcome to Ship It!", btn: "Let's go",
     text: () => `You run a game studio racing a Rival to ship the best game. Over 12 rounds you hire a team, put it to work on the board, and build systems that score ${b("Victory Points (VP)")}. Most VP wins.<br><br>This guided game plays the first two rounds slowly, shows what changes later, then fast-forwards and explains the score. There is no rush: every step waits for you.`,
     allow: () => "Press “Let's go” to begin" },
@@ -174,10 +175,69 @@ const STEPS = [
   { id: "full3", kind: "free", title: "Launch", hl: () => null, text: S => FREE_HINT(S), done: () => false, allow: () => null }
 ];
 
+let STEPS;
+/* ---------- Variant C tutorial (phase-shaped economy) ---------- */
+const sid = id => STEPS_A.find(x => x.id === id);
+const withText = (id, over) => Object.assign({}, sid(id), over);
+const STEPS_C = [
+  withText("welcome", { text: () => `You run a game studio racing a Rival to ship the best game. Over 12 rounds you build a team, put it to work on the board, and build systems that score ${b("Victory Points (VP)")}. Most VP wins.<br><br>This version of the game is shaped by ${b("four phases")}: ${b("Concept")} (rounds 1-3) builds your resource bank, ${b("Production")} (4-8) and ${b("Polish")} (9-11) balance resources with Progress and Hype, and ${b("Launch")} (round 12) is the final push.<br><br>This guided game plays the first rounds with you and then lets you continue. You can leave at any time with the × button.` }),
+  sid("loop"),
+  sid("objectives"),
+  sid("phasestart"),
+  { id: "boardintro", kind: "info", title: "The board: earn or score", btn: "Next", hl: () => "[data-tut=board]",
+    text: () => `The ${b("main board")} is where your workers go. Every spot does ${b("one")} of two jobs, never both:<br><br>${b("Earn spots")} give you ${b("resources")}: Ideas, Code, Process or Buzz. They say ${b("Earn resources ×1")} or ${b("×2")}.<br>${b("Score spots")} give you ${b("Progress")} or ${b("Hype")} (and sometimes Culture or Gold), but no resources.<br><br>That is the central trade-off of this version: a worker who earns resources is a worker who did not score. Resources are what you spend on systems, so you need both. There are fewer spots than workers, so some of your team will go without.`,
+    allow: blk },
+  { id: "rows", kind: "info", title: "Which workers fit where", btn: "Next", hl: () => "[data-row=BRAINSTORM],[data-row=WORKBENCH],[data-row=PLANNING],[data-row=COMMUNITY]",
+    text: () => `Each tile shows ${b("which roles can use it")} as colored chips.<br><br>The first rows are ${b("earn spots")}: ${b("Brainstorm")} (Designers and Artists) earns Ideas, ${b("Workbench")} (Engineers and QA) earns Code, ${b("Planning")} (Analytics and Designers) earns Process. A ${b("Community")} row (Community and Advertising, earns Buzz) joins from Production. The ${b("Crew")} row needs two or three different workers at once, and pays more.<br><br>In Concept there is ${b("exactly one Hype spot")} (Pitch) and very little Progress, so use this phase to build a bank. Later phases add many more score spots.`,
+    allow: blk },
+  { id: "boardshared", kind: "info", title: "Utility spots and Recruitment", btn: "Next", hl: () => ".shared",
+    text: () => `The dashed tiles on the right are ${b("utility spots")}: R&D, Team Event, Insight, Talent, Outsource and more. Most hold ${b("one worker")} per round, so turn order matters.<br><br>${b("R&D")} gives your build this round a free crunch, so it is ready sooner (more on that when you build).<br>${b("Team Event")} needs any two workers and gives Culture.`,
+    allow: blk },
+  withText("bid", {}),
+  withText("draft", { text: S => `Now the ${b("Draft")}. Players take turns picking one face-up card: press ${b("Draft")} on a card to take it, or tap it first to read more. You get ${b(S.draft.per)} picks. Each card is a discipline (ENG, ART, DES and so on) and goes to your hand. ${b("Drafting costs no gold")}: you pay only when you hire. Pick a mix of disciplines, because systems need particular roles.` }),
+  withText("hireintro", { text: S => `Round 1 begins with ${b("Income")}: every studio just received ${b(S.cfg.income + "G")}. Right after, every worker is paid a ${b("salary")}: ${b(S.cfg.salaryJr + "G")} per Junior and ${b(S.cfg.salarySr + "G")} per Senior. You have no workers yet, so you pay nothing this round.<br><br>More workers means more salaries, so growing your team has a cost every round.<br><br>Next is ${b("Hire")}.` }),
+  withText("hire", { text: S => `Your hand shows the cards you drafted. A card is not a worker until you hire it, and ${b("hiring is where gold is spent")}.<br><br>${b("Hire Junior")} costs ${b(S.cfg.jrCost + "G")}. A ${b("Junior")} earns 1 resource and works board spots only. ${b("Seniors")} cannot be hired: a Junior who has worked and then rested is ${b("promoted for free")} (you will see this at the Rest step). Seniors earn 2 resources and are the only workers who can trigger your systems.<br><br>Click a card, then press ${b("Hire Junior")}. Hire at least 2, then press ${b("Done")}.`,
+    allow: (a, S) => a.type === "hire" ? (a.lvl === "Jr" ? null : "Seniors are promoted, not hired") : a.type === "discard" ? null :
+      a.type === "done" ? (me(S).workers.length < Math.min(2, hireable(S) + me(S).workers.length) ? "Hire at least 2 workers so you have something to place" : null) : "Hire from your hand, then press Done" }),
+  sid("placeintro"),
+  sid("place1"),
+  withText("stats", { text: S => `The spot paid out instantly. What each number is for:<br><br>${b("Gold")} hires workers, recruits, and pays for systems and crunch.<br>${b("Ideas, Code, Process and Buzz")} come from earn spots. A Junior earns ${S.cfg.resJr} (×1 or ×2 depending on the spot), a Senior ${S.cfg.resSr}. Each resource is spent on systems that need that role. They keep between rounds.<br>${b("Progress")} and ${b("Hype")} come from score spots and are what the race scoring rewards. Hype fades by ${S.cfg.hypeDecay} every round.<br>${b("Debt")} is Tech Debt: high Debt costs VP. ${b("Culture")} is morale.` }),
+  { id: "recruitspot", kind: "info", title: "Recruitment: the shared talent pool", btn: "Next", hl: () => "[data-tut=recruit]",
+    text: S => `The ${b("Recruitment")} panel above the board is a ${b("shared pool")}: one worker from each of ${b(S.recruit ? S.recruit.length : 3)} different categories. It re-rolls every round.<br><br>Recruiting costs ${b(S.cfg.recruitCost + "G")} and ${b("no worker")}. You get one hire per round, and the worker can be placed the same round. If you want a particular discipline, take it before a rival does.<br><br>You will use this from Round 2 on. For now, keep placing.`,
+    allow: blk },
+  sid("place2"),
+  { id: "buildintro", kind: "info", title: "Build: systems take time", btn: "Next", hl: () => "[data-tut=steps]",
+    text: S => `You have ${b((me(S).ideas + me(S).code + me(S).process + me(S).buzz) + " resources")} banked. The ${b("Build")} step is where you spend them. Building needs ${b("no worker")}, just resources and Gold.<br><br>A ${b("System")} is a permanent engine: placing a ${b("Senior")} of the matching discipline on it later gives a bonus, and it scores VP at the end. You can start ${b(S.cfg.buildsPerRound + " build per round")}.<br><br>New in this version: a system takes ${b(S.cfg.buildDelay + " rounds")} to finish. Until then it scores nothing and cannot be used. You can ${b("Crunch")} it for ${b(S.cfg.crunchGold + "G")} (or by tiring one worker) to finish next round. Very late builds are blocked: nothing can start after the time runs out.`,
+    allow: blk },
+  withText("build", { text: S => `Press ${b("Open Systems Market")}. Each card shows its cost in resources, plus Gold, and which workers it needs. Only systems you can afford are enabled. At the bottom pick ${b("Build speed")}: normal, or Crunch.${me(S).freeBuilds ? `<br><br>${b("A free build is on the house this round.")}` : ""}<br><br>Build one, close the market with ${b("×")}, then press ${b("Done")}. Your system will appear under ${b("Building")} in your studio panel with the round it finishes.`,
+    done: S => after(S, "build", 1) }),
+  sid("restintro"),
+  { id: "rest", kind: "do", title: "Rest step: promote a Senior", hl: () => "[data-tut=rest]",
+    text: () => `A Junior who ${b("worked")} and then ${b("sat out")} a round can be ${b("promoted to Senior for free")}. A worker who is pushed on without rest becomes Over-Tired, which hurts your Culture.<br><br>Nothing is ready yet this round. You will see Promote buttons here from Round 2, once someone has worked and rested. Press ${b("Done")}.`,
+    done: S => after(S, "rest", 1),
+    allow: a => (a.type === "done" || a.type === "promote" || a.type === "fire" || a.type === "swapObj" || a.type === "swapMile") ? null : "Press Done to continue" },
+  sid("miles"),
+  sid("upkeep"),
+  sid("gates"),
+  withText("r2intro", { text: S => `Every round runs the same steps. This time you choose freely:<br><br>${b("Recruit")} from the shared pool or hire from your hand (one hire per round).<br>${b("Rest")} workers, then ${b("promote")} the ones that worked and rested.<br>Build a second system, and use ${b("Crunch")} when the clock matters.<br><br>The coach will give a short hint at each step.` }),
+  sid("r2free"),
+  sid("crisis"),
+  sid("r3free"),
+  withText("wrap", { text: S => `Every round: ${b("Income, Hire, Place, Build, Rest, Milestones, Upkeep")}. Every phase starts with ${b("Crisis, Reveal, Bid, Draft")}.<br><br>Still ahead: Production runs to round 8, Polish to round 11, and ${b("Launch is round 12")}. Scoring has four races: ${b("Progress")} and ${b("Hype")} earn VP by rank, while ${b("Debt")} (most loses most) and ${b("Culture")} (lowest loses most) cost VP. Systems, objectives, gold and the publisher gates add to that.<br><br>How do you want to continue?` }),
+  sid("full1"),
+  withText("polish", { text: S => `${b("Polish")} runs rounds 9 to 11. Check the ${b("Publisher Gates")}. Remember that a system you start now needs two rounds to finish (one with Crunch), and ${b("builds stop in the last rounds")} because they could not finish in time. Hype fades every round, so build it late.` }),
+  sid("full2"),
+  withText("launch", { text: S => `${b("Round 12 is Launch.")} Nothing carries over, so spend your resources and Gold now. Look for the ${b("Convert")} spot: each worker placed there turns ${b("3 resources of their own role")} into ${b("1 Progress or 1 Hype")}. Leftover resources are otherwise worth nothing. When the round ends, final scoring adds the race tracks, systems, objectives, milestones and gate results.` }),
+  sid("full3")
+];
+STEPS = STEPS_A;
+
 /* ---------- lifecycle ---------- */
 SI.tutNew = function () {
-  const cfg = Object.assign(E.rawConfig(), SI.TUT_CONFIG);
-  const S = E.newGame([{ name: "You", bot: false }, { name: "Rival", bot: true }], { seed: SI.TUT_SEED, config: cfg, data: E.clone(E.defaultData()) });
+  const isC = !!E.rawConfig().varC;
+  STEPS = isC ? STEPS_C : STEPS_A; SI.tutSteps = STEPS;
+  const cfg = isC ? Object.assign(E.defaultConfig(), SI.TUT_CONFIG_C) : Object.assign(E.rawConfig(), SI.TUT_CONFIG);
+  const S = E.newGame([{ name: "You", bot: false }, { name: "Rival", bot: true }], { seed: SI.TUT_SEED, config: cfg, data: E.clone(E.defaultData(cfg)) });
   // rig: the first face-up pool shows a mix of all four categories (cards are drawn from the end of the deck)
   ["ADV", "DATA", "PX", "QA", "DES", "ART", "ENG"].forEach(disc => { const i = S.decks.disc.findIndex(c => c.disc === disc); if (i >= 0) S.decks.disc.push(S.decks.disc.splice(i, 1)[0]); });
   return S;
@@ -281,6 +341,6 @@ SI.tutScoreExplainer = function (S) {
   <p class="mute" style="margin-top:8px">The bot played your studio after the tutorial, so this score shows the rules rather than your skill. Start a real game to play for it.</p></div>`;
 };
 
-SI.tutSteps = STEPS;
+SI.tutSteps = STEPS || STEPS_A;
 if (typeof module !== "undefined") module.exports = SI;
 })(typeof window !== "undefined" ? window : globalThis);

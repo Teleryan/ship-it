@@ -43,7 +43,8 @@ const TYPES = { html: "text/html; charset=utf-8", js: "text/javascript; charset=
 const CODE_CH = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const newCode = () => { let s = ""; const b = crypto.getRandomValues(new Uint8Array(4)); for (const x of b) s += CODE_CH[x % CODE_CH.length]; return s; };
 const SITE = (x) => (x === "b" || x === "c") ? x : "a";
-const siteOf = (p) => (p === "/b" || p.startsWith("/b/")) ? "b" : (p === "/c" || p.startsWith("/c/")) ? "c" : "a";
+// Variant C is the default at "/", the classic scoring version is at /a/, pool scoring at /b/ (KV keys site:a, site:b, site:c)
+const siteOf = (p) => (p === "/b" || p.startsWith("/b/")) ? "b" : (p === "/a" || p.startsWith("/a/")) ? "a" : "c";
 
 export default {
   async fetch(request, env) {
@@ -156,8 +157,9 @@ export default {
 
     // ---- the game itself: Environment A at /, Environment B at /b/ ----
     if (request.method !== "GET" && request.method !== "HEAD") return secure(new Response("Method not allowed", { status: 405 }));
-    const site = siteOf(P); if (P === "/b" || P === "/c") return new Response(null, { status: 302, headers: { location: P + "/" } });
-    let rel = site !== "a" ? P.slice(3) : P.slice(1); if (!rel) rel = "index.html";
+    const site = siteOf(P); if (P === "/a" || P === "/b") return new Response(null, { status: 302, headers: { location: P + "/" } });
+    if (P === "/c" || P.startsWith("/c/")) return new Response(null, { status: 302, headers: { location: "/" + P.slice(3) } });
+    let rel = (site === "a" || site === "b") ? P.slice(3) : P.slice(1); if (!rel) rel = "index.html";
     if (OWNER_FILES.has(rel) && !owner) return secure(new Response("Master account only.", { status: 403 }));
     const body = (await siteFiles(env, site))[rel]; if (body == null) return secure(new Response("Not found", { status: 404 }));
     return secure(new Response(body, { headers: { "content-type": TYPES[rel.split(".").pop()] || "text/plain", "cache-control": "no-cache" } }));

@@ -110,16 +110,16 @@ function gateView() {
 
 /* ---------- menu ---------- */
 function menuView() {
-  const n = U.seats.length; const inB = /^\/b(\/|$)/.test(root.location.pathname);
+  const n = U.seats.length; const ver = /^\/a(\/|$)/.test(root.location.pathname) ? "a" : /^\/b(\/|$)/.test(root.location.pathname) ? "b" : "c";
   return `<div class="center-screen"><div class="card-box">
   <div class="logo">SHIP <b>IT!</b>${D.config && D.config.envLabel ? ` <span style="font-size:.4em;color:var(--gold);letter-spacing:.08em">${D.config.envLabel}</span>` : ""}</div><p class="mute" style="margin:6px 0 16px">Rules v47 · 12 rounds · 4 phases · ${D.version}</p>
   <div class="row"><label class="mute">Players</label><select data-seatn>${[2,3,4,5,6].map(k => `<option ${k === n ? "selected" : ""}>${k}</option>`).join("")}</select></div>
   <div style="margin:10px 0">${U.seats.map((s, i) => `<div class="seat"><span class="dot" style="background:${["#e74c3c","#3498db","#27ae60","#f39c12","#9b59b6","#16a085"][i]}"></span><input data-seatname="${i}" value="${esc(s.name)}"><select data-seatbot="${i}"><option value="0" ${!s.bot ? "selected" : ""}>Human</option><option value="1" ${s.bot ? "selected" : ""}>Bot</option></select></div>`).join("")}</div>
-  <div class="row wrap"><button class="btn primary" data-act="tutorial">${D.config && D.config.varC ? "Learn to play (original rules)" : "Learn to play"}</button><button class="btn" data-act="start">Start new game</button>${hasSave() ? '<button class="btn" data-act="resume">Resume saved game</button>' : ""}${U.owner ? '<button class="btn" data-act="studio">Data Studio</button><button class="btn" data-act="master">Master</button>' : ""}</div>
+  <div class="row wrap"><button class="btn primary" data-act="tutorial">Learn to play</button><button class="btn" data-act="start">Start new game</button>${hasSave() ? '<button class="btn" data-act="resume">Resume saved game</button>' : ""}${U.owner ? '<button class="btn" data-act="studio">Data Studio</button><button class="btn" data-act="master">Master</button>' : ""}</div>
   ${U.hosted ? `<div style="margin:16px 0 0;padding:12px;border:1px solid var(--line,#2b3350);border-radius:10px"><div class="mute" style="margin-bottom:8px">Play online with friends on their own devices</div>
   <div class="row wrap"><input data-pname value="${esc(myName() === "Player" ? "" : myName())}" placeholder="Your name" maxlength="20" style="width:140px"><button class="btn primary" data-act="online-create">Create online game</button><input data-jcode placeholder="CODE" maxlength="4" style="width:80px;text-transform:uppercase;letter-spacing:.2em"><button class="btn" data-act="online-join">Join</button></div>
   ${U.joinErr ? `<p style="color:var(--bad);margin:8px 0 0">${esc(U.joinErr)}</p>` : ""}</div>` : ""}
-  ${U.hosted ? `<div class="row wrap" style="margin:14px 0 0;align-items:center"><span class="mute">Version</span><button class="btn sm ${inB ? "" : "primary"}" data-act="variant" data-v="a">A · Classic scoring</button><button class="btn sm ${inB ? "primary" : ""}" data-act="variant" data-v="b">B · Pool scoring</button></div>` : ""}
+  ${U.hosted ? `<div class="row wrap" style="margin:14px 0 0;align-items:center"><span class="mute">Version</span><button class="btn sm ${ver === "c" ? "primary" : ""}" data-act="variant" data-v="c">C · Phases (default)</button><button class="btn sm ${ver === "a" ? "primary" : ""}" data-act="variant" data-v="a">A · Classic scoring</button><button class="btn sm ${ver === "b" ? "primary" : ""}" data-act="variant" data-v="b">B · Pool scoring</button></div>` : ""}
   <div class="row wrap" style="margin:14px 0 0"><button class="btn sm" data-act="cleardata">Clear saved data</button>${U.hosted ? '<button class="btn sm" data-act="logout">Log out</button>' : ""}</div>
   <p class="dim" style="margin:14px 0 0;font-size:12px">Hot-seat: pass the device between humans. Bots play the rest. Online: each player uses their own device, and hot-seat seats can share one device.${U.tuned && U.tuned !== "default" ? ` Tuning in use: ${esc(U.tuned)}.` : ""}</p>
   </div></div>`;
@@ -458,12 +458,12 @@ function detailModal() {
       if (d.k === "hand") S.players.forEach(p => { const f = p.hand.find(x => x.id === d.id); if (f && !c) c = f; });
       if (!c) return closeOnly();
       h += discHead(c.disc) + discInfo(c.disc);
-      if (d.k === "draft") h += `<p class="mute" style="margin-top:10px">Drafting costs nothing. The card goes to your hand, and hiring it later costs ${S.cfg.jrCost}G for a Junior or ${S.cfg.srCost}G for a Senior.</p><div class="row" style="margin-top:12px">${actBtn("Draft this card", 'data-act="draft-pick" data-id="' + c.id + '"', !(S.step === "draft" && mineTurn && !S.dq.length), S.step === "bid" ? "The draft starts after the bid" : S.step !== "draft" ? "The draft is over" : !mineTurn ? "Not your turn" : "")}</div>`;
+      if (d.k === "draft") h += `<p class="mute" style="margin-top:10px">Drafting costs nothing. The card goes to your hand, and hiring it later costs ${S.cfg.jrCost}G for a Junior${S.cfg.srPromoteOnly ? ". Seniors cannot be hired: a Junior who has worked and rested is promoted for free." : " or " + S.cfg.srCost + "G for a Senior."}</p><div class="row" style="margin-top:12px">${actBtn("Draft this card", 'data-act="draft-pick" data-id="' + c.id + '"', !(S.step === "draft" && mineTurn && !S.dq.length), S.step === "bid" ? "The draft starts after the bid" : S.step !== "draft" ? "The draft is over" : !mineTurn ? "Not your turn" : "")}</div>`;
       else if (mineTurn && S.step === "hire" && !S.dq.length && P(a).hand.some(x => x.id === c.id)) {
         const p = P(a), jc = E.hireCost(S, a, "Jr"), sc = E.hireCost(S, a, "Sr");
         const noSr = S.cfg.srPromoteOnly ? "Seniors are promoted, not hired" : !E.srAllowed(S) ? "Seniors unlock in Production" : "", noQA = (S.phase === 0 && c.disc === "QA" && !S.cfg.qaAllowedPreProd) ? "No QA in Pre-Production" : "", launch = S.phase === 3 ? "No hiring in Launch" : "";
         h += `<div class="col" style="margin-top:12px;gap:8px"><div class="row">${actBtn("Hire Junior · " + jc + "G", `data-act="hire" data-card="${c.id}" data-lvl="Jr"`, !!(p.gold < jc || noQA || launch), launch || noQA || (p.gold < jc ? "Not enough gold" : ""))}</div>
-        <div class="row">${actBtn("Hire Senior · " + sc + "G", `data-act="hire" data-card="${c.id}" data-lvl="Sr"`, !!(p.gold < sc || noSr || noQA || launch), launch || noSr || noQA || (p.gold < sc ? "Not enough gold" : ""), false)}</div>
+        ${S.cfg.srPromoteOnly ? "" : `<div class="row">${actBtn("Hire Senior · " + sc + "G", `data-act="hire" data-card="${c.id}" data-lvl="Sr"`, !!(p.gold < sc || noSr || noQA || launch), launch || noSr || noQA || (p.gold < sc ? "Not enough gold" : ""), false)}</div>`}
         <div class="row">${actBtn("Discard for +" + S.cfg.discardGold + "G", `data-act="discard" data-card="${c.id}"`, false, "", false)}</div></div>`;
       }
       break; }
@@ -756,7 +756,7 @@ $root.addEventListener("click", e => {
       if ((w === "studio" || w === "all") && U.owner) { U.studio = SI.resetStudio(); }
       if (w === "all") { rm("shipit.name"); U.name = ""; }
       U.modal = null; toast("Cleared"); return; }
-    case "variant": root.location.href = v === "b" ? "/b/" : "/"; return;
+    case "variant": root.location.href = v === "b" ? "/b/" : v === "a" ? "/a/" : "/"; return;
     case "logout": {
       ["shipit.room", "shipit.save.v1", "shipit.auto.v1", "shipit.name"].forEach(k => { try { root.localStorage.removeItem(k); } catch (e) {} });
       try { root.sessionStorage.removeItem("shipit.ok"); } catch (e) {}
