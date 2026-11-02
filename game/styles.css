@@ -293,3 +293,7 @@ table.dt input.n{width:62px}
 .lane .bar i.x{opacity:.45;border-radius:0 5px 5px 0}
 .lane .bar u{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--gold);text-decoration:none}
 .lane b{width:28px;text-align:right}
+.stats.big{grid-template-columns:repeat(3,1fr)}
+.stats .st.rs{display:flex;align-items:center;gap:5px;justify-content:center}
+.stats.big .st.rs{justify-content:flex-start;padding:2px 6px;background:#12202d;border-radius:6px}
+.stats .st.rs .ic{width:17px;height:17px}
