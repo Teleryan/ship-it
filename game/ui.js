@@ -599,9 +599,9 @@ function marketStrip(S) {
   const vi = viewIndex(S), p = S.players[vi]; const cr = U.crunch;
   const rows = E.CATS.map(cat => {
     const tiles = (S.market[cat] || []).map(n => { const d = E.sysDef(S, n); const ck = E.canBuild(S, vi, n, false, cr); return sysTile(d, ck.ok); }).join("") || '<span class="mute">Sold out</span>';
-    return `<div class="mrow"><div class="lab" style="color:${catColor[cat]}">${cat}</div><div class="tiles">${tiles}</div></div>`;
+    return `<div class="mcol"><div class="lab" style="color:${catColor[cat]}">${cat}</div><div class="tiles">${tiles}</div></div>`;
   }).join("");
-  return `<div class="panel" data-tut="mstrip"><h3>Systems for sale <span class="mute" style="font-weight:400;font-size:11px">· ${p ? esc(p.name) : ""} · greyed = cannot build yet · tap for details</span></h3>${rows}</div>`;
+  return `<div class="panel" data-tut="mstrip"><h3>Systems for sale <span class="mute" style="font-weight:400;font-size:11px">· ${p ? esc(p.name) : ""} · greyed = cannot build yet · tap for details</span></h3><div class="mgrid">${rows}</div></div>`;
 }
 function marketModal() {
   const S = U.S; const a = P(E.currentActor(S)); const cat = U.marketCat || "All"; const free = a.freeBuilds > 0;
