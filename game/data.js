@@ -294,7 +294,7 @@ D.config = {
     scoreShareScale:["Market share VP scale","VP = share% x scale"],
     scoreShareNormalize:["Normalize share by player count","1 = scale by (players/4), 0 = off (gap #4)"],
     poolScoring:["Pool scoring (Environment B)","1 = Progress and Hype are zero-sum pools; systems, objectives, Gates and Reach feed them; Debt subtracts from Progress"],poolPot:["Pool VP per player per track","Fallback when no per-player-count value"],poolSysMult:["System VP to track points","Each printed system VP counts this many track points"],poolObjMult:["Objective VP to track points","Each objective VP counts this many track points"],poolDebtMult:["Debt to Progress","Each Debt subtracts this many Progress points"],
-    raceScoring:["Race scoring","1 = Progress and Hype scored by rank; Debt (most loses most) and Culture (least loses most) as inverse ranks"],mktgToHype:["Marketing added to Hype at end","Marketing x this is added to Hype for the Hype race"],raceCurve:["Rank table steepness","0.5 = flat, 1 = linear, 2.5 = winner takes most"],racePot:["VP per player per race track","Total rank VP on each track = this x players"],debtLossMax:["Most-Debt VP loss","Worst Debt rank loses this; best loses 0"],cultLossMax:["Lowest-Culture VP loss","Lowest Culture loses this; best loses 0"],trackScoring:["Absolute tracks (older)","Unused when race scoring is on"],
+    raceScoring:["Race scoring","1 = Progress and Hype scored by rank; Debt (most loses most) and Culture (least loses most) as inverse ranks"],mktgToHype:["Marketing added to Hype at end","Marketing x this is added to Hype for the Hype race"],raceCurveByN:["Rank steepness by player count (C)","Overrides Rank table steepness for that player count. Lower = smaller VP jump between ranks, so fewer runaway gaps"],racePotByN:["Rank pot by player count (C)","Overrides VP per player per race track for that player count"],debtLossByN:["Most-Debt loss by player count (C)","Overrides Most-Debt VP loss for that player count"],cultLossByN:["Lowest-Culture loss by player count (C)","Overrides Lowest-Culture VP loss for that player count"],raceCurve:["Rank table steepness","0.5 = flat, 1 = linear, 2.5 = winner takes most"],racePot:["VP per player per race track","Total rank VP on each track = this x players"],debtLossMax:["Most-Debt VP loss","Worst Debt rank loses this; best loses 0"],cultLossMax:["Lowest-Culture VP loss","Lowest Culture loses this; best loses 0"],trackScoring:["Absolute tracks (older)","Unused when race scoring is on"],
     debtPenaltyMult:["Tech Debt penalty multiplier","VP lost = Debt% x mult"],
     debtPenaltyCap:["Tech Debt penalty cap",""],
     cleanThresh:["Clean launch below Debt %",""],stdThresh:["Standard up to Debt %",""],roughThresh:["Rough up to Debt %",""],
@@ -379,7 +379,7 @@ D.spotsC = [
 ];
 // Variant C settings, merged over the defaults when varC is on
 D.configC = {
-  varC:1, envLabel:"ENV C · PHASES", phaseEnds:[3,8,11,12],
+  varC:1, envLabel:"ENV C · PHASES", raceCurveByN:{2:0.12,3:0.2,4:0.25,5:0.25,6:0.3}, racePotByN:{2:34,3:33,4:34,5:36,6:36}, debtLossByN:{2:4,3:6,4:8}, cultLossByN:{2:3,3:5,4:6}, phaseEnds:[3,8,11,12],
   spotResOr:1, srSystems:1, srPromoteOnly:1, srAllowedPreProd:1,
   promoFree:1, promoNeedsRest:1, promotionsPerRest:1, headhuntsPerRest:0, overworkCulture:-1,
   recruitCost:3, recruitPerRound:1, recruitSize2:2, recruitSize34:3, recruitSize56:4, recruitInLaunch:0,

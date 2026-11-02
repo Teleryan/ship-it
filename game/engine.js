@@ -1145,8 +1145,9 @@ E.objectiveStatus = function (S, pi, idx) {
 
 /* ---------- race scoring (rank based) ---------- */
 function rankTable(c, N) { // VP by rank (1 = best) for a track; steeper with raceCurve, pot = racePot per player
-  const w = []; for (let r = 1; r <= N; r++) w.push(Math.pow(N - r + 1, c.raceCurve)); const sum = w.reduce((a, b) => a + b, 0);
-  return w.map(x => Math.round(c.racePot * N * x / sum));
+  const cur = c.raceCurveByN && c.raceCurveByN[N] != null ? c.raceCurveByN[N] : c.raceCurve, pot = c.racePotByN && c.racePotByN[N] != null ? c.racePotByN[N] : c.racePot;
+  const w = []; for (let r = 1; r <= N; r++) w.push(Math.pow(N - r + 1, cur)); const sum = w.reduce((a, b) => a + b, 0);
+  return w.map(x => Math.round(pot * N * x / sum));
 }
 E.rankTable = rankTable;
 function rankScore(vals, table, inverse) { // vals: per player value; inverse: lower is better (returns same table, caller negates)
@@ -1182,8 +1183,8 @@ E.score = function (S) {
       s.prodShare = rankScore(pv, tab)[pl]; s.mktShare = 0;
       const hr = rankScore(hv, tab)[pl];
       s.raceHype = hr;
-      s.raceDebt = -rankScore(dv, lossTable(c.debtLossMax, N), false)[pl];
-      s.raceCult = -rankScore(cv, lossTable(c.cultLossMax, N), true)[pl];
+      s.raceDebt = -rankScore(dv, lossTable(c.debtLossByN && c.debtLossByN[N] != null ? c.debtLossByN[N] : c.debtLossMax, N), false)[pl];
+      s.raceCult = -rankScore(cv, lossTable(c.cultLossByN && c.cultLossByN[N] != null ? c.cultLossByN[N] : c.cultLossMax, N), true)[pl];
     }
     if (c.trackScoring && !c.raceScoring) {
       const net = Math.max(0, p.prod - p.debt); s.netProg = net;
