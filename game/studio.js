@@ -45,7 +45,7 @@ SI.renderStudio = function (st, tab, sim) {
       h += "</div>";
     });
     h += `<h4 style="margin:14px 0 6px">Table values (JSON)</h4><div class="cfg-grid">`;
-    ["hypeBands","deliveryBands","cultureVP","phaseEnds"].forEach(k => { h += `<div class="cfg"><label>${k}</label><small>${k === "hypeBands" ? "[[min Hype %, VP], ...]" : k === "cultureVP" ? "Culture value -> VP" : k === "phaseEnds" ? "Variant C: last round of Concept, Production, Polish, Launch, e.g. [3,8,11,12]" : "Delivery bonus bands"}</small><textarea rows="4" style="width:100%" data-cfgjson="${k}" class="${dirtyCfg(st, k) ? "dirty" : ""}">${esc(JSON.stringify(st.config[k]))}</textarea></div>`; });
+    ["hypeBands","deliveryBands","cultureVP","phaseEnds","rowNames"].forEach(k => { h += `<div class="cfg"><label>${k}</label><small>${k === "hypeBands" ? "[[min Hype %, VP], ...]" : k === "cultureVP" ? "Culture value -> VP" : k === "phaseEnds" ? "Variant C: last round of Concept, Production, Polish, Launch, e.g. [3,8,11,12]" : "Delivery bonus bands"}</small><textarea rows="4" style="width:100%" data-cfgjson="${k}" class="${dirtyCfg(st, k) ? "dirty" : ""}">${esc(JSON.stringify(st.config[k]))}</textarea></div>`; });
     h += "</div></div>";
   } else if (["spots","systems","milestones","objectives","crisis"].includes(tab)) {
     const cols = COLS[tab]; const list = st.data[tab], def = E.defaultData(E.defaultConfig())[tab];

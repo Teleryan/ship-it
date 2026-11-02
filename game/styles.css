@@ -297,3 +297,12 @@ table.dt input.n{width:62px}
 .stats .st.rs{display:flex;align-items:center;gap:5px;justify-content:center}
 .stats.big .st.rs{justify-content:flex-start;padding:2px 6px;background:#12202d;border-radius:6px}
 .stats .st.rs .ic{width:17px;height:17px}
+.ico{position:relative;display:inline-flex;align-items:center;vertical-align:middle}
+.ico:focus{outline:none}
+.ico::after{content:attr(data-tip);position:absolute;bottom:135%;left:50%;transform:translateX(-50%);background:#000;color:#fff;font:600 11px var(--font);padding:2px 7px;border-radius:5px;white-space:nowrap;opacity:0;pointer-events:none;z-index:60}
+.ico:hover::after,.ico:focus::after{opacity:1}
+.boardref{margin:10px 0 0 auto;max-width:360px;text-align:right;font-size:12px;color:var(--mute);line-height:1.5}
+.boardref .key{display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:flex-end;margin-top:6px}
+.boardref .kk{display:inline-flex;align-items:center;gap:4px}
+.boardref .kk .ico::after{display:none}
+.brow .lab{text-transform:uppercase;letter-spacing:.06em;font-size:12px}

@@ -37,11 +37,14 @@ const IC = {
 };
 const ICN = { ideas: "Ideas", code: "Code", process: "Process", buzz: "Buzz", progress: "Progress", hype: "Hype", marketing: "Marketing", culture: "Culture", debt: "Tech Debt", gold: "Gold" };
 const ICC = { ideas: "var(--ideas)", code: "var(--code)", process: "var(--process)", buzz: "var(--buzz)", progress: "var(--pr)", hype: "var(--hype)", marketing: "var(--mk)", culture: "#7bd88f", debt: "#ff7b72", gold: "var(--gold)" };
-const ic = k => `<svg class="ic" viewBox="0 0 16 16" fill="none" stroke="${ICC[k]}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="${ICN[k]}"><title>${ICN[k]}</title>${IC[k]}</svg>`;
+const ic = k => `<span class="ico" data-tip="${ICN[k]}" tabindex="0" role="img" aria-label="${ICN[k]}"><svg class="ic" viewBox="0 0 16 16" fill="none" stroke="${ICC[k]}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span>`;
+const KEY_ORDER = ["ideas", "code", "process", "buzz", "progress", "hype", "marketing", "culture", "debt", "gold"];
+const iconKey = () => KEY_ORDER.map(k => `<span class="kk">${ic(k)}${ICN[k]}</span>`).join("");
+const rowTitle = (S, key) => { const n = S.cfg.rowNames && S.cfg.rowNames[key]; return (n && n[S.phase]) || key; };
 const RES_ICONS = E.RES.map(ic).join("");
-const resChip = (k, n) => `<span class="rchip" style="--c:${RC[k]}" title="${E.RES_NAME[k]}">${ic(k)}${n}</span>`;
+const resChip = (k, n) => `<span class="rchip" style="--c:${RC[k]}">${ic(k)}${n}</span>`;
 const resBadges = o => E.RES.filter(k => o[k] > 0).map(k => resChip(k, o[k])).join(" ");
-const resNow = p => E.RES.map(k => `<span class="rchip" style="--c:${RC[k]}" title="${E.RES_NAME[k]}">${ic(k)}<b class="mono">${p[k]}</b></span>`).join(" ");
+const resNow = p => E.RES.map(k => `<span class="rchip" style="--c:${RC[k]}">${ic(k)}<b class="mono">${p[k]}</b></span>`).join(" ");
 const fxTxt = s => (U.S && U.S.cfg.varC) ? fxHtml(s) : esc(s);
 // words in requirement text become icons
 const wordIcons = s => esc(s).replace(/\b(Progress|Hype|Marketing|Debt|Culture)\b/g, w => ic(FXK[w.toLowerCase()]));
@@ -50,8 +53,8 @@ const FXK = { progress: "progress", prod: "progress", hype: "hype", marketing: "
 function fxHtml(str) {
   return String(str || "").split(/,\s*/).filter(Boolean).map(part => {
     let m = part.match(/^([+-])(\d+)\s+(Progress|Hype|Marketing|Culture|Debt)$/i), k;
-    if (m) { k = FXK[m[3].toLowerCase()]; const good = k === "debt" ? m[1] === "-" : m[1] === "+"; return `<span class="fx1 ${good ? "g" : "b"}" title="${esc(part)}">${m[1] === "-" ? "−" : "+"}${m[2]}${ic(k)}</span>`; }
-    m = part.match(/^([+-])(\d+)G$/); if (m) return `<span class="fx1 ${m[1] === "+" ? "g" : "b"}" title="${esc(part)}">${m[1] === "-" ? "−" : "+"}${m[2]}${ic("gold")}</span>`;
+    if (m) { k = FXK[m[3].toLowerCase()]; const good = k === "debt" ? m[1] === "-" : m[1] === "+"; return `<span class="fx1 ${good ? "g" : "b"}">${m[1] === "-" ? "−" : "+"}${m[2]}${ic(k)}</span>`; }
+    m = part.match(/^([+-])(\d+)G$/); if (m) return `<span class="fx1 ${m[1] === "+" ? "g" : "b"}">${m[1] === "-" ? "−" : "+"}${m[2]}${ic("gold")}</span>`;
     return `<span class="fx1 t">${esc(part)}</span>`;
   }).join("");
 }
@@ -195,7 +198,7 @@ function earnHtml(spot) {
   const any = (spot.discs || []).includes("ANY") || !ks.length;
   const icons = any ? '<span class="ic4">' + RES_ICONS + "</span>" : ks.map(ic).join('<span class="slash">/</span>');
   const tip = any ? "Earn the resource of each worker's own role" : ks.length > 1 ? "Earns " + ks.map(k => ICN[k]).join(" or ") + " depending on the worker's role" : "Earn " + ICN[ks[0]];
-  return `<span class="fx1 earn" title="${esc(tip)} ${x}">${icons}<b>${x}</b></span>`;
+  return `<span class="fx1 earn">${icons}<b>${x}</b></span>`;
 }
 function spotTile(S, spot, view) {
   const occ = (S.occ[spot.id] || []);
@@ -236,10 +239,10 @@ function boardView(S) {
   const SIDE = ["team", "insight", "outsource", "workshop", "mentor", "crunch", "fundraise"]; const isSide = s => s.mode === "shared" || SIDE.includes(s.id) || (S.cfg.varC && (s.id === "talent1" || s.id === "rd")); const main = spots.filter(s => !isSide(s)); const shared = spots.filter(isSide);
   const rows = []; main.forEach(s => { let r = rows.find(x => x.name === s.row && !(S.phase === 3)); if (!r) { r = { name: s.row, items: [] }; rows.push(r); } r.items.push(s); }); if (S.cfg.varC) { const ORD = ["EARN", "PROGRESS", "HYPE", "CREW"]; rows.sort((a, b) => (ORD.indexOf(a.name) < 0 ? 9 : ORD.indexOf(a.name)) - (ORD.indexOf(b.name) < 0 ? 9 : ORD.indexOf(b.name))); }
   const launch = S.phase === 3;
-  return `<div class="panel"><h3><span style="color:${ph.color}">Main board: ${ph.name}</span><span class="mute" style="text-transform:none;letter-spacing:0">${S.cfg.spotResOr ? `${RES_ICONS} Earn spots pay the resource of the worker's role: Jr +${S.cfg.resJr} · Sr +${S.cfg.resSr}, times the spot's ×. Progress and Hype spots earn no resources.` : `Each placement earns 1 resource of the role: Jr +${S.cfg.resJr} · Sr +${S.cfg.resSr} (+${S.cfg.srBonus} Progress or Marketing) · Over-Tired +${S.cfg.resOver}`}</span></h3>
-  <div class="board" data-tut="board"><div class="rows">${launch ? `<div class="spots">${main.map(s => spotTile(S, s)).join("")}</div>` : rows.map(r => `<div class="brow" data-row="${esc(r.name)}"><div class="lab" style="color:${ph.color}">${esc(r.name)}</div><div class="spots">${r.items.map(s => spotTile(S, s)).join("")}</div></div>`).join("")}
+  return `<div class="panel"><h3><span style="color:${ph.color}">Main board: ${ph.name}</span><span class="mute" style="text-transform:none;letter-spacing:0">${S.cfg.spotResOr ? "" : `Each placement earns 1 resource of the role: Jr +${S.cfg.resJr} · Sr +${S.cfg.resSr} (+${S.cfg.srBonus} Progress or Marketing) · Over-Tired +${S.cfg.resOver}`}</span></h3>
+  <div class="board" data-tut="board"><div class="rows">${launch ? `<div class="spots">${main.map(s => spotTile(S, s)).join("")}</div>` : rows.map(r => `<div class="brow" data-row="${esc(r.name)}"><div class="lab" style="color:${ph.color}">${esc(rowTitle(S, r.name))}</div><div class="spots">${r.items.map(s => spotTile(S, s)).join("")}</div></div>`).join("")}
   ${launch ? launchThresholds(S) : ""}</div>
-  <div class="shared col"><div class="mute" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase">Utility spots</div>${shared.map(s => spotTile(S, s)).join("")}</div></div></div>`;
+  <div class="shared col"><div class="mute" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase">${S.cfg.varC ? esc(rowTitle(S, "UTILITY")) : "Utility spots"}</div>${shared.map(s => spotTile(S, s)).join("")}</div></div>${S.cfg.spotResOr ? `<div class="boardref"><div>Earn spots pay the resource of the worker's role.</div><div>Junior +${S.cfg.resJr} · Senior +${S.cfg.resSr}, times the spot's ×.</div><div>Progress and Hype spots pay no resources.</div><div class="key">${iconKey()}</div></div>` : ""}</div>`;
 }
 function raceRules(S) {
   const c = S.cfg, N = S.players.length, tab = E.rankTable(c, N), ord = ["1st", "2nd", "3rd", "4th", "5th", "6th"];
