@@ -333,6 +333,12 @@ SI.tutLockMode = function () {
   const st = cur(); if (!st || st.kind !== "info" || st.wrap) return "";
   return (st.id === "crisis" || st.soft) ? "soft" : "hard";
 };
+/* Detail popups stay locked until the lesson that teaches them (the draft step: "tap a card to read more"). */
+SI.tutAllowsDetail = function () {
+  const u = U(), T = u.tut; if (!T || T.auto || !u.S) return true;
+  if (T.rev != null) return false;
+  const i = SI.tutSteps.findIndex(s => s.id === "draft"); return i < 0 || T.idx >= i;
+};
 SI.tutBack = function () { const T = U().tut; if (!T) return; if (T.rev == null) T.rev = Math.max(0, T.idx - 1); else T.rev = Math.max(0, T.rev - 1); };
 SI.tutFwd = function () { const T = U().tut; if (!T || T.rev == null) return; T.rev++; if (T.rev >= T.idx) T.rev = null; };
 SI.tutAck = function () { const T = U().tut, st = cur(); if (T && st) T.ack[st.id] = true; };

@@ -385,9 +385,9 @@ function racePanel(S) {
   const lane = (key, title, val, extra) => {
     const rows = S.players.map(p => ({ p, v: val(p), x: extra ? extra(p) : 0 })).sort((a, b) => (b.v + b.x) - (a.v + a.x));
     const gate = tgt(title), mx = Math.max(20, gate + 4, ...rows.map(r => r.v + r.x)) * 1.08;
-    let rank = 0, prev = null;
+    let rank = 0, prev = null; const mx0 = rows.some(r => r.v + r.x > 0);
     const body = rows.map((r, i) => { if (r.v + r.x !== prev) rank = i + 1; prev = r.v + r.x; const pc = n => (n / mx * 100).toFixed(1) + "%";
-      return `<div class="lane" title="${esc(r.p.name)}: ${r.v}${r.x ? " + " + r.x + " Marketing" : ""}"><span class="rk">${rank}</span><span class="dot" style="background:${r.p.color}"></span><div class="bar"><i style="width:${pc(r.v)};background:${r.p.color}"></i>${r.x ? `<i class="x" style="left:${pc(r.v)};width:${pc(r.x)};background:${r.p.color}"></i>` : ""}${gate ? `<u style="left:${pc(gate)}"></u>` : ""}</div><b class="mono">${r.v + r.x}</b></div>`; }).join("");
+      return `<div class="lane" title="${esc(r.p.name)}: ${r.v}${r.x ? " + " + r.x + " Marketing" : ""}"><span class="rk">${mx0 ? rank : "–"}</span><span class="dot" style="background:${r.p.color}"></span><div class="bar"><i style="width:${pc(r.v)};background:${r.p.color}"></i>${r.x ? `<i class="x" style="left:${pc(r.v)};width:${pc(r.x)};background:${r.p.color}"></i>` : ""}${gate ? `<u style="left:${pc(gate)}"></u>` : ""}</div><b class="mono">${r.v + r.x}</b></div>`; }).join("");
     return `<div class="trk"><div class="th">${ic(key)}<b>${title}</b>${gate ? `<span class="mute">gate ${gate}+</span>` : ""}</div>${body}</div>`;
   };
   return `<div class="panel" data-tut="tracks"><h3>Race tracks <span class="mute" style="text-transform:none;letter-spacing:0">rank earns VP</span></h3>${lane("progress", "Progress", p => p.prod)}${lane("hype", "Hype", p => p.hype, p => Math.floor(p.mktg * (c.mergeMktg ? 0 : c.mktgToHype)))}</div>`;
@@ -796,6 +796,7 @@ function resumeRoom() { // rejoin after a page refresh
 $root.addEventListener("click", e => {
   const t = e.target.closest("[data-act]"); if (!t) return;
   if (t.classList.contains("overlay") && e.target !== t) return;
+  if (U.tut && (t.dataset.act === "detail") && !t.closest(".coach") && !SI.tutAllowsDetail()) { toast("We will cover that in a moment"); return; }
   if (U.tut) { const lm = SI.tutLockMode(); if (lm && !t.closest(".coach") && !(lm === "soft" && t.closest(".overlay"))) return; }
   const v = t.dataset.v; const S = U.S; const a = S ? E.currentActor(S) : -1;
   switch (t.dataset.act) {
