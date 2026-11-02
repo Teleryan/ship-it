@@ -271,3 +271,25 @@ table.dt input.n{width:62px}
 .stats.res{margin-top:4px;grid-template-columns:repeat(4,1fr)}
 .rchip{display:inline-flex;align-items:center;gap:4px;font-weight:700;color:var(--c)}
 .rchip i{width:9px;height:9px;border-radius:50%;background:var(--c);display:inline-block}
+
+/* icons, effect chips and race tracks */
+.ic{width:1.15em;height:1.15em;vertical-align:-.2em;flex:none}
+.rchip .ic{width:15px;height:15px}
+.fx1{display:inline-flex;align-items:center;gap:2px;margin:0 6px 0 0;white-space:nowrap}
+.fx1.g{color:#8fe8a4}.fx1.b{color:#ff9a92}.fx1.t{color:#8fe8a4;font-weight:600;font-size:12px}
+.fx1 .ic{width:15px;height:15px}
+.fx1.earn{color:var(--ink)}.fx1.earn .ic{width:17px;height:17px}.fx1.earn b{margin-left:2px}
+.fx1 .slash{opacity:.5;margin:0 1px}
+.ic4{display:inline-flex;gap:0}.ic4 .ic{width:12px;height:12px}
+.spot .fx{display:flex;flex-wrap:wrap;align-items:center;font-size:15px}
+.stats.res .st.rs{display:flex;align-items:center;gap:5px;justify-content:center}
+.stats.res .st.rs .ic{width:17px;height:17px}.stats.res .st.rs b{font-size:15px}
+.trk{margin-top:8px}.trk .th{display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:3px}.trk .th .mute{margin-left:auto;font-size:11px}
+.lane{display:flex;align-items:center;gap:6px;margin:3px 0;font-size:12px}
+.lane .rk{width:12px;color:var(--dim);font-size:11px;text-align:right}
+.lane .dot{width:9px;height:9px;border-radius:50%;flex:none}
+.lane .bar{position:relative;flex:1;height:10px;border-radius:5px;background:#12202d;overflow:visible}
+.lane .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:5px;opacity:.95}
+.lane .bar i.x{opacity:.45;border-radius:0 5px 5px 0}
+.lane .bar u{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--gold);text-decoration:none}
+.lane b{width:28px;text-align:right}

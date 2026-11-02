@@ -22,9 +22,36 @@ const FAT = ["Active", "Tired", "Over-Tired"];
 const nameOf = t => { const k = String(t).toUpperCase(); return D.disciplines[k] ? D.disciplines[k].name : t; };
 const fmtTrig = t => String(t).replace(/^(\d+)\s+(\S+)$/, (m, n, k) => n + " " + nameOf(k));
 const RC = { ideas: "var(--ideas)", code: "var(--code)", process: "var(--process)", buzz: "var(--buzz)" };
-const resChip = (k, n) => `<span class="rchip" style="--c:${RC[k]}"><i></i>${n} ${E.RES_NAME[k]}</span>`;
+// ---- icons (inline, drawn with currentColor) ----
+const IC = {
+  ideas: '<path d="M8 1.8a4.2 4.2 0 0 0-2.4 7.6c.5.4.8.9.8 1.5v.3h3.2v-.3c0-.6.3-1.1.8-1.5A4.2 4.2 0 0 0 8 1.8z"/><path d="M6.4 13.2h3.2M7 14.8h2"/>',
+  code: '<path d="M5.2 4.4 1.8 8l3.4 3.6M10.8 4.4 14.2 8l-3.4 3.6M9.2 3 6.8 13"/>',
+  process: '<circle cx="8" cy="8" r="2.2"/><path d="M8 1.6v2M8 12.4v2M1.6 8h2M12.4 8h2M3.5 3.5l1.4 1.4M11.1 11.1l1.4 1.4M12.5 3.5l-1.4 1.4M4.9 11.1l-1.4 1.4"/>',
+  buzz: '<path d="M2 6.2v3.6h2.4l5 3V3.2l-5 3z"/><path d="M11.6 5.6a3.4 3.4 0 0 1 0 4.8M13.2 3.8a6 6 0 0 1 0 8.4"/>',
+  progress: '<path d="M2.5 13.5V9M6.8 13.5V6M11.1 13.5V3.4M2 13.5h12"/>',
+  hype: '<path d="M8 1.6c.4 2.2 3.8 3.6 3.8 7.2A3.8 3.8 0 0 1 4.2 9c0-1.4.7-2.2 1.4-3 .1 1 .6 1.6 1.2 1.8C6.4 5.6 7 3.6 8 1.6z"/>',
+  marketing: '<circle cx="8" cy="8" r="5.6"/><circle cx="8" cy="8" r="2.6"/><path d="M8 8l4.2-4.2"/>',
+  culture: '<path d="M8 13.6S2.2 10 2.2 6.1A3 3 0 0 1 8 5a3 3 0 0 1 5.8 1.1C13.8 10 8 13.6 8 13.6z"/>',
+  debt: '<ellipse cx="8" cy="9.2" rx="3.2" ry="3.9"/><path d="M8 5.3V3.2M5.4 7 2.8 5.6M10.6 7l2.6-1.4M4.8 10H2.2M11.2 10h2.6M5.6 12.4l-2 1.6M10.4 12.4l2 1.6"/>',
+  gold: '<circle cx="8" cy="8" r="5.8"/><path d="M8 4.6v6.8M6.2 6.4c0-.8.8-1.2 1.8-1.2s1.8.4 1.8 1.2c0 1.6-3.6.8-3.6 2.4 0 .8.8 1.2 1.8 1.2s1.8-.4 1.8-1.2"/>'
+};
+const ICN = { ideas: "Ideas", code: "Code", process: "Process", buzz: "Buzz", progress: "Progress", hype: "Hype", marketing: "Marketing", culture: "Culture", debt: "Tech Debt", gold: "Gold" };
+const ICC = { ideas: "var(--ideas)", code: "var(--code)", process: "var(--process)", buzz: "var(--buzz)", progress: "var(--pr)", hype: "var(--hype)", marketing: "var(--mk)", culture: "#7bd88f", debt: "#ff7b72", gold: "var(--gold)" };
+const ic = k => `<svg class="ic" viewBox="0 0 16 16" fill="none" stroke="${ICC[k]}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="${ICN[k]}"><title>${ICN[k]}</title>${IC[k]}</svg>`;
+const RES_ICONS = E.RES.map(ic).join("");
+const resChip = (k, n) => `<span class="rchip" style="--c:${RC[k]}" title="${E.RES_NAME[k]}">${ic(k)}${n}</span>`;
 const resBadges = o => E.RES.filter(k => o[k] > 0).map(k => resChip(k, o[k])).join(" ");
-const resNow = p => E.RES.map(k => `<b class="mono" style="color:${RC[k]}">${p[k]}</b> ${E.RES_NAME[k]}`).join(" · ");
+const resNow = p => E.RES.map(k => `<span class="rchip" style="--c:${RC[k]}" title="${E.RES_NAME[k]}">${ic(k)}<b class="mono">${p[k]}</b></span>`).join(" ");
+// effect text ("+3 Progress, -1 Debt, +2G") as icon chips; anything unrecognised stays as plain text
+const FXK = { progress: "progress", prod: "progress", hype: "hype", marketing: "marketing", mktg: "marketing", culture: "culture", debt: "debt" };
+function fxHtml(str) {
+  return String(str || "").split(/,\s*/).filter(Boolean).map(part => {
+    let m = part.match(/^([+-])(\d+)\s+(Progress|Hype|Marketing|Culture|Debt)$/i), k;
+    if (m) { k = FXK[m[3].toLowerCase()]; const good = k === "debt" ? m[1] === "-" : m[1] === "+"; return `<span class="fx1 ${good ? "g" : "b"}" title="${esc(part)}">${m[1] === "-" ? "−" : "+"}${m[2]}${ic(k)}</span>`; }
+    m = part.match(/^([+-])(\d+)G$/); if (m) return `<span class="fx1 ${m[1] === "+" ? "g" : "b"}" title="${esc(part)}">${m[1] === "-" ? "−" : "+"}${m[2]}${ic("gold")}</span>`;
+    return `<span class="fx1 t">${esc(part)}</span>`;
+  }).join("");
+}
 const crewChips = spot => (spot.crew || []).map(alt => alt.map(c => `<span class="chip" style="background:${(D.categories[c] || {}).color || "#667"}">${c}</span>`).join("+")).join(' <span class="mute">or</span> ');
 const fmtBuild = s => { const p = String(s).split("+"); const m = p[0].match(/^(\d+)([MG])$/); if (!m) return s; let head; if (m[2] === "M") { const need = E.buildNeed(E.parseBuild(s)), tot = E.RES.reduce((t, k) => t + need[k], 0), gp = U.S && U.S.cfg.sysGoldMult ? Math.round(tot * U.S.cfg.sysGoldMult) : 0; head = E.resText(need) + (gp ? " + " + gp + " Gold" : ""); } else head = m[1] + "G"; return head + (p.length > 1 ? " · needs " + p.slice(1).map(nameOf).join(" and ") + " workers" : ""); };
 const chip = (d, extra) => `<span class="chip" style="background:${dcol(d)}" title="${esc(D.disciplines[d] ? D.disciplines[d].name : d)}">${esc(D.disciplines[d] ? D.disciplines[d].name : d)}${extra || ""}</span>`;
@@ -137,7 +164,7 @@ function stepTracker(S) {
 }
 function topbar(S) {
   const ph = PH[S.phase];
-  return `<div class="top"><div class="logo" style="font-size:22px">SHIP <b>IT!</b>${D.config && D.config.envLabel ? ` <span style="font-size:.4em;color:var(--gold);letter-spacing:.08em">${D.config.envLabel}</span>` : ""}</div>
+  return `<div class="top"><div class="logo" style="font-size:22px">SHIP <b>IT!</b></div>
   <span class="phasepill" style="background:${ph.color}">${ph.name.toUpperCase()}</span><b>Round ${S.round}/12</b>${stepTracker(S)}
   <div class="grow"></div>
   ${U.net ? `<span class="mute" title="Game code">${U.net.up ? "●" : "○ reconnecting"} Game ${esc(U.net.code)}</span>` : U.tut ? "" : `<button class="btn sm" data-act="undo" ${U.undo.length ? "" : "disabled"}>↶ Undo</button>`}
@@ -158,12 +185,14 @@ function banner(S) {
   ${S.step === "place" && a && !a.bot ? '<button class="btn" data-tut="pass" data-act="pass">Pass (done placing)</button>' : ""}
   ${["hire","build","rest","milestones"].includes(S.step) && a && !a.bot && !S.dq.length ? `<button class="btn primary" data-act="done">Done</button>` : ""}</div>`;
 }
-// which resource an earn spot pays: the worker's own role decides, so a spot whose roles share one category pays that resource, otherwise it is "by worker"
-function earnLabel(spot) {
-  const names = []; (spot.discs || []).forEach(d => { if (d === "ANY") return; const c = E.CAT_OF(d), n = c && E.RES_NAME[E.RES_OF[c]]; if (n && !names.includes(n)) names.push(n); });
-  const x = spot.r > 1 ? " ×" + spot.r : "";
-  if ((spot.discs || []).includes("ANY") || !names.length) return "Earn resources" + x + " (worker's role)";
-  return "Earn " + names.join(" or ") + x + (names.length > 1 ? " (by worker)" : "");
+// which resource an earn spot pays: the worker's own role decides, so a spot whose roles share one category pays that resource; mixed spots show each possible icon
+function earnHtml(spot) {
+  const ks = []; (spot.discs || []).forEach(d => { if (d === "ANY") return; const c = E.CAT_OF(d), k = c && E.RES_OF[c]; if (k && !ks.includes(k)) ks.push(k); });
+  const x = spot.r > 1 ? "×" + spot.r : "×1";
+  const any = (spot.discs || []).includes("ANY") || !ks.length;
+  const icons = any ? '<span class="ic4">' + RES_ICONS + "</span>" : ks.map(ic).join('<span class="slash">/</span>');
+  const tip = any ? "Earn the resource of each worker's own role" : ks.length > 1 ? "Earns " + ks.map(k => ICN[k]).join(" or ") + " depending on the worker's role" : "Earn " + ICN[ks[0]];
+  return `<span class="fx1 earn" title="${esc(tip)} ${x}">${icons}<b>${x}</b></span>`;
 }
 function spotTile(S, spot, view) {
   const occ = (S.occ[spot.id] || []);
@@ -173,14 +202,15 @@ function spotTile(S, spot, view) {
   if ((spot.mode || "single") === "single" && occ.length) cls += " taken";
   if (spot.mode === "shared" || ["team", "outsource", "workshop", "mentor", "crunch", "fundraise"].includes(spot.id)) cls += " shared-s";
   const mode = spot.mode === "shared" ? "SHARED" : spot.mode === "multi" ? "MULTI" : spot.excl ? "EXCL" : "";
-  let fx = spot.fx || spot.tile || spot.note || "";
-  if (S.cfg.spotResOr && spot.r) fx = (spot.fx ? spot.fx + " · " : "") + earnLabel(spot);
+  let fxh;
+  if (S.cfg.varC) fxh = (spot.fx ? fxHtml(spot.fx) : "") + (S.cfg.spotResOr && spot.r ? earnHtml(spot) : "") + (!spot.fx && !(spot.r && S.cfg.spotResOr) ? `<span class="fx1 t">${esc(spot.tile || spot.note || "")}</span>` : "");
+  else { let fx = spot.fx || spot.tile || spot.note || ""; if (S.cfg.spotResOr && spot.r) fx = (spot.fx ? spot.fx + " · " : "") + "Earn resources" + (spot.r > 1 ? " ×" + spot.r : ""); fxh = esc(fx); }
   const m = S.phase === 3 && S.cfg.launchMult !== 1 ? ` ×${S.cfg.launchMult}` : "";
   return `<button class="${cls}" data-act="detail" data-k="spot" data-id="${spot.id}" title="${esc(reason || spot.note || "")}" ${cls.includes("ok") ? "" : 'aria-disabled="true"'}>
     ${spot.debt ? `<span class="corner" title="Adds Tech Debt">+${spot.debt}</span>` : ""}
-    <div class="kind">${esc(spot.row)} ${mode ? "· " + mode : ""}</div>
+    ${S.cfg.varC && S.phase !== 3 && ["EARN", "PROGRESS", "HYPE", "CREW"].includes(spot.row) ? (mode ? `<div class="kind">${mode}</div>` : "") : `<div class="kind">${esc(spot.row)} ${mode ? "· " + mode : ""}</div>`}
     <div class="dc">${spot.crew ? crewChips(spot) : spot.discs.map(d => d === "ANY" ? '<span class="chip" style="background:#667">ANY</span>' : chip(d)).join("")}${spot.srOnly ? '<span class="chip" style="background:#a33">Sr</span>' : ""}</div>
-    <div class="fx">${esc(fx)}${m}</div>${spot.cost ? `<div class="note">${(spot.cost.res ? "Pay " + spot.cost.res + " resources" : "Pay " + spot.cost.gold + "G") + (JSON.stringify(spot.crew || []).includes("Any") ? " · different disciplines" : "")}</div>` : ""}
+    <div class="fx">${fxh}${m}</div>${spot.cost ? `<div class="note">${(spot.cost.res ? "Pay " + spot.cost.res + " resources" : "Pay " + spot.cost.gold + "G") + (JSON.stringify(spot.crew || []).includes("Any") ? " · different disciplines" : "")}</div>` : ""}
     <div class="occ">${occ.map(i => `<i style="background:${P(i).color}" title="${esc(P(i).name)}"></i>`).join("")}</div></button>`;
 }
 function recruitPanel(S) {
@@ -203,7 +233,7 @@ function boardView(S) {
   const SIDE = ["team", "insight", "outsource", "workshop", "mentor", "crunch", "fundraise"]; const isSide = s => s.mode === "shared" || SIDE.includes(s.id) || (S.cfg.varC && (s.id === "talent1" || s.id === "rd")); const main = spots.filter(s => !isSide(s)); const shared = spots.filter(isSide);
   const rows = []; main.forEach(s => { let r = rows.find(x => x.name === s.row && !(S.phase === 3)); if (!r) { r = { name: s.row, items: [] }; rows.push(r); } r.items.push(s); }); if (S.cfg.varC) { const ORD = ["EARN", "PROGRESS", "HYPE", "CREW"]; rows.sort((a, b) => (ORD.indexOf(a.name) < 0 ? 9 : ORD.indexOf(a.name)) - (ORD.indexOf(b.name) < 0 ? 9 : ORD.indexOf(b.name))); }
   const launch = S.phase === 3;
-  return `<div class="panel"><h3><span style="color:${ph.color}">Main board: ${ph.name}</span><span class="mute" style="text-transform:none;letter-spacing:0">${S.cfg.spotResOr ? `Resource spots earn the resource of the role: Jr +${S.cfg.resJr} · Sr +${S.cfg.resSr} (times the spot's ×). Progress and Hype spots earn no resources.` : `Each placement earns 1 resource of the role: Jr +${S.cfg.resJr} · Sr +${S.cfg.resSr} (+${S.cfg.srBonus} Progress or Marketing) · Over-Tired +${S.cfg.resOver}`}</span></h3>
+  return `<div class="panel"><h3><span style="color:${ph.color}">Main board: ${ph.name}</span><span class="mute" style="text-transform:none;letter-spacing:0">${S.cfg.spotResOr ? `${RES_ICONS} Earn spots pay the resource of the worker's role: Jr +${S.cfg.resJr} · Sr +${S.cfg.resSr}, times the spot's ×. Progress and Hype spots earn no resources.` : `Each placement earns 1 resource of the role: Jr +${S.cfg.resJr} · Sr +${S.cfg.resSr} (+${S.cfg.srBonus} Progress or Marketing) · Over-Tired +${S.cfg.resOver}`}</span></h3>
   <div class="board" data-tut="board"><div class="rows">${launch ? `<div class="spots">${main.map(s => spotTile(S, s)).join("")}</div>` : rows.map(r => `<div class="brow" data-row="${esc(r.name)}"><div class="lab" style="color:${ph.color}">${esc(r.name)}</div><div class="spots">${r.items.map(s => spotTile(S, s)).join("")}</div></div>`).join("")}
   ${launch ? launchThresholds(S) : ""}</div>
   <div class="shared col"><div class="mute" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase">Utility spots</div>${shared.map(s => spotTile(S, s)).join("")}</div></div></div>`;
@@ -339,6 +369,21 @@ function poolBars(S, p, live) {
   const bar = (name, vp, tot, col) => { const pc = tot ? Math.round(vp / tot * 100) : 0; return `<div title="${name} pool: ${pc}% of the pool, about ${vp.toFixed(0)} VP if the game ended now" style="margin-top:3px"><div class="row" style="justify-content:space-between;font-size:11px"><span style="color:${col}">${name} pool</span><span class="mono">${pc}% · ${vp.toFixed(0)} VP</span></div><div style="height:6px;border-radius:3px;background:var(--line);overflow:hidden"><div style="height:100%;width:${pc}%;background:${col}"></div></div></div>`; };
   return `<div style="margin-top:6px">${bar("Progress", me.parts.prodShare, tp, "#3498db")}${bar("Hype", me.parts.hypeStrength, th, "#e67e22")}<div class="mute" style="font-size:10px;margin-top:2px">If the game ended now: about ${me.total.toFixed(0)} VP</div></div>`;
 }
+// Progress and Hype race tracks: one lane per player, the publisher gate target marked on each
+function racePanel(S) {
+  if (!S.cfg.varC) return "";
+  const c = S.cfg, gs = S.gateSet && S.gateSet.length ? S.gateSet : S.data.publisherGates, g = (gs || []).find(x => x.phase === S.phase);
+  const tgt = k => { const m = g && (g.reqs || []).map(r => r.match(new RegExp("^(\\d+)\\+ " + k))).find(Boolean); return m ? +m[1] : 0; };
+  const lane = (key, title, val, extra) => {
+    const rows = S.players.map(p => ({ p, v: val(p), x: extra ? extra(p) : 0 })).sort((a, b) => (b.v + b.x) - (a.v + a.x));
+    const gate = tgt(title), mx = Math.max(20, gate + 4, ...rows.map(r => r.v + r.x)) * 1.08;
+    let rank = 0, prev = null;
+    const body = rows.map((r, i) => { if (r.v + r.x !== prev) rank = i + 1; prev = r.v + r.x; const pc = n => (n / mx * 100).toFixed(1) + "%";
+      return `<div class="lane" title="${esc(r.p.name)}: ${r.v}${r.x ? " + " + r.x + " Marketing" : ""}"><span class="rk">${rank}</span><span class="dot" style="background:${r.p.color}"></span><div class="bar"><i style="width:${pc(r.v)};background:${r.p.color}"></i>${r.x ? `<i class="x" style="left:${pc(r.v)};width:${pc(r.x)};background:${r.p.color}"></i>` : ""}${gate ? `<u style="left:${pc(gate)}"></u>` : ""}</div><b class="mono">${r.v + r.x}</b></div>`; }).join("");
+    return `<div class="trk"><div class="th">${ic(key)}<b>${title}</b>${gate ? `<span class="mute">gate ${gate}+</span>` : ""}</div>${body}</div>`;
+  };
+  return `<div class="panel" data-tut="tracks"><h3>Race tracks <span class="mute" style="text-transform:none;letter-spacing:0">rank earns VP</span></h3>${lane("progress", "Progress", p => p.prod)}${lane("hype", "Hype", p => p.hype, p => Math.floor(p.mktg * (c.mergeMktg ? 0 : c.mktgToHype)))}</div>`;
+}
 function playersPanel(S) {
   const live = S.cfg.poolScoring ? E.score(S) : null;
   const ordered = !["setup", "crisis", "bid"].includes(S.step) && S.order.length === S.players.length;
@@ -348,7 +393,7 @@ function playersPanel(S) {
     return `<div class="pt ${cur ? "cur" : ""}" data-pid="${p.id}" data-act="view" data-v="${p.id}" style="cursor:pointer;${vi ? "background:var(--panel2)" : ""}"><div class="nm"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${p.bot ? ' <span class="tag">bot</span>' : ""}<span class="grow"></span>${ordered && pos >= 0 ? `<span class="ordbadge" title="Turn order for this phase, set by the blind bid">Turn order: ${pos + 1}</span>` : ""}</div>
     <div class="stats"><div class="st g"><small>Gold</small><b>${p.gold}</b></div><div class="st p"><small>Progress</small><b>${p.prod}</b></div><div class="st k"><small>Marketing</small><b>${p.mktg}</b></div>
     <div class="st h"><small>Hype</small><b>${p.hype}</b></div><div class="st d"><small>Debt</small><b>${p.debt} <span class="dim">${Math.round(E.debtPct(S, p))}%</span></b></div><div class="st c"><small>Culture</small><b>${p.culture > 0 ? "+" : ""}${p.culture}</b></div></div>
-    <div class="stats res">${E.RES.map(k => `<div class="st" title="${E.RES_NAME[k]}: earned by placing a ${({ ideas: "Creative", code: "Development", process: "Operations", buzz: "Marketing" })[k]} role"><small style="color:${RC[k]}">${E.RES_NAME[k]}</small><b style="color:${RC[k]}">${p[k]}</b></div>`).join("")}</div>
+    <div class="stats res">${E.RES.map(k => `<div class="st rs" title="${E.RES_NAME[k]}: earned by placing a ${({ ideas: "Creative", code: "Development", process: "Operations", buzz: "Marketing" })[k]} role">${ic(k)}<b style="color:${RC[k]}">${p[k]}</b></div>`).join("")}</div>
     ${poolBars(S, p, live)}<div class="mute" style="font-size:11px;margin-top:4px">${p.workers.length} workers · ${p.systems.length} systems${(p.building || []).length ? " (+" + p.building.length + " building)" : ""}${p.vpAdj ? " · crisis VP " + (p.vpAdj > 0 ? "+" : "") + p.vpAdj : ""}</div></div>`;
   }).join("");
 }
@@ -360,7 +405,7 @@ function gameView() {
   const S = U.S;
   const crisis = S.crisisCard ? S.data.crisis.find(c => c.id === S.crisisCard) : null;
   return `<div class="app">${topbar(S)}<div class="main"><div class="left">${banner(S)}${actionArea(S)}${recruitPanel(S)}${boardView(S)}${playerPanel(S)}</div>
-  <div class="right"><div class="panel"><h3>Studios</h3><div class="col">${playersPanel(S)}</div></div>${gatesPanel(S)}${crisis ? `<div class="panel" data-tut="crisis" data-act="detail" data-k="crisis" style="cursor:pointer"><h3>Active crisis</h3>${crisisCardHtml(crisis)}</div>` : ""}
+  <div class="right"><div class="panel"><h3>Studios</h3><div class="col">${playersPanel(S)}</div></div>${racePanel(S)}${gatesPanel(S)}${crisis ? `<div class="panel" data-tut="crisis" data-act="detail" data-k="crisis" style="cursor:pointer"><h3>Active crisis</h3>${crisisCardHtml(crisis)}</div>` : ""}
   <div class="panel"><h3>Game log <button class="btn sm" data-act="log">${U.logOpen ? "Hide" : "Show all"}</button></h3><div class="log" style="${U.logOpen ? "max-height:60vh" : ""}">${S.log.slice(U.logOpen ? -300 : -14).reverse().map(l => `<div><span class="r">R${l.r}</span> ${esc(l.m)}</div>`).join("")}</div></div></div></div></div>`;
 }
 
