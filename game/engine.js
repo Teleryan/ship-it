@@ -173,6 +173,18 @@ function ownsDiscs(p, req) { // distinct workers for each requirement, wild work
   }
   return go(0);
 }
+/* Variant C build crew: one free (not already building) worker per role the system's cost names; wild workers are flexible. Returns worker ids, or null. */
+function crewFor(p, req) {
+  const free = p.workers.filter(w => !w.build); const used = {}; const out = [];
+  function go(i) {
+    if (i === req.length) return true;
+    const cand = free.filter(w => !used[w.id] && actsAs(w).includes(req[i])).sort((a, b) => (a.lvl === "Sr") - (b.lvl === "Sr") || (D0.disciplines[a.disc].wild ? 1 : 0) - (D0.disciplines[b.disc].wild ? 1 : 0) || a.id - b.id);
+    for (const w of cand) { used[w.id] = true; out.push(w.id); if (go(i + 1)) return true; out.pop(); used[w.id] = false; }
+    return false;
+  }
+  return go(0) ? out.slice() : null;
+}
+E.crewFor = crewFor;
 function sysCount(p, cat) { return p.systems.filter(s => s.cat === cat).length; }
 function debtPct(S, p) {
   if (!S.cfg.debtMode) return p.debt;
@@ -292,6 +304,7 @@ function completeBuilds(S) {
     p.building = b.filter(x => {
       if (x.rdy > S.round) return true;
       const def = sysDef(S, x.name); p.systems.push({ name: x.name, cat: x.cat, t: false }); p.rs.builds++;
+      (x.crew || []).forEach(id => { const cw = p.workers.find(q => q.id === id); if (cw && cw.build === x.name) cw.build = null; });
       if (def.debt) gain(S, p.id, "debt", def.debt);
       if (def.once) applyFx(S, p.id, E.parseEffect(def.once), 1, {});
       log(S, p.name + "'s " + x.name + " is finished (" + def.cat + ")");
@@ -445,7 +458,7 @@ function catsOf(w) { const d = D0.disciplines[w.disc]; const out = [d.cat]; (d.w
 /* Crew spots: every way to fill the other slots from rested, unplaced workers. A plan = { ids (sorted), wcat (the category the placing worker fills), cats {id: category} }. */
 function crewPlans(S, p, w, spot) {
   if (w.fat >= 2) return [];
-  const others = p.workers.filter(x => x.id !== w.id && !x.placed && x.fat < 2);
+  const others = p.workers.filter(x => x.id !== w.id && !x.placed && !x.build && x.fat < 2);
   const seen = {}, out = [];
   spot.crew.forEach(alt => {
     const wcs = catsOf(w).slice(); if (alt.includes("Any") && !wcs.some(c => alt.includes(c))) wcs.push(catsOf(w)[0]);
@@ -504,6 +517,7 @@ function spotUsableBy(S, pi, w, spot) {
 function placementOptions(S, pi, w) {
   const p = P(S, pi); const out = [];
   if (w.placed) return [{ ok: false, reason: "Already placed this round" }];
+  if (w.build) return [{ ok: false, reason: "Busy building " + w.build }];
   if (S.phase === 3 && p.flags.skipLaunch) return [{ ok: false, reason: "Skipped (Last-Minute Bug: Delay)" }];
   activeSpots(S).forEach(spot => { const u = spotUsableBy(S, pi, w, spot); out.push(Object.assign({ target: "spot:" + spot.id, label: spot.row, kind: "spot", spot }, u)); });
   p.systems.forEach((s, i) => {
@@ -676,13 +690,15 @@ E.resText = function (o) { return RES.filter(k => o[k] > 0).map(k => o[k] + " " 
 function spendRes(S, p, n) { for (let i = 0; i < n; i++) { let big = RES[0]; RES.forEach(k => { if (p[k] > p[big]) big = k; }); p[big]--; } }
 function maxBuilds(S, p) { return S.cfg.buildsPerRound; }
 /* Variant C: rounds until a bought system is finished. Crunch (Gold or fatigue, or free after R&D) is the fast option. */
-E.buildDelay = function (S, p, crunch) { return (crunch || (p && p.rd && S.cfg.rdCrunch)) ? (S.cfg.crunchDelay || 1) : (S.cfg.buildDelay || 2); };
+/* Rounds until a system is ready. Crew rounds (bt, 1-3 by system power) are the rounds its workers stay committed; ready = this round + 1 + crew rounds. A rush removes one crew round. */
+E.buildRounds = function (S, p, crunch, def) { const bt = def && def.bt != null ? def.bt : (S.cfg.buildDelay || 2) - 1; const rush = crunch || (p && p.rd && S.cfg.rdCrunch); return Math.max(0, bt - (rush ? (S.cfg.rushRounds == null ? 1 : S.cfg.rushRounds) : 0)); };
+E.buildDelay = function (S, p, crunch, def) { return 1 + E.buildRounds(S, p, crunch, def); };
 E.crunchWorker = function (p) { const c = p.workers.filter(w => w.fat < 2).sort((x, y) => x.fat - y.fat || x.id - y.id); return c[0] || null; };
 E.canBuild = function (S, pi, name, free, crunch) {
   const p = P(S, pi), def = sysDef(S, name); if (!def) return { ok: false, reason: "Unknown tile" };
   const nb = S.cfg.varC ? (p.building || []) : [];
   if (S.cfg.varC) {
-    const d = E.buildDelay(S, p, crunch);
+    const d = E.buildDelay(S, p, crunch, def);
     if (S.round + d > 12) return { ok: false, reason: (crunch || (p.rd && S.cfg.rdCrunch)) ? "Would not finish before the game ends" : "Too late for a normal build" + (S.round + (S.cfg.crunchDelay || 1) <= 12 ? " (rush it with crunch)" : " (nothing finishes in time)") };
     if (crunch === "gold" && !(p.rd && S.cfg.rdCrunch) && p.gold < (S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold) + E.buildCost(S, p, def, free).gold) return { ok: false, reason: "Crunch costs " + (S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold) + "G more" };
     if (crunch === "fat" && !(p.rd && S.cfg.rdCrunch) && !E.crunchWorker(p)) return { ok: false, reason: "Every worker is already worn out" };
@@ -694,7 +710,8 @@ E.canBuild = function (S, pi, name, free, crunch) {
   if (S.cfg.maxSystems && p.systems.length + nb.length >= S.cfg.maxSystems) return { ok: false, reason: "Studio is full (" + S.cfg.maxSystems + " systems)" };
   if (sysCount(p, def.cat) + nb.filter(x => x.cat === def.cat).length >= S.cfg.slotsPerCategory) return { ok: false, reason: def.cat + " slots full" };
   const b = parseBuild(def.build);
-  if (!ownsDiscs(p, b.reqs)) return { ok: false, reason: "Needs workers: " + b.reqs.map(r => (D0.disciplines[r] || {}).name || r).join(" and ") };
+  if (S.cfg.varC && b.reqs.length && !crewFor(p, b.reqs)) { return ownsDiscs(p, b.reqs) ? { ok: false, reason: "Workers busy building: need free " + b.reqs.map(r => (D0.disciplines[r] || {}).name || r).join(" and ") } : { ok: false, reason: "Needs workers: " + b.reqs.map(r => (D0.disciplines[r] || {}).name || r).join(" and ") }; }
+  if (!S.cfg.varC && !ownsDiscs(p, b.reqs)) return { ok: false, reason: "Needs workers: " + b.reqs.map(r => (D0.disciplines[r] || {}).name || r).join(" and ") };
   const bc = E.buildCost(S, p, def, free);
   if (b.cur === "M" && !free && !bc.coverable) return { ok: false, reason: "Needs " + E.resText(bc.short) + " more" + (S.cfg.resSubMax ? " (up to " + S.cfg.resSubMax + " missing can be paid in Gold)" : "") };
   if (b.cur === "G" && p.gold < b.cost) return { ok: false, reason: "Needs " + b.cost + "G" };
@@ -714,11 +731,12 @@ function doBuild(S, pi, name, useFree, crunchIn) {
   if (free) { p.freeBuilds--; } else { p.builds++; if (p.rdDisc) { log(S, p.name + " uses the R&D discount (-" + p.rdDisc + " resources)"); p.rdDisc = 0; } }
   S.sysAvail[name] = false; if (S.market && S.market[def.cat]) { S.market[def.cat] = S.market[def.cat].filter(x => x !== name); refillMarket(S); }
   if (S.cfg.varC) {
-    const rush = !!crunch || (p.rd && S.cfg.rdCrunch), d = E.buildDelay(S, p, crunch);
+    const rush = !!crunch || (p.rd && S.cfg.rdCrunch), d = E.buildDelay(S, p, crunch, def), crewIds = E.buildRounds(S, p, crunch, def) > 0 ? (crewFor(p, b.reqs) || []) : [];
+    crewIds.forEach(id => { p.workers.find(q => q.id === id).build = name; });
     if (crunch === "gold" && !(p.rd && S.cfg.rdCrunch)) { const cg = S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold; gain(S, pi, "gold", -cg); p.rs.spent += cg; }
     else if (crunch === "fat" && !(p.rd && S.cfg.rdCrunch)) { const cw = E.crunchWorker(p); cw.fat = Math.min(2, cw.fat + 1); log(S, p.name + " crunches: " + cw.lvl + " " + cw.disc + " is more tired"); }
-    p.building.push({ name, cat: def.cat, rdy: S.round + d, rush }); p.rs.crunched = (p.rs.crunched || 0) + (rush ? 1 : 0); if (rush) p.cs.crunched = (p.cs.crunched || 0) + 1;
-    log(S, p.name + " starts building " + name + " (" + def.cat + "), ready in round " + (S.round + d) + (rush ? " (crunched)" : "") + (free ? " FREE" : ""));
+    p.building.push({ name, cat: def.cat, rdy: S.round + d, rush, crew: crewIds }); p.rs.crunched = (p.rs.crunched || 0) + (rush ? 1 : 0); if (rush) p.cs.crunched = (p.cs.crunched || 0) + 1;
+    log(S, p.name + " starts building " + name + " (" + def.cat + "), ready in round " + (S.round + d) + (crewIds.length ? " (crew: " + crewIds.map(id => { const q = p.workers.find(z => z.id === id); return q.lvl + " " + q.disc; }).join(", ") + ")" : "") + (rush ? " (crunched)" : "") + (free ? " FREE" : ""));
     return { ok: true };
   }
   p.systems.push({ name, cat: def.cat, t: false }); p.rs.builds++;

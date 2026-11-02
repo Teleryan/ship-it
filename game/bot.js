@@ -187,7 +187,7 @@ function place(S, p) {
 
 function buildScore(S, p, d) {
   const b = E.parseBuild(d.build); const fx = E.parseEffect(d.fx || d.each || ""); let v = val(fx) + d.vp * 1.2 + d.syn * 0.8 - d.debt * 1.8 * W.debt - b.cost * (b.cur === "G" ? 0.35 : 0.25) - E.buildGold(S, d, p) * 0.3;
-  if (d.pas) v += 3.5; if (d.inc) v += d.inc * Math.max(0, 12 - S.round - (S.cfg.varC ? E.buildDelay(S, p, null) : 0)) * 0.8; if (d.cat === "Stability") v += p.debt > 3 ? 2 : -1; if (d.cat === "Revenue") v += 0.5; v += W.buildBias + (W.cat[d.cat] || 0);
+  if (d.pas) v += 3.5; if (d.inc) v += d.inc * Math.max(0, 12 - S.round - (S.cfg.varC ? E.buildDelay(S, p, null, d) : 0)) * 0.8; if (d.cat === "Stability") v += p.debt > 3 ? 2 : -1; if (d.cat === "Revenue") v += 0.5; v += W.buildBias + (W.cat[d.cat] || 0);
   // synergy with held objectives
   p.objectives.forEach(id => { const o = S.data.objectives[id]; if (S.cfg.varC ? (o.res && E.sysMainRes(d) === o.res) : d.sym.some(s => o.sym.includes(s))) v += 1.5; });
   return v + E.rnd(S);

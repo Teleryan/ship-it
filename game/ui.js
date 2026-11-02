@@ -234,7 +234,7 @@ function recruitPanel(S) {
 }
 function buildingsList(S, p) {
   const b = p.building || []; if (!b.length) return "";
-  return b.map(x => { const def = E.sysDef(S, x.name); return `<div class="sys" style="border-style:dashed;border-color:${catColor[x.cat]};opacity:.85"><div class="t">${esc(x.name)} ${symTag(def)}</div><div class="meta">${x.cat} · <b>Building</b>, ready in round ${x.rdy}${x.rush ? " (rushed)" : ""}</div></div>`; }).join("");
+  return b.map(x => { const def = E.sysDef(S, x.name); return `<div class="sys" style="border-style:dashed;border-color:${catColor[x.cat]};opacity:.85"><div class="t">${esc(x.name)} ${symTag(def)}</div><div class="meta">${x.cat} · <b>Building</b>, ready in round ${x.rdy}${x.rush ? " (rushed)" : ""}</div>${(x.crew || []).length ? `<div class="meta">Crew busy: ${esc((x.crew || []).map(id => { const q = p.workers.find(z => z.id === id); return q ? nameOf(q.disc) : ""; }).filter(Boolean).join(" + "))}</div>` : ""}</div>`; }).join("");
 }
 function boardView(S) {
   const ph = PH[S.phase]; const spots = E.activeSpots(S);
@@ -273,9 +273,9 @@ function viewIndex(S) {
 function priv(S, vi) { if (U.net) return S.over || U.net.mine.includes(vi); const a = E.currentActor(S); return S.over || (a === vi && !S.players[vi].bot) || S.players.every(p => p.bot); }
 function workerCard(S, w, vi, selectable) {
   const sel = U.sel === w.id; const lvl = w.lvl === "Sr" ? "Senior" : "Junior";
-  return `<div class="wk ${sel ? "sel" : ""} ${w.placed ? "placed" : ""}" data-act="detail" data-k="worker" data-id="${w.id}" data-p="${vi}">
+  return `<div class="wk ${sel ? "sel" : ""} ${w.placed || w.build ? "placed" : ""}" data-act="detail" data-k="worker" data-id="${w.id}" data-p="${vi}">
    <div class="whd" style="background:${dcol(w.disc)}">${esc(dcat(w.disc))}</div>
-   <div class="wbd"><div class="d">${esc(D.disciplines[w.disc].name)}</div>${w.as ? `<div class="as">acts as ${nameOf(w.as)}</div>` : ""}<div class="l ${w.lvl === "Sr" ? "sr" : ""}">${lvl}</div><div class="fat f${w.fat}" title="${FAT[w.fat]}"><i></i></div><div class="fl">${w.placed ? "Placed" : FAT[w.fat]}</div></div></div>`;
+   <div class="wbd"><div class="d">${esc(D.disciplines[w.disc].name)}</div>${w.as ? `<div class="as">acts as ${nameOf(w.as)}</div>` : ""}<div class="l ${w.lvl === "Sr" ? "sr" : ""}">${lvl}</div><div class="fat f${w.fat}" title="${FAT[w.fat]}"><i></i></div><div class="fl">${w.build ? "Building" : w.placed ? "Placed" : FAT[w.fat]}</div></div></div>`;
 }
 function playerPanel(S) {
   const vi = viewIndex(S); const p = P(vi); const a = E.currentActor(S); const mine = a === vi && !p.bot;
@@ -589,9 +589,10 @@ const buildChips = str => {
   const roles = p.slice(1).map(nameOf); return h + (roles.length ? `<span class="roles">${esc(roles.join(" + "))}</span>` : "");
 };
 /* Compact system tile: name, main resource, VP, cost icons, one effect line. Detail lives in the popup. */
+const bR = d => { const S = U.S; if (!S || !S.cfg.varC) return 0; const p = S.players[viewIndex(S)]; return E.buildRounds(S, p, U.crunch, d); };
 function sysTile(d, ok, extra) {
   const hint = U.S && U.S.cfg.varC && viewHasSyn(d);
-  return `<div class="sys2 ${ok ? "" : "off"}" data-act="detail" data-k="market" data-id="${esc(d.name)}" style="border-color:${catColor[d.cat]}"><div class="h"><span class="n">${esc(d.name)}</span>${symTag(d)}${hint ? '<span class="star" title="Matches the resource of one of your objectives">★</span>' : ""}<span class="vp">${d.vp} VP</span></div><div class="c">${buildChips(d.build)}</div>${d.fx ? `<div class="e">${fxTxt(d.fx)}</div>` : ""}${d.pas ? `<div class="pas"><b>Passive</b> ${esc(d.pas)}</div>` : ""}<div class="trg">Trigger ${esc(fmtTrig(d.trig))}${d.debt ? ` · <b class="bad">+${d.debt} Debt</b>` : ""}</div>${extra || ""}</div>`;
+  return `<div class="sys2 ${ok ? "" : "off"}" data-act="detail" data-k="market" data-id="${esc(d.name)}" style="border-color:${catColor[d.cat]}"><div class="h"><span class="n">${esc(d.name)}</span>${symTag(d)}${hint ? '<span class="star" title="Matches the resource of one of your objectives">★</span>' : ""}<span class="vp">${d.vp} VP</span></div><div class="c">${buildChips(d.build)}</div>${d.fx ? `<div class="e">${fxTxt(d.fx)}</div>` : ""}${d.pas ? `<div class="pas"><b>Passive</b> ${esc(d.pas)}</div>` : ""}<div class="trg">Crew busy ${bR(d)} round${bR(d) === 1 ? "" : "s"} · Trigger ${esc(fmtTrig(d.trig))}${d.debt ? ` · <b class="bad">+${d.debt} Debt</b>` : ""}</div>${extra || ""}</div>`;
 }
 const viewHasSyn = d => { const S = U.S, p = S.players[viewIndex(S)]; return !!p && p.objectives.some(id => S.data.objectives[id].res && S.data.objectives[id].res === E.sysMainRes(d)); };
 function marketStrip(S) {
@@ -607,7 +608,7 @@ function marketModal() {
   const S = U.S; const a = P(E.currentActor(S)); const cat = U.marketCat || "All"; const free = a.freeBuilds > 0;
   const list = S.data.systems.filter(d => E.inMarket(S, d) && (cat === "All" || d.cat === cat)); const canRefresh = !!S.cfg.marketSize && (a.refreshed || 0) < (S.cfg.marketRefreshesPerRound || 1) && a.gold >= S.cfg.marketRefreshGold;
   const cr = S.cfg.varC && U.crunch ? U.crunch : undefined; const rdFree = !!(a.rd && S.cfg.rdCrunch);
-  let h = `<h2>Systems Market</h2>` + (S.cfg.varC ? `<div class="row wrap" style="margin-bottom:8px;gap:8px;align-items:center"><b>Build speed:</b>${rdFree ? `<span class="mute">R&amp;D: your build is rushed for free (ready in round ${S.round + S.cfg.crunchDelay})</span>` : [["none", "Normal · ready in round " + (S.round + S.cfg.buildDelay)], ["gold", "Rush with Gold (+" + S.cfg.crunchGold + "G) · round " + (S.round + S.cfg.crunchDelay)], ["fat", "Rush by tiring a worker · round " + (S.round + S.cfg.crunchDelay)]].map(o => `<button class="tab ${(cr || "none") === o[0] ? "on" : ""}" data-act="crunch" data-v="${o[0]}">${o[1]}</button>`).join("")}</div>` : "") + `<div class="row wrap" style="margin-bottom:10px">${["All"].concat(E.CATS).map(c => `<button class="tab ${cat === c ? "on" : ""}" data-act="mcat" data-v="${c}">${c}</button>`).join("")}<span class="grow"></span><span class="mono">${resNow(a)} · Gold <b style="color:var(--gold)">${a.gold}</b> · builds ${a.builds}/${E.maxBuilds(S, a)}${free ? " · FREE build ready" : ""}</span></div>` + (cat !== "All" && D.typeRules && D.typeRules[cat] ? `<div class="mute" style="margin:0 0 8px"><b>${cat}:</b> ${esc(D.typeRules[cat])}</div>` : "");
+  let h = `<h2>Systems Market</h2>` + (S.cfg.varC ? `<div class="row wrap" style="margin-bottom:8px;gap:8px;align-items:center"><b>Build speed:</b>${rdFree ? `<span class="mute">R&amp;D: your build is rushed for free (one crew round less)</span>` : [["none", "Normal"], ["gold", "Rush with Gold (+" + S.cfg.crunchGold + "G): one crew round less"], ["fat", "Rush by tiring a worker: one crew round less"]].map(o => `<button class="tab ${(cr || "none") === o[0] ? "on" : ""}" data-act="crunch" data-v="${o[0]}">${o[1]}</button>`).join("")}</div>` : "") + `<div class="row wrap" style="margin-bottom:10px">${["All"].concat(E.CATS).map(c => `<button class="tab ${cat === c ? "on" : ""}" data-act="mcat" data-v="${c}">${c}</button>`).join("")}<span class="grow"></span><span class="mono">${resNow(a)} · Gold <b style="color:var(--gold)">${a.gold}</b> · builds ${a.builds}/${E.maxBuilds(S, a)}${free ? " · FREE build ready" : ""}</span></div>` + (cat !== "All" && D.typeRules && D.typeRules[cat] ? `<div class="mute" style="margin:0 0 8px"><b>${cat}:</b> ${esc(D.typeRules[cat])}</div>` : "");
   const cards = list.map(d => {
     const ck = E.canBuild(S, a.id, d.name, free, cr); const ckPaid = free ? E.canBuild(S, a.id, d.name, false, cr) : ck;
     const hint = a.objectives.some(id => S.cfg.varC ? S.data.objectives[id].res === E.sysMainRes(d) : d.sym.some(s => S.data.objectives[id].sym.includes(s)));
