@@ -183,7 +183,7 @@ function prompt(S) {
   const d = S.dq[0]; const a = actorName(S);
   if (S.over) return "Game over";
   if (d) return { keepObj: "choose your objectives", bid: d.purpose === "turn" ? "secret blind bid for turn order" : "secret auction bid", choose: "make a crisis choice", pickWorker: "choose a worker to lose", raidHire: "Studio Raid: hire at half cost?", pivot: "pivot your Platform", dropObj: "remove an objective", keepMile: "choose milestone(s) to keep", swapObjPick: "choose objective", patch: "Day-One Patch: spend Momentum" }[d.t] || "decide";
-  return { draft: "take 1 card (" + (S.draft.left != null ? S.draft.left + " picks left in the draft" : S.draft.cards.length + " left") + ")", hire: "hire from your hand, then Done", place: "select a worker, then a highlighted spot (or Pass)", build: "build a system with resources, builds " + (a ? a.builds + "/" + E.maxBuilds(S, a) : ""), rest: "promote, headhunt, swap or release, then Done", milestones: "cash in completed milestones, then Done" }[S.step] || "";
+  return { draft: "take 1 card (" + (S.draft.left != null ? S.draft.left + " picks left in the draft" : S.draft.cards.length + " left") + ")", hire: "hire from your hand, then Done", place: "select a worker, then a highlighted spot (or Pass)", build: "build a system with skills, builds " + (a ? a.builds + "/" + E.maxBuilds(S, a) : ""), rest: "promote, headhunt, swap or release, then Done", milestones: "cash in completed milestones, then Done" }[S.step] || "";
 }
 function banner(S) {
   const a = actorName(S);
@@ -193,13 +193,13 @@ function banner(S) {
   ${S.step === "place" && a && !a.bot ? '<button class="btn" data-tut="pass" data-act="pass">Pass (done placing)</button>' : ""}
   ${["hire","build","rest","milestones"].includes(S.step) && a && !a.bot && !S.dq.length ? `<button class="btn primary" data-act="done">Done</button>` : ""}</div>`;
 }
-// which resource an earn spot pays: the worker's own role decides, so a spot whose roles share one category pays that resource; mixed spots show each possible icon
+// which skill an earn spot pays: the worker's own role decides, so a spot whose roles share one category pays that skill; mixed spots show each possible icon
 function earnHtml(spot) {
   const ks = []; (spot.discs || []).forEach(d => { if (d === "ANY") return; const c = E.CAT_OF(d), k = c && E.RES_OF[c]; if (k && !ks.includes(k)) ks.push(k); });
   const x = spot.r > 1 ? "×" + spot.r : "×1";
   const any = (spot.discs || []).includes("ANY") || !ks.length;
   const icons = any ? '<span class="ic4">' + RES_ICONS + "</span>" : ks.map(ic).join('<span class="slash">/</span>');
-  const tip = any ? "Earn the resource of each worker's own role" : ks.length > 1 ? "Earns " + ks.map(k => ICN[k]).join(" or ") + " depending on the worker's role" : "Earn " + ICN[ks[0]];
+  const tip = any ? "Earn the skill of each worker's own role" : ks.length > 1 ? "Earns " + ks.map(k => ICN[k]).join(" or ") + " depending on the worker's role" : "Earn " + ICN[ks[0]];
   return `<span class="fx1 earn">${icons}<b>${x}</b></span>`;
 }
 function spotTile(S, spot, view) {
@@ -212,13 +212,13 @@ function spotTile(S, spot, view) {
   const mode = spot.mode === "shared" ? "SHARED" : spot.mode === "multi" ? "MULTI" : spot.excl ? "EXCL" : "";
   let fxh;
   if (S.cfg.varC) fxh = (spot.fx ? fxHtml(spot.fx) : "") + (S.cfg.spotResOr && spot.r ? earnHtml(spot) : "") + (!spot.fx && !(spot.r && S.cfg.spotResOr) ? `<span class="fx1 t">${esc(spot.tile || spot.note || "")}</span>` : "");
-  else { let fx = spot.fx || spot.tile || spot.note || ""; if (S.cfg.spotResOr && spot.r) fx = (spot.fx ? spot.fx + " · " : "") + "Earn resources" + (spot.r > 1 ? " ×" + spot.r : ""); fxh = esc(fx); }
+  else { let fx = spot.fx || spot.tile || spot.note || ""; if (S.cfg.spotResOr && spot.r) fx = (spot.fx ? spot.fx + " · " : "") + "Earn skills" + (spot.r > 1 ? " ×" + spot.r : ""); fxh = esc(fx); }
   const m = S.phase === 3 && S.cfg.launchMult !== 1 ? ` ×${S.cfg.launchMult}` : "";
-  return `<button class="${cls}" data-act="detail" data-k="spot" data-id="${spot.id}" title="${esc(reason || spot.note || "")}" ${cls.includes("ok") ? "" : 'aria-disabled="true"'}>
+  return `<button class="${cls}" data-act="detail" data-k="spot" data-id="${spot.id}" data-spot="${spot.id}" title="${esc(reason || spot.note || "")}" ${cls.includes("ok") ? "" : 'aria-disabled="true"'}>
     ${spot.debt ? `<span class="corner" title="Adds Tech Debt">+${spot.debt}</span>` : ""}
     ${S.cfg.varC && S.phase !== 3 && ["EARN", "PROGRESS", "HYPE", "CREW"].includes(spot.row) ? (mode ? `<div class="kind">${mode}</div>` : "") : `<div class="kind">${esc(spot.row)} ${mode ? "· " + mode : ""}</div>`}
     <div class="dc">${spot.crew ? crewChips(spot) : spot.discs.map(d => d === "ANY" ? '<span class="chip" style="background:#667">ANY</span>' : chip(d)).join("")}${spot.srOnly ? '<span class="chip" style="background:#a33">Sr</span>' : ""}</div>
-    <div class="fx">${fxh}${m}</div>${spot.cost ? `<div class="note">${(spot.cost.res ? "Pay " + spot.cost.res + " resources" : "Pay " + spot.cost.gold + "G") + (JSON.stringify(spot.crew || []).includes("Any") ? " · different disciplines" : "")}</div>` : ""}
+    <div class="fx">${fxh}${m}</div>${spot.cost ? `<div class="note">${(spot.cost.res ? "Pay " + spot.cost.res + " skills" : "Pay " + spot.cost.gold + "G") + (JSON.stringify(spot.crew || []).includes("Any") ? " · 2 workers, different roles" : "")}</div>` : ""}
     <div class="occ">${occ.map(i => `<i style="background:${P(i).color}" title="${esc(P(i).name)}"></i>`).join("")}</div></button>`;
 }
 function recruitPanel(S) {
@@ -241,10 +241,10 @@ function boardView(S) {
   const SIDE = ["team", "insight", "outsource", "workshop", "mentor", "crunch", "fundraise"]; const isSide = s => s.mode === "shared" || SIDE.includes(s.id) || (S.cfg.varC && (s.id === "talent1" || s.id === "rd")); const main = spots.filter(s => !isSide(s)); const shared = spots.filter(isSide);
   const rows = []; main.forEach(s => { let r = rows.find(x => x.name === s.row && !(S.phase === 3)); if (!r) { r = { name: s.row, items: [] }; rows.push(r); } r.items.push(s); }); if (S.cfg.varC) { const ORD = ["EARN", "PROGRESS", "HYPE", "CREW"]; rows.sort((a, b) => (ORD.indexOf(a.name) < 0 ? 9 : ORD.indexOf(a.name)) - (ORD.indexOf(b.name) < 0 ? 9 : ORD.indexOf(b.name))); }
   const launch = S.phase === 3;
-  return `<div class="panel"><h3><span style="color:${ph.color}">Main board: ${ph.name}</span><span class="mute" style="text-transform:none;letter-spacing:0">${S.cfg.spotResOr ? "" : `Each placement earns 1 resource of the role: Jr +${S.cfg.resJr} · Sr +${S.cfg.resSr} (+${S.cfg.srBonus} Progress or Marketing) · Over-Tired +${S.cfg.resOver}`}</span></h3>
+  return `<div class="panel"><h3><span style="color:${ph.color}">Main board: ${ph.name}</span><span class="mute" style="text-transform:none;letter-spacing:0">${S.cfg.spotResOr ? "" : `Each placement earns 1 skill of the role: Jr +${S.cfg.resJr} · Sr +${S.cfg.resSr} (+${S.cfg.srBonus} Progress or Marketing) · Over-Tired +${S.cfg.resOver}`}</span></h3>
   <div class="board" data-tut="board"><div class="rows">${launch ? `<div class="spots">${main.map(s => spotTile(S, s)).join("")}</div>` : rows.map(r => `<div class="brow" data-row="${esc(r.name)}"><div class="lab" style="color:${ph.color}">${esc(rowTitle(S, r.name))}</div><div class="spots">${r.items.map(s => spotTile(S, s)).join("")}</div></div>`).join("")}
   ${launch ? launchThresholds(S) : ""}</div>
-  <div class="shared col"><div class="mute" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase">${S.cfg.varC ? esc(rowTitle(S, "UTILITY")) : "Utility spots"}</div>${shared.map(s => spotTile(S, s)).join("")}</div></div>${S.cfg.spotResOr ? `<div class="boardrefs"><div class="boardref wcost"><div class="wt">Worker cost</div><div><b>Junior</b> hire ${ic("gold")}<b>${S.cfg.jrCost}</b> · salary ${ic("gold")}<b>${S.cfg.salaryJr}</b> per round · earns <b>+${S.cfg.resJr}</b> of the spot’s resource</div><div><b>Senior</b> promoted free · salary ${ic("gold")}<b>${S.cfg.salarySr}</b> per round · earns <b>+${S.cfg.resSr}</b> of the spot’s resource</div></div><div class="boardref r"><div class="key">${iconKey()}</div></div></div>` : ""}</div>`;
+  <div class="shared col"><div class="mute" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase">${S.cfg.varC ? esc(rowTitle(S, "UTILITY")) : "Utility spots"}</div>${shared.map(s => spotTile(S, s)).join("")}</div></div>${S.cfg.spotResOr ? `<div class="boardrefs"><div class="boardref wcost"><div class="wt">Worker cost</div><div><b>Junior</b> hire ${ic("gold")}<b>${S.cfg.jrCost}</b> · salary ${ic("gold")}<b>${S.cfg.salaryJr}</b> per round · earns <b>+${S.cfg.resJr}</b> of the spot’s skill</div><div><b>Senior</b> promoted free · salary ${ic("gold")}<b>${S.cfg.salarySr}</b> per round · earns <b>+${S.cfg.resSr}</b> of the spot’s skill</div></div><div class="boardref r"><div class="key">${iconKey()}</div></div></div>` : ""}</div>`;
 }
 function raceRules(S) {
   const c = S.cfg, N = S.players.length, tab = E.rankTable(c, N), ord = ["1st", "2nd", "3rd", "4th", "5th", "6th"];
@@ -465,7 +465,7 @@ function decisionModal(S) {
     case "dropObj": h += `<h3>Remove ${d.left} objective(s) from scoring</h3><div class="row wrap">${p.objectives.map(id => { const o = S.data.objectives[id]; return `<div class="sys" data-act="drop" data-id="${id}" style="cursor:pointer"><div class="t">${esc(o.name)}</div><div class="meta">${o.vp} VP</div></div>`; }).join("")}</div>`; break;
     case "keepMile": h += `<h3>Keep ${d.keep} milestone(s)</h3><div class="row wrap">${d.opts.map(id => { const m = S.data.milestones[id]; return `<div class="sys" style="width:200px;cursor:pointer" data-act="keepm" data-id="${id}"><div class="t">${esc(m.name)}</div><div class="meta">${esc(m.text)}</div><div class="e" style="color:var(--gold)">+${m.gold}G</div></div>`; }).join("")}</div>`; break;
     case "swapObjPick": { const all = [d.old].concat(d.opts); h += `<h3>Swap objective: keep one</h3><div class="row wrap">${all.map((id, i) => { const o = S.data.objectives[id]; return `<div class="sys" style="width:210px;cursor:pointer" data-act="swapp" data-id="${id}"><div class="t">${esc(o.name)} ${symTag(o)}</div><div class="meta">${i === 0 ? "current · " : ""}${o.vp} VP</div>${o.reqs.map(r => `<div class="meta">• ${esc(r)}</div>`).join("")}</div>`; }).join("")}</div>`; break; }
-    case "patch": { const fx = S.data.crisis.find(c => c.id === "patch").params.fixes; h += `<h3>Emergency fixes</h3><p class="mute">${resNow(p)} · Tech Debt ${p.debt}</p><div class="row wrap">${fx.map((f, i) => `<button class="btn" data-act="patchfix" data-i="${i}" ${E.resTotal(p) < f[0] ? "disabled" : ""}>Spend ${f[0]} resources → −${f[1]} Debt</button>`).join("")}<button class="btn primary" data-act="patchdone">Done</button></div>`; break; }
+    case "patch": { const fx = S.data.crisis.find(c => c.id === "patch").params.fixes; h += `<h3>Emergency fixes</h3><p class="mute">${resNow(p)} · Tech Debt ${p.debt}</p><div class="row wrap">${fx.map((f, i) => `<button class="btn" data-act="patchfix" data-i="${i}" ${E.resTotal(p) < f[0] ? "disabled" : ""}>Spend ${f[0]} skills → −${f[1]} Debt</button>`).join("")}<button class="btn primary" data-act="patchdone">Done</button></div>`; break; }
   }
   return modalShell(h, { noClose: true });
 }
@@ -486,7 +486,7 @@ function utilLines(disc) {
 }
 function discInfo(disc) {
   const d = D.disciplines[disc];
-  return `<div class="dtitle">${esc(d.name)}</div>${sec("What they do", utilLines(disc).concat(d.wild ? ["<b>Wild card:</b> counts as " + d.wild.map(dname).join(", ") + " when placed"] : []))}${sec("Good to know", ["Board spots list this role as <b>" + disc + "</b>", "Placing them earns the resource of their role (" + ({ Creative: "Ideas", Development: "Code", Operations: "Process", Marketing: "Buzz" })[d.cat] + "). Junior: +" + U.S.cfg.resJr + ". Senior: +" + U.S.cfg.resSr + " and +" + U.S.cfg.srBonus + " Progress or Marketing"])}`;
+  return `<div class="dtitle">${esc(d.name)}</div>${sec("What they do", utilLines(disc).concat(d.wild ? ["<b>Wild card:</b> counts as " + d.wild.map(dname).join(", ") + " when placed"] : []))}${sec("Good to know", ["Board spots list this role as <b>" + disc + "</b>", "Placing them earns the skill of their role (" + ({ Creative: "Ideas", Development: "Code", Operations: "Process", Marketing: "Buzz" })[d.cat] + "). Junior: +" + U.S.cfg.resJr + ". Senior: +" + U.S.cfg.resSr + " and +" + U.S.cfg.srBonus + " Progress or Marketing"])}`;
 }
 function placeForm(S, pi, w, target) {
   const o = E.placementOptions(S, pi, w).find(x => x.target === target);
@@ -495,7 +495,7 @@ function placeForm(S, pi, w, target) {
   const fx = o.spot ? E.parseEffect(o.spot.fx) : null; let h = "";
   if (o.as && o.as.length > 1) h += `<div><div class="mute">Declare as</div>${o.as.map((x, i) => `<label style="margin-right:10px"><input type="radio" name="as" value="${x}" ${i === 0 ? "checked" : ""}> ${esc(nameOf(x))}</label>`).join("")}</div>`;
   if (w.lvl === "Sr" && o.kind === "spot" && !o.spot.special) h += `<div><div class="mute">Senior bonus</div><label style="margin-right:10px"><input type="radio" name="bonus" value="prod" checked> +${S.cfg.srBonus} Progress</label><label><input type="radio" name="bonus" value="mktg"> +${S.cfg.srBonus} Marketing</label></div>`;
-  if (o.plans && o.plans.length) { const pw = P(pi).workers; h += `<div><div class="mute">Crew: placed together, each earns the resource of the role they fill</div>${o.plans.map((pl, i) => `<label style="display:block;margin:3px 0"><input type="radio" name="crew" value="${pl.ids.join(",")}" ${i === 0 ? "checked" : ""}> ${pl.ids.map(id => { const x = pw.find(y => y.id === id); return (x.lvl === "Sr" ? "Senior " : "Junior ") + esc(nameOf(x.disc)) + " as " + pl.cats[id]; }).join(" + ")}</label>`).join("")}</div>`; }
+  if (o.plans && o.plans.length) { const pw = P(pi).workers; h += `<div><div class="mute">Crew: placed together, each earns the skill of the role they fill</div>${o.plans.map((pl, i) => `<label style="display:block;margin:3px 0"><input type="radio" name="crew" value="${pl.ids.join(",")}" ${i === 0 ? "checked" : ""}> ${pl.ids.map(id => { const x = pw.find(y => y.id === id); return (x.lvl === "Sr" ? "Senior " : "Junior ") + esc(nameOf(x.disc)) + " as " + pl.cats[id]; }).join(" + ")}</label>`).join("")}</div>`; }
   if (fx && fx.choice) h += `<div><div class="mute">Effect</div>${["0", "1"].map(i => `<label style="margin-right:10px"><input type="radio" name="choice" value="${i}" ${i === "0" ? "checked" : ""}> option ${+i + 1}</label>`).join("")}</div>`;
   if (fx && (fx.stats.prod || 0) > 0 && o.kind === "spot" && (o.as || []).some(x => x === "ENG" || x === "ART")) h += `<div><div class="mute">Alternate action (Engineer / Artist)</div><label style="margin-right:10px"><input type="radio" name="alt" value="" checked> Normal</label><label style="margin-right:10px"><input type="radio" name="alt" value="fixdebt"> Engineer: fix Tech Debt instead</label><label><input type="radio" name="alt" value="hype"> Artist: Hype instead</label></div>`;
   if (o.spot && o.spot.special === "convert") { const rk = E.RES_OF[E.CAT_OF(o.as[0])], n = Math.floor((P(pi)[rk] || 0) / (S.cfg.convertRate || 3)); h += `<div><div class="mute">Convert ${n * (S.cfg.convertRate || 3)} ${E.RES_NAME[rk]} into ${n}:</div><label style="margin-right:10px"><input type="radio" name="conv" value="prod" checked> Progress</label><label><input type="radio" name="conv" value="hype"> Hype</label></div>`; }
@@ -530,11 +530,11 @@ function detailModal() {
     case "worker": {
       const pi = +d.p; const w = P(pi).workers.find(x => x.id === +d.id); if (!w) return closeOnly();
       const fatTxt = ["<b>Active:</b> ready to work", "<b>Tired:</b> worked last round", "<b>Over-Tired:</b> worked two rounds in a row"][w.fat];
-      const fatNext = ["Placing them makes them Tired", "Placing them again makes them Over-Tired. Resting recovers them", "Placing them earns no resource. They may quit at Upkeep. Resting recovers them"][w.fat];
+      const fatNext = ["Placing them makes them Tired", "Placing them again makes them Over-Tired. Resting recovers them", "Placing them earns no skill. They may quit at Upkeep. Resting recovers them"][w.fat];
       const abil = (w.disc === "PX" || w.disc === "DATA") ? ((w.lvl === "Sr" && w.placed) || (w.lvl === "Jr" && !w.placed) ? "<b>Ability ready:</b> triggers at Rest" : "<b>Ability not active:</b> " + (w.lvl === "Jr" ? "a Junior must rest (stay unplaced)" : "a Senior must be placed")) : "";
       h += discHead(w.disc) + `<div class="dtitle">${w.lvl === "Sr" ? "Senior" : "Junior"} ${esc(dname(w.disc))}</div>`
         + sec("What they do", utilLines(w.disc).concat(D.disciplines[w.disc].wild ? ["<b>Wild card:</b> counts as " + D.disciplines[w.disc].wild.map(dname).join(", ") + " when placed"] : []))
-        + sec(w.lvl === "Sr" ? "As a Senior" : "As a Junior", w.lvl === "Sr" ? [`+${S.cfg.resSr} resources of their role when placed`, S.cfg.spotResOr ? "Can trigger system tiles (Juniors cannot)" : `+${S.cfg.srBonus} Progress or Marketing on most spots`, S.cfg.srPromoteOnly ? "Promoted from a Junior who has worked and rested" : "Costs more to hire"] : [`+${S.cfg.resJr} resource of their role when placed`, "Can be promoted to Senior during Rest", abil ? "" : ""])
+        + sec(w.lvl === "Sr" ? "As a Senior" : "As a Junior", w.lvl === "Sr" ? [`+${S.cfg.resSr} skills of their role when placed`, S.cfg.spotResOr ? "Can trigger system tiles (Juniors cannot)" : `+${S.cfg.srBonus} Progress or Marketing on most spots`, S.cfg.srPromoteOnly ? "Promoted from a Junior who has worked and rested" : "Costs more to hire"] : [`+${S.cfg.resJr} skill of their role when placed`, "Can be promoted to Senior during Rest", abil ? "" : ""])
         + sec("Condition", [fatTxt, fatNext])
         + sec("This round", [w.placed ? "Placed on the board" : "Not placed yet (resting if you leave them)", w.as ? "Declared as " + nameOf(w.as) : "", abil]);
       if (a === pi && mineTurn && !S.dq.length) {
@@ -549,7 +549,7 @@ function detailModal() {
       const spot = S.data.spots.find(x => x.id === d.id); if (!spot) return closeOnly();
       const occ = S.occ[spot.id] || []; const mode = spot.crew ? "Crew spot: one crew of " + spot.crew[0].length + " workers per round" : spot.mode === "shared" ? "Shared: several workers can use it" : spot.mode === "multi" ? "Multi: several workers can use it" : spot.excl ? "Exclusive" : "One worker only";
       h += `<div class="dtitle">${esc(spot.row)}</div><div style="margin:6px 0">${spot.crew ? "Crew of " + spot.crew[0].length + ": " + crewChips(spot) : spot.discs.map(x => x === "ANY" ? '<span class="chip" style="background:#667">ANY</span>' : chip(x)).join(" ")}${spot.srOnly ? ' <span class="chip" style="background:#a33">Senior only</span>' : ""}</div>
-      <p><b>${esc(spot.fx || spot.note || "")}</b></p>${spot.fx && spot.note ? `<p class="mute">${esc(spot.note)}</p>` : ""}<p class="mute">${mode}.${spot.debt ? ` Adds ${spot.debt} Tech Debt.` : ""}${spot.cost ? (spot.cost.res ? ` Costs ${spot.cost.res} resources (any mix).` : ` Costs ${spot.cost.gold}G.`) : ""}</p>
+      <p><b>${esc(spot.fx || spot.note || "")}</b></p>${spot.fx && spot.note ? `<p class="mute">${esc(spot.note)}</p>` : ""}<p class="mute">${mode}.${spot.debt ? ` Adds ${spot.debt} Tech Debt.` : ""}${spot.cost ? (spot.cost.res ? ` Costs ${spot.cost.res} skills (any mix).` : ` Costs ${spot.cost.gold}G.`) : ""}</p>
       ${occ.length ? `<p>Occupied by: ${occ.map(i => `<b style="color:${P(i).color}">${esc(P(i).name)}</b>`).join(", ")}</p>` : ""}` + placeSection(S, "spot:" + spot.id);
       break; }
     case "sys": case "market": {
@@ -558,7 +558,7 @@ function detailModal() {
       h += `<div class="dhead" style="background:${catColor[def.cat]}"><span>${def.cat}</span></div><div class="dtitle">${esc(def.name)} ${symTag(def)}</div>
       ${def.pas ? `<p><b style="color:var(--gold)">Passive (always on):</b> ${esc(def.pas)}.</p>` : ""}<p class="mute">Trigger: place a ${esc(fmtTrig(def.trig))} worker here. Build cost: ${esc(fmtBuild(def.build))}.${def.debt ? ` Adds ${def.debt} Tech Debt when built.` : ""}</p>
       ${def.fx ? `<p><b>${esc(def.fx)}</b></p>` : ""}${def.once ? `<p>On build: ${esc(def.once)}</p>` : ""}${def.each ? `<p>Each time: ${esc(def.each)}</p>` : ""}
-      <p class="mute">${def.vp} VP at the end, plus ${def.syn} synergy VP if it shares ${U.S.cfg.varC ? "its main resource (" + ICN[E.sysMainRes(def)] + ")" : "a symbol"} with a completed objective.</p>
+      <p class="mute">${def.vp} VP at the end, plus ${def.syn} synergy VP if it shares ${U.S.cfg.varC ? "its main skill (" + ICN[E.sysMainRes(def)] + ")" : "a symbol"} with a completed objective.</p>
       ${symLine(def)}`;
       if (d.k === "sys") h += placeSection(S, "sys:" + idx);
       else if (U.modal === "market" && S.step === "build" && mineTurn) {
@@ -573,7 +573,7 @@ function detailModal() {
       break; }
     case "obj": {
       const id = +d.id, o = S.data.objectives[id]; if (!o) return closeOnly(); const st = E.objectiveStatus(S, +d.p, id);
-      h += `<div class="dtitle">${esc(o.name)} ${symTag(o)}</div><p class="mute">${o.type} objective · ${o.vp} VP at the end if completed</p>${st.reqs.map(r => `<p style="color:${r.ok ? "var(--good)" : "var(--ink)"}">${r.ok ? "✓" : "○"} ${esc(r.r)}</p>`).join("")}${U.S.cfg.varC && o.res ? `<p class="mute">Resource: ${ICN[o.res]}. Built systems whose main resource is ${ICN[o.res]} earn synergy VP once this is completed.</p>` : symLine(o)}`;
+      h += `<div class="dtitle">${esc(o.name)} ${symTag(o)}</div><p class="mute">${o.type} objective · ${o.vp} VP at the end if completed</p>${st.reqs.map(r => `<p style="color:${r.ok ? "var(--good)" : "var(--ink)"}">${r.ok ? "✓" : "○"} ${esc(r.r)}</p>`).join("")}${U.S.cfg.varC && o.res ? `<p class="mute">Skill: ${ICN[o.res]}. Built systems whose main skill is ${ICN[o.res]} earn synergy VP once this is completed.</p>` : symLine(o)}`;
       if (S.step === "rest" && mineTurn && a === +d.p && P(a).swapObj > 0) h += `<div class="row" style="margin-top:12px">${actBtn("Swap this objective", `data-act="swapObj" data-obj="${id}"`, false, "", false)}</div>`;
       break; }
     case "crisis": { const c = S.crisisCard && S.data.crisis.find(x => x.id === S.crisisCard); if (!c) return closeOnly(); h += crisisCardHtml(c); break; }
@@ -588,11 +588,11 @@ const buildChips = str => {
   else h = `<span class="bc">${m[1]}${ic("gold")}</span>`;
   const roles = p.slice(1).map(nameOf); return h + (roles.length ? `<span class="roles">${esc(roles.join(" + "))}</span>` : "");
 };
-/* Compact system tile: name, main resource, VP, cost icons, one effect line. Detail lives in the popup. */
+/* Compact system tile: name, main skill, VP, cost icons, one effect line. Detail lives in the popup. */
 const bR = d => { const S = U.S; if (!S || !S.cfg.varC) return 0; const p = S.players[viewIndex(S)]; return E.buildRounds(S, p, U.crunch, d); };
 function sysTile(d, ok, extra) {
   const hint = U.S && U.S.cfg.varC && viewHasSyn(d);
-  return `<div class="sys2 ${ok ? "" : "off"}" data-act="detail" data-k="market" data-id="${esc(d.name)}" style="border-color:${catColor[d.cat]}"><div class="h"><span class="n">${esc(d.name)}</span>${symTag(d)}${hint ? '<span class="star" title="Matches the resource of one of your objectives">★</span>' : ""}<span class="vp">${d.vp} VP</span></div><div class="c">${buildChips(d.build)}</div>${d.fx ? `<div class="e">${fxTxt(d.fx)}</div>` : ""}${d.pas ? `<div class="pas"><b>Passive</b> ${esc(d.pas)}</div>` : ""}<div class="trg">Crew busy ${bR(d)} round${bR(d) === 1 ? "" : "s"} · Trigger ${esc(fmtTrig(d.trig))}${d.debt ? ` · <b class="bad">+${d.debt} Debt</b>` : ""}</div>${extra || ""}</div>`;
+  return `<div class="sys2 ${ok ? "" : "off"}" data-act="detail" data-k="market" data-id="${esc(d.name)}" style="border-color:${catColor[d.cat]}"><div class="h"><span class="n">${esc(d.name)}</span>${symTag(d)}${hint ? '<span class="star" title="Matches the skill of one of your objectives">★</span>' : ""}<span class="vp">${d.vp} VP</span></div><div class="c">${buildChips(d.build)}</div>${d.fx ? `<div class="e">${fxTxt(d.fx)}</div>` : ""}${d.pas ? `<div class="pas"><b>Passive</b> ${esc(d.pas)}</div>` : ""}<div class="trg">Crew busy ${bR(d)} round${bR(d) === 1 ? "" : "s"} · Trigger ${esc(fmtTrig(d.trig))}${d.debt ? ` · <b class="bad">+${d.debt} Debt</b>` : ""}</div>${extra || ""}</div>`;
 }
 const viewHasSyn = d => { const S = U.S, p = S.players[viewIndex(S)]; return !!p && p.objectives.some(id => S.data.objectives[id].res && S.data.objectives[id].res === E.sysMainRes(d)); };
 function marketStrip(S) {

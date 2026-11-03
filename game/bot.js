@@ -65,7 +65,7 @@ function decision(S, p, d) {
     }
     case "bid": {
       const room = Math.max(0, p.gold - 4);
-      const amt = d.purpose === "turn" ? Math.min(room, Math.round(rint(4) * W.bid)) : Math.min(p.gold, Math.min(room, 1 + rint(4)));
+      const amt = d.purpose === "turn" ? Math.min(room, Math.round(rint(4) * W.bid * (S.draft && S.draft.cards.length ? 1 : 0.5))) : Math.min(p.gold, Math.min(room, 1 + rint(4)));
       return { type: "bid", p: p.id, amount: Math.max(0, Math.min(p.gold, amt)) };
     }
     case "choose": {
@@ -148,7 +148,7 @@ function fxScore(S, p, w, o) {
   const mom = (w.fat >= 2 ? S.cfg.resOver : (w.lvl === "Sr" ? S.cfg.resSr : S.cfg.resJr)) * rmul; v += mom * W.res * resVal + (w.lvl === "Sr" ? W.srVal : 0);
   v -= (spot.debt || 0) * W.spotDebt; if (w.fat >= 1) v -= 0.8; if (w.fat >= 2) v -= 2.5;
   if (fx.stats && fx.stats.debt < 0) { v += p.debt > 3 ? 2 + Math.min(-fx.stats.debt * 1.5, p.debt) : -4; }
-  if (spot.special === "talent") v = 1.2; if (spot.special === "team") v = p.culture < 0 ? 4 : 0.5; if (spot.special === "outsource") v = (w.lvl === "Sr" ? 5 : 3) * 0.9 - (p.gold < 4 ? -2 : 0);
+  if (spot.special === "talent") v = S.cfg.varC ? 2.2 : 1.2; if (spot.special === "team") v = p.culture < 0 ? 4 : 0.5; if (spot.special === "outsource") v = (w.lvl === "Sr" ? 5 : 3) * 0.9 - (p.gold < 4 ? -2 : 0);
   if (spot.special === "rd") v = E.resTotal(p) >= 3 ? 2.4 + W.crewCost : 0.1 + W.crewCost; if (spot.special === "workshop") v = E.resTotal(p) >= 8 ? v + 1 : 0.2; if (spot.special === "mentor") v = 4; if (spot.id === "insight") v = 1.8;
   if (spot.special === "convert") v = convGain(S, p, o) * 1.15 * W.convHold;
   if (S.cfg.varC && spot.special === "rd") v = (p.rdBuild || E.resTotal(p) >= 6) ? 2.6 + W.crewCost : 0.2 + W.crewCost;

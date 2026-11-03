@@ -14,7 +14,7 @@ const actorIsMe = S => E.currentActor(S) === 0;
 const b = t => "<b>" + t + "</b>";
 
 SI.TUT_SEED = 20261031;
-SI.TUT_CONFIG_C = { gatesRandom: 0, qaAllowedPreProd: 1 };
+SI.TUT_CONFIG_C = { gatesRandom: 0, qaAllowedPreProd: 1, bidEveryRound: 0 };
 SI.TUT_CONFIG = { varC: 0, headhuntsPerRest: 0, qaAllowedPreProd: 1, gatesRandom: 0 };   // headhunting is left for later; QA is hireable so any card can be recruited
 
 function canBuildAny(S, free) { return S.data.systems.some(d => E.canBuild(S, 0, d.name, free).ok); }
@@ -30,7 +30,7 @@ const blk = () => "Press Next first";
 const FREE_HINT = S => ({
       hire: `${b("Hire.")} Recruit from your hand (Junior ${S.cfg.jrCost}G, Seniors unlock in Production). Cards you skip stay in your hand. The Talent spots on the board make hiring cheaper. Press ${b("Done")} when finished.`,
       place: `${b("Place.")} Select a worker, then a green spot. Leave a Tired worker unplaced so they rest and recover. Tip: Progress and Marketing both score, so keep them balanced. ${b("Pass")} when finished.`,
-      build: `${b("Build.")} Spend your resources on a system, then press ${b("Done")}. The market shows 2 systems per type; Replace costs ${S.cfg.marketRefreshGold}G.`,
+      build: `${b("Build.")} Spend your skills on a system, then press ${b("Done")}. The market shows 2 systems per type; Replace costs ${S.cfg.marketRefreshGold}G.`,
       rest: `${b("Rest.")} Promote or release if you like. Press ${b("Done")}.`,
       milestones: `${b("Milestones.")} Cash in anything that is met, then press ${b("Done")}.`
     }[S.step] || "Resolving…");
@@ -53,7 +53,7 @@ const STEPS_A = [
     allow: blk },
 
   { id: "boardintro", kind: "info", title: "The board: who works where", btn: "Next", hl: () => "[data-tut=board]",
-    text: () => `Before you bid, look at the ${b("main board")}. It is where your workers will earn resources, so it tells you ${b("who to recruit")}.<br><br>Each tile shows ${b("which roles can use it")} as colored chips. A worker with ANY of the listed roles fits. A red ${b("+1")} corner means the spot adds ${b("Tech Debt")}, a cost you want to keep low.<br><br>Let's go through the rows.`,
+    text: () => `Before you bid, look at the ${b("main board")}. It is where your workers will earn skills, so it tells you ${b("who to recruit")}.<br><br>Each tile shows ${b("which roles can use it")} as colored chips. A worker with ANY of the listed roles fits. A red ${b("+1")} corner means the spot adds ${b("Tech Debt")}, a cost you want to keep low.<br><br>Let's go through the rows.`,
     allow: blk },
 
   { id: "rows1", kind: "info", title: "Concept and Prototype: build the game", btn: "Next", hl: () => "[data-row=CONCEPT],[data-row=PROTOTYPE]",
@@ -65,7 +65,7 @@ const STEPS_A = [
     allow: blk },
 
   { id: "boardshared", kind: "info", title: "Utility spots", btn: "Next", hl: () => ".shared",
-    text: () => `The dashed tiles on the right are ${b("utility spots")}. Any worker can use most of them, but ${b("only one worker")} can take each spot per round (except Insight, which every player can use once).<br><br>${b("Team Event")}: any worker, +2 Culture.<br>${b("Insight")}: a Community or Analytics worker draws a milestone.<br>${b("Outsource")}: any worker earns gold (Junior +3G, Senior +5G).<br><br>The ${b("Crew")} row and ${b("R&D")} (in the Concept row) are different: they need ${b("2 or 3 workers")} of different roles placed together, for example Creative + Operations. Every crew worker is used up for the round and earns their resource, and the spot pays a bigger reward. R&D makes your next system cost 3 fewer resources.`,
+    text: () => `The dashed tiles on the right are ${b("utility spots")}. Any worker can use most of them, but ${b("only one worker")} can take each spot per round (except Insight, which every player can use once).<br><br>${b("Team Event")}: any worker, +2 Culture.<br>${b("Insight")}: a Community or Analytics worker draws a milestone.<br>${b("Outsource")}: any worker earns gold (Junior +3G, Senior +5G).<br><br>The ${b("Crew")} row and ${b("R&D")} (in the Concept row) are different: they need ${b("2 or 3 workers")} of different roles placed together, for example Creative + Operations. Every crew worker is used up for the round and earns their skill, and the spot pays a bigger reward. R&D makes your next system cost 3 fewer skills.`,
     allow: blk },
 
   { id: "recruit", kind: "info", title: "So who should you recruit?", btn: "Next", hl: () => "[data-tut=draft]",
@@ -106,25 +106,25 @@ const STEPS_A = [
     allow: a => a.type === "place" ? null : a.type === "pass" ? "Place at least one worker first" : "Place a worker on a green spot" },
 
   { id: "stats", kind: "info", title: "What your numbers mean", btn: "Next", hl: () => ".pt[data-pid='0'] .stats",
-    text: S => `The spot paid out instantly. Here is what each number in your studio panel is for:<br><br>${b("Gold")} hires workers and pays for some systems.<br>${b("Ideas, Code, Process and Buzz")} are earned by placing. Each worker earns the resource of their role (Creative = Ideas, Development = Code, Operations = Process, Marketing = Buzz): +${S.cfg.resJr} per Junior, +${S.cfg.resSr} per Senior. They are saved between rounds and spent in the Build step.<br>${b("Progress")} and ${b("Marketing")} are your game's quality and its reach. Both score VP at the end.<br>${b("Hype")} builds buzz but fades by ${S.cfg.hypeDecay} every round.<br>${b("Debt")} is Tech Debt. High Debt hurts your launch.<br>${b("Culture")} is team morale.`,
+    text: S => `The spot paid out instantly. Here is what each number in your studio panel is for:<br><br>${b("Gold")} hires workers and pays for some systems.<br>${b("Ideas, Code, Process and Buzz")} are earned by placing. Each worker earns the skill of their role (Creative = Ideas, Development = Code, Operations = Process, Marketing = Buzz): +${S.cfg.resJr} per Junior, +${S.cfg.resSr} per Senior. They are saved between rounds and spent in the Build step.<br>${b("Progress")} and ${b("Marketing")} are your game's quality and its reach. Both score VP at the end.<br>${b("Hype")} builds buzz but fades by ${S.cfg.hypeDecay} every round.<br>${b("Debt")} is Tech Debt. High Debt hurts your launch.<br>${b("Culture")} is team morale.`,
     allow: blk },
 
   { id: "place2", kind: "do", title: "Keep placing, or pass", hl: () => "[data-tut=workers]",
-    text: S => `Each worker can work ${b("once per round")}. Place more workers if you want more resources.<br><br>You do not have to place everyone. ${b("A worker you leave unplaced will rest")} and recover from tiredness. When you are finished, press ${b("Pass")} at the top. Passing ends your placing for this round.`,
+    text: S => `Each worker can work ${b("once per round")}. Place more workers if you want more skills.<br><br>You do not have to place everyone. ${b("A worker you leave unplaced will rest")} and recover from tiredness. When you are finished, press ${b("Pass")} at the top. Passing ends your placing for this round.`,
     done: S => after(S, "place", 1),
     allow: a => (a.type === "place" || a.type === "pass") ? null : "Keep placing, or press Pass" },
 
   { id: "buildintro", kind: "info", title: "Build: systems", btn: "Next", hl: () => "[data-tut=steps]",
-    text: S => `Placing earned you ${b("resources (" + (me(S).ideas + me(S).code + me(S).process + me(S).buzz) + " in your bank)")}. The ${b("Build")} step is where you spend it.<br><br>A ${b("System")} is a permanent engine. Whenever you place a worker of the matching discipline later, the system triggers and gives you a bonus. Systems also score VP at the end. You can build ${b(S.cfg.buildsPerRound + " system per round")}.`,
+    text: S => `Placing earned you ${b("skills (" + (me(S).ideas + me(S).code + me(S).process + me(S).buzz) + " in your bank)")}. The ${b("Build")} step is where you spend it.<br><br>A ${b("System")} is a permanent engine. Whenever you place a worker of the matching discipline later, the system triggers and gives you a bonus. Systems also score VP at the end. You can build ${b(S.cfg.buildsPerRound + " system per round")}.`,
     allow: blk },
 
   { id: "build", kind: "do", title: "Build a system", hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"),
-    text: S => `Press ${b("Open Systems to Build")}. Each card shows its cost in resources (the same roles as the workers it needs), plus Gold. If you are one or two resources short you can pay Gold for them. Each card also shows which workers you need, and what it does. Only systems you can afford and have the right workers for are enabled. The rest explain why they are locked.${me(S).freeBuilds ? `<br><br>${b("A free build is on the house this round.")}` : ""}<br><br>Build one, close the market with ${b("×")}, then press ${b("Done")}.`,
+    text: S => `Press ${b("Open Systems to Build")}. Each card shows its cost in skills (the same roles as the workers it needs), plus Gold. If you are one or two skills short you can pay Gold for them. Each card also shows which workers you need, and what it does. Only systems you can afford and have the right workers for are enabled. The rest explain why they are locked.${me(S).freeBuilds ? `<br><br>${b("A free build is on the house this round.")}` : ""}<br><br>Build one, close the market with ${b("×")}, then press ${b("Done")}.`,
     done: S => after(S, "build", 1),
     allow: (a, S) => a.type === "build" ? null : a.type === "done" ? ((me(S).builds >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : "Try building one system first") : "Build a system, then press Done" },
 
   { id: "restintro", kind: "info", title: "Rest: tired workers", btn: "Next", hl: () => "[data-tut=workers]",
-    text: () => `Every worker who worked this round is now ${b("Tired")}. Look at the fatigue bar on each worker.<br><br>If a Tired worker works again next round they become ${b("Over-Tired")}: no resource, and a chance they quit at the end of the round.<br><br>A worker who sits out a round ${b("rests and recovers")}. So spreading the work across your team, or leaving someone unplaced, keeps everyone healthy.`,
+    text: () => `Every worker who worked this round is now ${b("Tired")}. Look at the fatigue bar on each worker.<br><br>If a Tired worker works again next round they become ${b("Over-Tired")}: no skill, and a chance they quit at the end of the round.<br><br>A worker who sits out a round ${b("rests and recovers")}. So spreading the work across your team, or leaving someone unplaced, keeps everyone healthy.`,
     allow: blk },
 
   { id: "rest", kind: "do", title: "Rest step", hl: () => "[data-tut=rest]",
@@ -146,7 +146,7 @@ const STEPS_A = [
     allow: blk },
 
   { id: "r2intro", kind: "info", title: "Round 2: you drive", btn: "On my own", hl: () => "[data-tut=steps]",
-    text: S => `Every round runs the same 7 steps. This time you choose freely:<br><br>${b("Recruit")} more workers from your hand in the Hire step. You can do this every round.<br>${b("Rest")} workers by leaving them unplaced. You can do this every round.<br>Build a second system if you have the resources.<br><br>The coach will give a short hint at each step.`,
+    text: S => `Every round runs the same 7 steps. This time you choose freely:<br><br>${b("Recruit")} more workers from your hand in the Hire step. You can do this every round.<br>${b("Rest")} workers by leaving them unplaced. You can do this every round.<br>Build a second system if you have the skills.<br><br>The coach will give a short hint at each step.`,
     allow: blk },
 
   { id: "r2free", kind: "free", title: "Round 2", hl: () => null,
@@ -170,7 +170,7 @@ const STEPS_A = [
     allow: () => null },
   { id: "full2", kind: "free", title: "Polish", hl: () => null, text: S => FREE_HINT(S), done: S => S.round >= 12, allow: () => null },
   { id: "launch", kind: "info", soft: true, title: "Launch", btn: "Got it", hl: () => "[data-tut=gates]",
-    text: S => `${b("Round 12 is Launch.")} The last gate, ${b("Gold Master")}, pays 5 VP for ${(S.data.publisherGates[3].reqs[0] || "").replace(" Progress", "")} Progress and Debt under 15%. Spend your resources and gold now: nothing carries over. When the round ends, ${S.cfg.poolScoring ? "final scoring converts everything into your Progress and Hype pools." : "final scoring includes the four race tracks, systems, objectives, milestones and gate results."}`,
+    text: S => `${b("Round 12 is Launch.")} The last gate, ${b("Gold Master")}, pays 5 VP for ${(S.data.publisherGates[3].reqs[0] || "").replace(" Progress", "")} Progress and Debt under 15%. Spend your skills and gold now: nothing carries over. When the round ends, ${S.cfg.poolScoring ? "final scoring converts everything into your Progress and Hype pools." : "final scoring includes the four race tracks, systems, objectives, milestones and gate results."}`,
     allow: () => null },
   { id: "full3", kind: "free", title: "Launch", hl: () => null, text: S => FREE_HINT(S), done: () => false, allow: () => null }
 ];
@@ -234,6 +234,12 @@ const STEPS_C = [
   doing("objectives", { hl: () => ".modal", done: S => !S.dq.some(d => d.t === "keepObj" && d.p === 0), allow: a => a.type === "keepObj" ? null : MSG("msg_obj") }),
   info("phasestart", { hl: () => "[data-tut=steps]" }),
   info("boardintro", { hl: () => "[data-tut=board]" }),
+  info("board_backlog", { hl: () => "[data-row=EARN]" }),
+  info("board_prototype", { hl: () => "[data-row=PROGRESS]" }),
+  info("board_pitch", { hl: () => "[data-row=HYPE]" }),
+  info("board_jam", { hl: () => "[data-row=CREW]" }),
+  info("board_perks", { hl: () => ".shared" }),
+  info("board_rd", { hl: () => "[data-spot=rd]" }),
   doing("bid", { hl: () => ".modal", done: S => after(S, "bid", 1), allow: a => a.type !== "bid" ? MSG("msg_bid") : (a.amount > 3 ? MSG("msg_bid_small") : null) }),
   doing("draft", { hl: () => ".draftbtn", done: S => after(S, "draft", 1), allow: a => a.type === "pick" ? null : MSG("msg_draft") }),
   doing("hire", { hl: () => "[data-tut=hand]", done: S => after(S, "hire", 1),
@@ -368,13 +374,26 @@ SI.tutCoach = function () {
     ${waiting ? `<div class="cw">${L("ui_wait", "Rival is taking their turn…")}</div>` : ""}${btns ? `<div class="cb">${btns}</div>` : ""}
     <div class="prog"><i style="width:${Math.round((at + 1) / n * 100)}%"></i></div></div>${st.center ? '<div class="coach-dim"></div>' : ""}`;
 };
-SI.tutHighlight = function (rootEl) {
+/* ---------- spotlight: dim everything except the highlighted area (the coach box sits above it) ---------- */
+let spotEl = null, spotSel = null;
+function spotDraw() {
+  const els = spotSel ? Array.from(document.querySelectorAll(spotSel)).filter(e => e.getClientRects().length) : [];
+  if (!els.length) { if (spotEl) { spotEl.remove(); spotEl = null; } return; }
+  const W = window.innerWidth, H = window.innerHeight;
+  const holes = els.map(e => { const r = e.getBoundingClientRect(); return `<rect x="${r.left - 6}" y="${r.top - 6}" width="${r.width + 12}" height="${r.height + 12}" rx="10" fill="black"/>`; }).join("");
+  if (!spotEl) { spotEl = document.createElement("div"); spotEl.id = "tutspot"; document.body.appendChild(spotEl); }
+  spotEl.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><defs><mask id="tsm"><rect width="${W}" height="${H}" fill="white"/>${holes}</mask></defs><rect width="${W}" height="${H}" fill="rgba(0,0,0,.7)" mask="url(#tsm)"/></svg>`;
+}
+window.addEventListener("scroll", () => { if (spotSel) spotDraw(); }, true);
+window.addEventListener("resize", () => { if (spotSel) spotDraw(); });
+SI.tutHighlight = function (rootEl) { spotSel = null; try { tutHighlight0(rootEl); } finally { spotDraw(); } };
+function tutHighlight0(rootEl) {
   const u = U(), T = u.tut; if (!T || T.auto) return;
   const st = T.rev != null ? STEPS[T.rev] : cur(); if (!st || !st.hl) return;
   if (u.detail) { const acts = rootEl.querySelectorAll('.modal [data-tut=act]:not([disabled])'); if (acts.length) { acts.forEach(el => el.classList.add('tut-hl')); return; } }
   const sel = st.hl(u.S); if (!sel) return;
   try {
-    const els = rootEl.querySelectorAll(sel); els.forEach(el => el.classList.add("tut-hl"));
+    const els = rootEl.querySelectorAll(sel); els.forEach(el => el.classList.add("tut-hl")); if (els.length && !u.detail) spotSel = sel;
     // bring the highlighted area into view (above the coach box), so the player never has to hunt for it
     const el = els[0]; if (el && el.getBoundingClientRect && !u.detail) {
       const r = el.getBoundingClientRect(), coach = rootEl.querySelector(".coach"), cr = coach ? coach.getBoundingClientRect() : null;

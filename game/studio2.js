@@ -45,8 +45,8 @@ X.changes = function (st) {
 /* ---------- validation ---------- */
 X.validate = function (st) {
   const errors = [], warnings = [], RES = ["", "ideas", "code", "process", "buzz"];
-  (st.data.systems || []).forEach(d => { if (!RES.includes(d.res || "")) errors.push(`System "${d.name}": resource "${d.res}" must be ideas, code, process or buzz`); if (d.bt < 1 || d.bt > 4) warnings.push(`System "${d.name}": ${d.bt} build rounds (the usual range is 1 to 4)`); if (d.vp < 0) errors.push(`System "${d.name}": VP cannot be negative`); });
-  (st.data.objectives || []).forEach(o => { if (!RES.includes(o.res || "")) errors.push(`Objective "${o.name}": resource "${o.res}" must be ideas, code, process or buzz`); if (o.vp > 14) warnings.push(`Objective "${o.name}": ${o.vp} VP is very high`); });
+  (st.data.systems || []).forEach(d => { if (!RES.includes(d.res || "")) errors.push(`System "${d.name}": skill "${d.res}" must be ideas, code, process or buzz`); if (d.bt < 1 || d.bt > 4) warnings.push(`System "${d.name}": ${d.bt} build rounds (the usual range is 1 to 4)`); if (d.vp < 0) errors.push(`System "${d.name}": VP cannot be negative`); });
+  (st.data.objectives || []).forEach(o => { if (!RES.includes(o.res || "")) errors.push(`Objective "${o.name}": skill "${o.res}" must be ideas, code, process or buzz`); if (o.vp > 14) warnings.push(`Objective "${o.name}": ${o.vp} VP is very high`); });
   ["publisherGates", "gatePool"].forEach(k => (st.data[k] || []).forEach(g => { if (!(g.reqs || []).length) errors.push(`Gate "${g.name}" has no requirements`); }));
   Object.keys(st.config).forEach(k => { const v = st.config[k]; if (typeof v === "number" && !isFinite(v)) errors.push(`Rule ${k} is not a number`); });
   const pe = st.config.phaseEnds; if (Array.isArray(pe) && pe.some((x, i) => i && x <= pe[i - 1])) errors.push("Phase ends must increase, for example [3,8,11,12]");

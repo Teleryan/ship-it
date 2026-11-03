@@ -276,7 +276,7 @@ function beginRound(S) {
   S.players.forEach(p => {
     p.rs = { spent: 0, gained: 0, spentRes: 0, hires: 0, placed: 0, triggers: 0, builds: 0, debtRemoved: 0, hypeGained: 0, discards: 0, cashed: 0 };
     p.workers.forEach(w => w.placed = false);
-    p.rd = false; p.rdDisc = 0; p.refreshed = 0; p.builds = 0; p.promos = 0; p.hunts = 0; p.swapObj = 0; p.swapMile = 0; p.recruited = 0;
+    p.rd = false; p.rdDisc = 0; p.refreshed = 0; p.builds = 0; p.promos = 0; p.hunts = 0; p.swapObj = 0; p.swapMile = 0; p.recruited = 0; p.recruitExtra = 0;
     p.systems.forEach(s => s.t = false);
   });
   S.occ = {}; S.passed = [];
@@ -325,7 +325,7 @@ E.canRecruit = function (S, pi, idx) {
   if (S.phase === 3 && !S.cfg.recruitInLaunch) return { ok: false, reason: "No hiring in Launch" };
   const o = (S.recruit || [])[idx]; if (!o) return { ok: false, reason: "No such offer" };
   if (o.by != null) return { ok: false, reason: "Already taken" };
-  if ((p.recruited || 0) >= (S.cfg.recruitPerRound || 1)) return { ok: false, reason: "One hire per round" };
+  if ((p.recruited || 0) >= (S.cfg.recruitPerRound || 1) + (p.recruitExtra || 0)) return { ok: false, reason: "One hire per round" };
   const cost = E.recruitCost(S, pi); if (p.gold < cost) return { ok: false, reason: "Needs " + cost + "G" };
   return { ok: true, cost };
 };
@@ -406,7 +406,9 @@ function upkeep(S) {
   log(S, "UPKEEP: Hype -" + S.cfg.hypeDecay + ", Culture toward 0, workers recover");
   if (S.round >= 12) return endGame(S);
   S.round++;
-  if (PHASE_OF_ROUND(S.round) !== S.phase) beginPhase(S); else { S.step = "x"; beginRound(S); }
+  if (PHASE_OF_ROUND(S.round) !== S.phase) beginPhase(S);
+  else if (S.cfg.bidEveryRound) { S.draft = { cards: [], per: 0, left: null }; S.step = "bid"; S.bids = {}; S.order.forEach(pi => S.dq.push({ t: "bid", p: pi, purpose: "turn" })); S.dq.push({ t: "auto", fn: "turnOrder" }); }
+  else { S.step = "x"; beginRound(S); }
 }
 /* Publisher gates: a review at the end of each phase. Meet every requirement: funding tranche (+ VP). Miss: VP penalty. Best Progress among those who pass: bonus VP. */
 /* Publisher gates are drawn once per game, at the end of round 1: one review per phase, picked from the pool for that phase. */
@@ -503,7 +505,7 @@ function spotUsableBy(S, pi, w, spot) {
   }
   if (spot.special === "convert") { const rk = RES_OF[CAT_OF(as[0])], rate = S.cfg.convertRate || 3; if (Math.floor((p[rk] || 0) / rate) < 1) return { ok: false, reason: "Needs " + rate + " " + RES_NAME[rk] + " to convert" }; }
   if (spot.cost && spot.cost.gold > p.gold) return { ok: false, reason: "Needs " + spot.cost.gold + "G" };
-  if (spot.cost && spot.cost.res && E.resTotal(p) < spot.cost.res) return { ok: false, reason: "Needs " + spot.cost.res + " resources" };
+  if (spot.cost && spot.cost.res && E.resTotal(p) < spot.cost.res) return { ok: false, reason: "Needs " + spot.cost.res + " skills" };
   if (spot.special === "mentor") {
     if (S.phase === 2 && p.flags.noMentor) return { ok: false, reason: "Locked (Feature Creep: Delay)" };
     const jr = p.workers.find(x => x.lvl === "Jr" && x.id !== w.id && x.disc === w.disc);
@@ -585,7 +587,7 @@ function doPlace(S, pi, wid, target, o) {
   }
   const spot = opt.spot; const isLaunch = S.phase === 3;
   S.occ[spot.id] = (S.occ[spot.id] || []).concat([pi]);
-  // resources: the placing worker earns the resource of the role they fill
+  // skills: the placing worker earns the skill of the role they fill
   const rmul = S.cfg.spotResOr ? (spot.r || 0) : 1;
   const M = (over ? S.cfg.resOver : (w.lvl === "Sr" ? S.cfg.resSr : S.cfg.resJr)) * rmul;
   if (M) gain(S, pi, RES_OF[plan ? plan.wcat : CAT_OF(as)], M);
@@ -626,7 +628,7 @@ function doPlace(S, pi, wid, target, o) {
   // specials
   switch (spot.special) {
     case "workshop": spendRes(S, p, spot.cost.res); break;
-    case "talent": p.hireDiscount += 1; break;
+    case "talent": p.hireDiscount += 1; if (S.cfg.varC) { p.recruitExtra = (p.recruitExtra || 0) + 1; log(S, p.name + " may recruit one more worker from the pool this round (1G off)"); } break;
     case "team": gain(S, pi, "gold", -spot.cost.gold); gain(S, pi, "culture", S.cfg.teamEventCulture); break;
     case "outsource": gain(S, pi, "gold", w.lvl === "Sr" ? (S.cfg.outsourceSr == null ? 5 : S.cfg.outsourceSr) : (S.cfg.outsourceJr == null ? 3 : S.cfg.outsourceJr)); break;
     case "rd": p.rd = true; p.rdDisc = S.cfg.rdDiscount || 0; break;
@@ -656,8 +658,8 @@ function parseBuild(str) {
 E.parseBuild = parseBuild;
 E.srDiscount = function (S, p) { return p && p.rs ? Math.max(0, (p.rs.srPlaced || 0) * (S.cfg.srBuildDiscount || 0)) : 0; };
 E.resTotal = function (p) { return RES.reduce((t, k) => t + (p[k] || 0), 0); };
-/* A system's printed cost "4M+Eng+QA" is paid in resources of the roles it needs: the total is split evenly across their categories (the first category gets any odd unit). */
-/* Variant C synergy: a system's main resource is the one its printed cost asks for most (ties: first role listed). */
+/* A system's printed cost "4M+Eng+QA" is paid in skills of the roles it needs: the total is split evenly across their categories (the first category gets any odd unit). */
+/* Variant C synergy: a system's main skill is the one its printed cost asks for most (ties: first role listed). */
 E.sysMainRes = function (def) {
   const b = parseBuild(def.build), need = E.buildNeed(b); let best = null;
   RES.forEach(k => { if (need[k] > 0 && (best === null || need[k] > need[best])) best = k; });
@@ -670,7 +672,7 @@ E.buildNeed = function (b) {
   cats.forEach((c, i) => { need[RES_OF[c]] += Math.floor(b.cost / cats.length) + (i < b.cost % cats.length ? 1 : 0); });
   return need;
 };
-/* Full price of building a system for this player: resources to pay, shortfall covered by Gold, and Gold. R&D lowers the total (never below 1), shortfall first. */
+/* Full price of building a system for this player: skills to pay, shortfall covered by Gold, and Gold. R&D lowers the total (never below 1), shortfall first. */
 E.buildCost = function (S, p, def, free) {
   const b = parseBuild(def.build), need = E.buildNeed(b); const orig = RES.reduce((t, k) => t + need[k], 0);
   let disc = 0;
@@ -727,8 +729,8 @@ function doBuild(S, pi, name, useFree, crunchIn) {
   const bc = E.buildCost(S, p, def, free);
   if (b.cur === "M") { if (!free) { RES.forEach(k => { p[k] -= bc.pay[k]; }); p.rs.spentRes += bc.total; } p.cs.noGoldBuilds++; if (bc.orig >= 5) p.cs.bigBuild = true; }
   else { gain(S, pi, "gold", -b.cost); if (def.cat === "Reach") p.cs.reachGold += b.cost; }
-  if (!free && b.cur === "M") { if (bc.gold) { gain(S, pi, "gold", -bc.gold); p.rs.spent += bc.gold; } if (bc.shortN) log(S, p.name + " covers " + bc.shortN + " missing resource(s) with " + bc.subGold + "G"); }
-  if (free) { p.freeBuilds--; } else { p.builds++; if (p.rdDisc) { log(S, p.name + " uses the R&D discount (-" + p.rdDisc + " resources)"); p.rdDisc = 0; } }
+  if (!free && b.cur === "M") { if (bc.gold) { gain(S, pi, "gold", -bc.gold); p.rs.spent += bc.gold; } if (bc.shortN) log(S, p.name + " covers " + bc.shortN + " missing skill(s) with " + bc.subGold + "G"); }
+  if (free) { p.freeBuilds--; } else { p.builds++; if (p.rdDisc) { log(S, p.name + " uses the R&D discount (-" + p.rdDisc + " skills)"); p.rdDisc = 0; } }
   S.sysAvail[name] = false; if (S.market && S.market[def.cat]) { S.market[def.cat] = S.market[def.cat].filter(x => x !== name); refillMarket(S); }
   if (S.cfg.varC) {
     const rush = !!crunch || (p.rd && S.cfg.rdCrunch), d = E.buildDelay(S, p, crunch, def), crewIds = E.buildRounds(S, p, crunch, def) > 0 ? (crewFor(p, b.reqs) || []) : [];
@@ -943,12 +945,12 @@ function resolveDecision(S, a) {
     }
     case "patch": {
       if (a.type === "patchDone") { S.dq.shift(); return { ok: true }; }
-      if (a.type !== "patchFix") return err("Spend resources or finish");
+      if (a.type !== "patchFix") return err("Spend skills or finish");
       const pl = P(S, p); const fix = S.data.crisis.find(c => c.id === "patch").params.fixes[a.idx]; if (!fix) return err("Bad fix");
-      if (E.resTotal(pl) < fix[0]) return err("Needs " + fix[0] + " resources");
+      if (E.resTotal(pl) < fix[0]) return err("Needs " + fix[0] + " skills");
       for (let i = 0; i < fix[0]; i++) { let big = RES[0]; RES.forEach(k => { if (pl[k] > pl[big]) big = k; }); pl[big]--; }
       gain(S, p, "debt", -fix[1]);
-      log(S, pl.name + " spends " + fix[0] + " resources: -" + fix[1] + " Debt"); return { ok: true };
+      log(S, pl.name + " spends " + fix[0] + " skills: -" + fix[1] + " Debt"); return { ok: true };
     }
   }
   return err("Unknown decision");
