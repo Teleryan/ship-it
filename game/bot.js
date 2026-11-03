@@ -169,7 +169,7 @@ function fxScore(S, p, w, o) {
   if (fx.choice) v = Math.max(val(fx.choice[0]), val(fx.choice[1])); else v = val(fx);
   const rmul = S.cfg.spotResOr ? (spot.r || 0) : 1, resVal = S.cfg.varC ? W.resVal : 1;
   const mom = (w.fat >= 2 ? S.cfg.resOver : (w.lvl === "Sr" ? S.cfg.resSr : S.cfg.resJr)) * rmul; v += mom * W.res * resVal + (w.lvl === "Sr" ? W.srVal : 0);
-  v -= (spot.debt || 0) * W.spotDebt; if (w.fat >= 1) v -= 0.8; if (w.fat >= 2) v -= 2.5;
+  v -= (spot.debt || 0) * W.spotDebt; if (w.fat >= 1) v -= 0.8; if (w.fat >= 2) v -= 2.5 + (S.cfg.burnout ? 1.2 + (p.burnout || 0) * 0.9 : 0);
   if (fx.stats && fx.stats.debt < 0) { v += p.debt > 3 ? 2 + Math.min(-fx.stats.debt * 1.5, p.debt) : -4; }
   if (spot.special === "talent") v = S.cfg.varC ? 2.2 : 1.2; if (spot.special === "team") v = p.culture < 0 ? 4 : 0.5; if (spot.special === "outsource") v = (w.lvl === "Sr" ? 5 : 3) * 0.9 - (p.gold < 4 ? -2 : 0);
   if (spot.special === "rd") v = E.resTotal(p) >= 3 ? 2.4 + W.crewCost : 0.1 + W.crewCost; if (spot.special === "workshop") v = E.resTotal(p) >= 8 ? v + 1 : 0.2; if (spot.special === "mentor") v = 4; if (spot.id === "insight") v = 1.8;

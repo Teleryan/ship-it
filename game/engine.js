@@ -109,7 +109,7 @@ E.newGame = function (seats, opts) {
     id: i, name: s.name || ("Player " + (i + 1)), bot: !!s.bot, color: ["#e74c3c","#3498db","#27ae60","#f39c12","#9b59b6","#16a085"][i],
     gold: cfg.startGold, ideas: 0, code: 0, process: 0, buzz: 0, prod: 0, mktg: 0, hype: 0, debt: 0, culture: 0, vpAdj: 0,
     workers: [], hand: [], systems: [], building: [], recruited: 0, objectives: [], dropped: [], miles: [], claimed: [],
-    hireDiscount: 0, contract: 0, padj: 0, hadj: 0, freeBuilds: 0, rd: false, flags: {}, swapObj: 0, swapMile: 0, promos: 0, hunts: 0, builds: 0,
+    hireDiscount: 0, contract: 0, padj: 0, hadj: 0, burnout: 0, freeBuilds: 0, rd: false, flags: {}, swapObj: 0, swapMile: 0, promos: 0, hunts: 0, builds: 0,
     rs: {}, cs: { promotions: 0, fired: 0, reachGold: 0, noGoldBuilds: 0, bigBuild: false, hypeEver: false, debtEver: false, hypeStreak: 0, cashedTotal: 0 }
   }));
   // discipline deck
@@ -146,6 +146,7 @@ function statChange(S, pi, stat, d) {
   const cfg = S.cfg; const before = p[stat];
   let v = before + d;
   if (stat === "culture") v = clamp(v, cfg.culMin, cfg.culMax);
+  else if (stat === "burnout") v = clamp(v, 0, cfg.burnMax || 6);
   else if (RES.includes(stat)) v = clamp(v, 0, cfg.resCap || 99);
   else v = Math.max(0, v);
   if (stat === "gold") {
@@ -300,7 +301,7 @@ function beginDraft(S) {
 function beginRound(S) {
   S.players.forEach(p => {
     p.rs = { spent: 0, gained: 0, spentRes: 0, hires: 0, placed: 0, triggers: 0, builds: 0, debtRemoved: 0, hypeGained: 0, discards: 0, cashed: 0, debtStart: p.debt };
-    p.workers.forEach(w => w.placed = false);
+    p.workers.forEach(w => { w.placed = false; w.benched = false; });
     p.rd = false; p.rdDisc = 0; p.refreshed = 0; p.builds = 0; p.promos = 0; p.hunts = 0; p.swapObj = 0; p.swapMile = 0; p.recruited = 0; p.recruitExtra = 0;
     p.systems.forEach(s => s.t = false);
   });
@@ -317,8 +318,35 @@ function beginRound(S) {
     if (!sal) return;
     const pay = Math.min(sal, p.gold); p.gold -= pay;
     log(S, p.name + " pays salaries: -" + pay + "G (" + p.workers.filter(w => w.lvl !== "Sr").length + " Junior, " + p.workers.filter(w => w.lvl === "Sr").length + " Senior)" + (pay < sal ? ", short by " + (sal - pay) + "G" : ""));
+    if (S.cfg.burnout && sal - pay >= (S.cfg.burnUnpaidMin || 1)) { p.rs.unpaid = true; const b = Math.min(S.cfg.burnUnpaidMax || 2, Math.ceil((sal - pay) / (S.cfg.burnUnpaidPer || 2))); const r = gain(S, p.id, "burnout", b); if (r) log(S, p.name + " could not pay everyone: Burnout +" + r); }
   });
+  if (S.cfg.burnout) burnBands(S);
   S.step = "hire"; S.cur = 0;
+}
+
+/* ---------- Variant D: Burnout track ---------- */
+// Burnout (0 to burnMax) is a personal token. Printed bands: Energized (Burnout 0 and Culture high) pays Gold, Strained costs extra Hype at upkeep,
+// Burned out benches the most tired worker for the round, Meltdown makes a worker quit.
+E.burnBand = function (S, p) {
+  const c = S.cfg, b = p.burnout || 0;
+  if (b >= c.burnQuitAt) return "Meltdown";
+  if (b >= c.burnBenchAt) return "Burned out";
+  if (b >= c.burnStrainAt) return "Strained";
+  if (b <= c.energizedBurnMax && p.culture >= c.energizedCulture) return "Energized";
+  return "Steady";
+};
+function burnBands(S) {
+  S.players.forEach(p => {
+    const c = S.cfg;
+    if (E.burnBand(S, p) === "Energized" && c.energizedGold) { S._nt = 1; gain(S, p.id, "gold", c.energizedGold); S._nt = 0; log(S, p.name + " is Energized (Burnout " + p.burnout + ", Culture " + p.culture + "): +" + c.energizedGold + "G"); }
+    if (p.burnout >= c.burnQuitAt && p.workers.length > 1) {
+      const q = p.workers.filter(w => !w.build).sort((a, b) => (a.lvl === "Sr") - (b.lvl === "Sr") || b.fat - a.fat || a.id - b.id)[0];
+      if (q) { log(S, p.name + " Meltdown: a " + q.lvl + " " + dn(q.disc) + " quits"); removeWorker(S, p.id, q.id); p.burnout = Math.min(p.burnout, c.burnQuitReset); }
+    } else if (p.burnout >= c.burnBenchAt) {
+      const q = p.workers.filter(w => !w.build).sort((a, b) => b.fat - a.fat || (a.lvl === "Sr") - (b.lvl === "Sr") || a.id - b.id)[0];
+      if (q) { q.benched = true; log(S, p.name + " is Burned out: " + q.lvl + " " + dn(q.disc) + " sits out this round"); }
+    }
+  });
 }
 
 /* ---------- Variant C: build time, recruitment pool ---------- */
@@ -412,6 +440,12 @@ function upkeep(S) {
   S.players.forEach(p => {
     p.systems.forEach(sy => { const d = sysDef(S, sy.name); if (d && d.rule && d.rule.upk) { Object.keys(d.rule.upk).forEach(k => gain(S, p.id, k, d.rule.upk[k])); log(S, p.name + "'s " + d.name + ": " + d.pas); } });
     gainHypeDecay(S, p);
+    if (S.cfg.burnout) {
+      const oN = p.rs.overN || 0, st = S.cfg.burnOverStep || 2, add = Math.min(S.cfg.burnOverMax || 2, Math.floor(oN / st)); p.rs.overPlaced = add > 0;
+      if (add) { const r = gain(S, p.id, "burnout", add); if (r) log(S, p.name + " ran " + oN + " Over-Tired workers: Burnout +" + r); }
+      if (E.burnBand(S, p) === "Strained" || p.burnout >= S.cfg.burnBenchAt) { const x = Math.min(p.hype, S.cfg.burnStrainHype || 1); if (x) { p.hype -= x; log(S, p.name + " is " + E.burnBand(S, p) + ": Hype -" + x + " extra"); } }
+      if (!p.rs.overPlaced && !p.rs.unpaid) { const r = gain(S, p.id, "burnout", -(S.cfg.burnRelief || 1)); if (r) log(S, p.name + " had a calm round: Burnout " + r); }
+    }
     // culture decays toward 0
     if (p.culture > 0) p.culture = Math.max(0, p.culture - S.cfg.cultureDecay); else if (p.culture < 0) p.culture = Math.min(0, p.culture + S.cfg.cultureDecay);
     // over-tired loss rolls, then recovery
@@ -545,6 +579,7 @@ function placementOptions(S, pi, w) {
   const p = P(S, pi); const out = [];
   if (w.placed) return [{ ok: false, reason: "Already placed this round" }];
   if (w.build) return [{ ok: false, reason: "Busy building " + w.build }];
+  if (w.benched) return [{ ok: false, reason: "Sitting out this round (Burned out)" }];
   if (S.phase === 3 && p.flags.skipLaunch) return [{ ok: false, reason: "Skipped (Last-Minute Bug: Delay)" }];
   activeSpots(S).forEach(spot => { const u = spotUsableBy(S, pi, w, spot); out.push(Object.assign({ target: "spot:" + spot.id, label: spot.row, kind: "spot", spot }, u)); });
   p.systems.forEach((s, i) => {
@@ -593,7 +628,8 @@ function doPlace(S, pi, wid, target, o) {
   const as = (o.as && opt.as.includes(o.as)) ? o.as : opt.as[0];
   if (DISCS.includes(w.disc) && D0.disciplines[w.disc].wild) w.as = as;
   const over = w.fat >= 2;
-  if (over && S.cfg.overworkCulture) gain(S, pi, "culture", S.cfg.overworkCulture);
+  if (over && S.cfg.burnout) { p.rs.overN = (p.rs.overN || 0) + 1; }
+  else if (over && S.cfg.overworkCulture) gain(S, pi, "culture", S.cfg.overworkCulture);
   w.worked = true; w.placed = true; if (over) w.overWhenPlaced = true; w.fat = Math.min(2, w.fat + 1);
   let plan = null;
   if (opt.kind === "spot" && opt.spot.crew) {
@@ -654,7 +690,7 @@ function doPlace(S, pi, wid, target, o) {
   switch (spot.special) {
     case "workshop": spendRes(S, p, spot.cost.res); break;
     case "talent": p.hireDiscount += 1; if (S.cfg.varC) { p.recruitExtra = (p.recruitExtra || 0) + 1; log(S, p.name + " may recruit one more worker from the pool this round (1G off)"); } break;
-    case "team": gain(S, pi, "gold", -spot.cost.gold); gain(S, pi, "culture", S.cfg.teamEventCulture); break;
+    case "team": gain(S, pi, "gold", -spot.cost.gold); gain(S, pi, "culture", S.cfg.teamEventCulture); if (S.cfg.burnout) gain(S, pi, "burnout", -(S.cfg.burnTeamRelief || 1)); break;
     case "outsource": gain(S, pi, "gold", w.lvl === "Sr" ? (S.cfg.outsourceSr == null ? 5 : S.cfg.outsourceSr) : (S.cfg.outsourceJr == null ? 3 : S.cfg.outsourceJr)); break;
     case "rd": p.rd = true; p.rdDisc = S.cfg.rdDiscount || 0; break;
     case "convert": {
@@ -1259,6 +1295,7 @@ E.score = function (S) {
     s.delivery = diff <= 0 ? db.delivered : diff <= db.nearMax ? db.near : diff <= db.farMax ? db.far : db.backlash;
     s.debtPenalty = c.trackScoring ? 0 : -Math.min(c.debtPenaltyCap, Math.round(dp * c.debtPenaltyMult * dbl));
     s.culture = c.cultureVP[String(clamp(p.culture, c.culMin, c.culMax))] || 0;
+    s.burnout = c.burnout && c.burnVP ? (c.burnVP[String(clamp(p.burnout || 0, 0, c.burnMax || 6))] || 0) : 0;
     // objectives & synergy
     s.objectives = 0; s.synergy = 0; s.objList = [];
     p.objectives.forEach(id => {
@@ -1297,9 +1334,9 @@ E.score = function (S) {
       const all = S.players.map(calc), tp = all.reduce((a, r) => a + r.P.total, 0), th = all.reduce((a, r) => a + r.H.total, 0), pl = S.players.indexOf(p), mine = all[pl];
       s.pool = mine; const pot = (c.poolPotN && c.poolPotN[N]) || c.poolPot; s.prodShare = Math.round(tp ? mine.P.total / tp * pot * N * 10 : 0) / 10; s.hypeStrength = Math.round(th ? mine.H.total / th * pot * N * 10 : 0) / 10; s.mktShare = 0;
     }
-    if (c.poolScoring) { s.delivery = 0; s.debtPenalty = 0; s.culture = 0; s.launch = 0; s.gold = 0; s.objectives = 0; s.synergy = 0; s.systems = 0; s.reach = 0; s.crisis = 0; }
+    if (c.poolScoring) { s.burnout = 0; s.delivery = 0; s.debtPenalty = 0; s.culture = 0; s.launch = 0; s.gold = 0; s.objectives = 0; s.synergy = 0; s.systems = 0; s.reach = 0; s.crisis = 0; }
     if (c.raceScoring && !c.poolScoring) { s.delivery = 0; s.hypeStrength = s.raceHype; s.debtPenalty = s.raceDebt; s.culture = s.raceCult; s.launch = 0; }
-    s.total = Math.round((s.prodShare + s.mktShare + s.hypeStrength + s.delivery + s.debtPenalty + s.culture + s.objectives + s.synergy + s.systems + s.launch + s.gold + s.crisis + s.reach) * 10) / 10;
+    s.total = Math.round((s.prodShare + s.mktShare + s.hypeStrength + s.delivery + s.debtPenalty + s.culture + (s.burnout || 0) + s.objectives + s.synergy + s.systems + s.launch + s.gold + s.crisis + s.reach) * 10) / 10;
     s.threshold = thr; s.debtPct = Math.round(dp * 10) / 10; s.hypePct = Math.round(hypePct); s.prodPct = Math.round(prodPct);
     return { id: p.id, name: p.name, parts: s, total: s.total };
   });

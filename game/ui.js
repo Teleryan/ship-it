@@ -31,14 +31,15 @@ const IC = {
   progress: '<path d="M2.5 13.5V9M6.8 13.5V6M11.1 13.5V3.4M2 13.5h12"/>',
   hype: '<path d="M8 1.6c.4 2.2 3.8 3.6 3.8 7.2A3.8 3.8 0 0 1 4.2 9c0-1.4.7-2.2 1.4-3 .1 1 .6 1.6 1.2 1.8C6.4 5.6 7 3.6 8 1.6z"/>',
   marketing: '<circle cx="8" cy="8" r="5.6"/><circle cx="8" cy="8" r="2.6"/><path d="M8 8l4.2-4.2"/>',
+  burnout: '<rect x="1.8" y="4.8" width="10.4" height="6.4" rx="1.4"/><path d="M14.2 7v2M4 8h2.4"/>',
   culture: '<path d="M8 13.6S2.2 10 2.2 6.1A3 3 0 0 1 8 5a3 3 0 0 1 5.8 1.1C13.8 10 8 13.6 8 13.6z"/>',
   debt: '<ellipse cx="8" cy="9.2" rx="3.2" ry="3.9"/><path d="M8 5.3V3.2M5.4 7 2.8 5.6M10.6 7l2.6-1.4M4.8 10H2.2M11.2 10h2.6M5.6 12.4l-2 1.6M10.4 12.4l2 1.6"/>',
   gold: '<circle cx="8" cy="8" r="5.8"/><path d="M8 4.6v6.8M6.2 6.4c0-.8.8-1.2 1.8-1.2s1.8.4 1.8 1.2c0 1.6-3.6.8-3.6 2.4 0 .8.8 1.2 1.8 1.2s1.8-.4 1.8-1.2"/>'
 };
-const ICN = { ideas: "Ideas", code: "Code", process: "Process", buzz: "Buzz", progress: "Progress", hype: "Hype", marketing: "Marketing", culture: "Culture", debt: "Tech Debt", gold: "Gold" };
-const ICC = { ideas: "var(--ideas)", code: "var(--code)", process: "var(--process)", buzz: "var(--buzz)", progress: "var(--pr)", hype: "var(--hype)", marketing: "var(--mk)", culture: "#7bd88f", debt: "#ff7b72", gold: "var(--gold)" };
+const ICN = { ideas: "Ideas", code: "Code", process: "Process", buzz: "Buzz", progress: "Progress", hype: "Hype", marketing: "Marketing", culture: "Culture", burnout: "Burnout", debt: "Tech Debt", gold: "Gold" };
+const ICC = { burnout: "var(--bad)", ideas: "var(--ideas)", code: "var(--code)", process: "var(--process)", buzz: "var(--buzz)", progress: "var(--pr)", hype: "var(--hype)", marketing: "var(--mk)", culture: "#7bd88f", debt: "#ff7b72", gold: "var(--gold)" };
 const ic = k => `<span class="ico" data-tip="${ICN[k]}" tabindex="0" role="img" aria-label="${ICN[k]}"><svg class="ic" viewBox="0 0 16 16" fill="none" stroke="${ICC[k]}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span>`;
-const KEY_ORDER = ["ideas", "code", "process", "buzz", "progress", "hype", "marketing", "culture", "debt", "gold"];
+const KEY_ORDER = ["ideas", "code", "process", "buzz", "progress", "hype", "marketing", "culture", "burnout", "debt", "gold"];
 const iconKey = () => KEY_ORDER.map(k => `<span class="kk">${ic(k)}${ICN[k]}</span>`).join("");
 const rowTitle = (S, key) => { const n = S.cfg.rowNames && S.cfg.rowNames[key]; return (n && n[S.phase]) || key; };
 const RES_ICONS = E.RES.map(ic).join("");
@@ -146,7 +147,7 @@ function gateView() {
 
 /* ---------- menu ---------- */
 function menuView() {
-  const n = U.seats.length; const ver = /^\/a(\/|$)/.test(root.location.pathname) ? "a" : /^\/b(\/|$)/.test(root.location.pathname) ? "b" : "c";
+  const n = U.seats.length; const ver = /^\/a(\/|$)/.test(root.location.pathname) ? "a" : /^\/b(\/|$)/.test(root.location.pathname) ? "b" : /^\/d(\/|$)/.test(root.location.pathname) ? "d" : "c";
   return `<div class="center-screen"><div class="card-box">
   <div class="logo">SHIP <b>IT!</b>${D.config && D.config.envLabel ? ` <span style="font-size:.4em;color:var(--gold);letter-spacing:.08em">${D.config.envLabel}</span>` : ""}</div><p class="mute" style="margin:6px 0 16px">12 rounds · 4 phases · ${D.version}</p>
   <div class="row"><label class="mute">Bot skill</label><select data-botskill>${(root.ShipItBot ? root.ShipItBot.profileNames : [["", "Standard"]]).map(o => `<option value="${o[0]}" ${(U.botSkill || "") === o[0] ? "selected" : ""}>${o[1]}</option>`).join("")}</select> <label class="mute" style="margin-left:10px">Players</label><select data-seatn>${[2,3,4,5,6].map(k => `<option ${k === n ? "selected" : ""}>${k}</option>`).join("")}</select></div>
@@ -155,7 +156,7 @@ function menuView() {
   ${U.hosted ? `<div style="margin:16px 0 0;padding:12px;border:1px solid var(--line,#2b3350);border-radius:10px"><div class="mute" style="margin-bottom:8px">Play online with friends on their own devices</div>
   <div class="row wrap"><input data-pname value="${esc(myName() === "Player" ? "" : myName())}" placeholder="Your name" maxlength="20" style="width:140px"><button class="btn primary" data-act="online-create">Create online game</button><input data-jcode placeholder="CODE" maxlength="4" style="width:80px;text-transform:uppercase;letter-spacing:.2em"><button class="btn" data-act="online-join">Join</button></div>
   ${U.joinErr ? `<p style="color:var(--bad);margin:8px 0 0">${esc(U.joinErr)}</p>` : ""}</div>` : ""}
-  ${U.hosted ? `<div class="row wrap" style="margin:14px 0 0;align-items:center"><span class="mute">Version</span><button class="btn sm ${ver === "c" ? "primary" : ""}" data-act="variant" data-v="c">C · Phases (default)</button><button class="btn sm ${ver === "a" ? "primary" : ""}" data-act="variant" data-v="a">A · Classic scoring</button><button class="btn sm ${ver === "b" ? "primary" : ""}" data-act="variant" data-v="b">B · Pool scoring</button></div>` : ""}
+  ${U.hosted ? `<div class="row wrap" style="margin:14px 0 0;align-items:center"><span class="mute">Version</span><button class="btn sm ${ver === "c" ? "primary" : ""}" data-act="variant" data-v="c">C · Phases (default)</button><button class="btn sm ${ver === "a" ? "primary" : ""}" data-act="variant" data-v="a">A · Classic scoring</button><button class="btn sm ${ver === "b" ? "primary" : ""}" data-act="variant" data-v="b">B · Pool scoring</button><button class="btn sm ${ver === "d" ? "primary" : ""}" data-act="variant" data-v="d">D · Burnout</button></div>` : ""}
   <div class="row wrap" style="margin:14px 0 0"><button class="btn sm" data-act="cleardata">Clear saved data</button>${U.hosted ? '<button class="btn sm" data-act="logout">Log out</button>' : ""}</div>
   <p class="dim" style="margin:14px 0 0;font-size:12px">Hot-seat: pass the device between humans. Bots play the rest. Online: each player uses their own device, and hot-seat seats can share one device.${U.tuned && U.tuned !== "default" ? ` Tuning in use: ${esc(U.tuned)}.` : ""}</p>
   </div></div>`;
@@ -413,8 +414,8 @@ function playersPanel(S) {
   return list.map(p => {
     const pos = S.order.indexOf(p.id); const cur = E.currentActor(S) === p.id; const vi = viewIndex(S) === p.id;
     return `<div class="pt ${cur ? "cur" : ""}" data-pid="${p.id}" data-act="view" data-v="${p.id}" style="cursor:pointer;${vi ? "background:var(--panel2)" : ""}"><div class="nm"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${p.bot ? ' <span class="tag">bot</span>' : ""}<span class="grow"></span>${ordered && pos >= 0 ? `<span class="ordbadge" title="Turn order for this phase, set by the blind bid">Turn order: ${pos + 1}</span>` : ""}</div>
-    <div class="stats big">${[["g", "gold", p.gold], ["p", "progress", p.prod], ["k", "marketing", p.mktg], ["h", "hype", p.hype]].map(x => `<div class="st rs ${x[0]}" title="${ICN[x[1]]}">${ic(x[1])}<b>${x[2]}</b></div>`).join("")}
-    <div class="st rs d" title="Tech Debt (share of the Debt limit)">${ic("debt")}<b>${p.debt} <span class="dim">${Math.round(E.debtPct(S, p))}%</span></b></div><div class="st rs c" title="Culture">${ic("culture")}<b>${p.culture > 0 ? "+" : ""}${p.culture}</b></div></div>
+    <div class="stats big">${(S.cfg.burnout ? [["g", "gold", p.gold], ["k", "marketing", p.mktg]] : [["g", "gold", p.gold], ["p", "progress", p.prod], ["k", "marketing", p.mktg], ["h", "hype", p.hype]]).map(x => `<div class="st rs ${x[0]}" title="${ICN[x[1]]}">${ic(x[1])}<b>${x[2]}</b></div>`).join("")}
+    <div class="st rs d" title="Tech Debt (share of the Debt limit)">${ic("debt")}<b>${p.debt} <span class="dim">${Math.round(E.debtPct(S, p))}%</span></b></div><div class="st rs c" title="Culture">${ic("culture")}<b>${p.culture > 0 ? "+" : ""}${p.culture}</b></div>${S.cfg.burnout ? `<div class="st rs bo ${E.burnBand(S, p) === "Steady" ? "" : "hot"}" title="Burnout ${p.burnout} of ${S.cfg.burnMax}. ${E.burnBand(S, p)}">${ic("burnout")}<b>${p.burnout} <span class="dim">${E.burnBand(S, p)}</span></b></div>` : ""}</div>
     <div class="stats res">${E.RES.map(k => `<div class="st rs" title="${E.RES_NAME[k]}: earned by placing a ${({ ideas: "Creative", code: "Development", process: "Operations", buzz: "Marketing" })[k]} role">${ic(k)}<b style="color:${RC[k]}">${p[k]}</b></div>`).join("")}</div>
     ${poolBars(S, p, live)}<div class="mute" style="font-size:11px;margin-top:4px">${p.workers.length} workers · ${p.systems.length} systems${(p.building || []).length ? " (+" + p.building.length + " building)" : ""}${p.vpAdj ? " · crisis VP " + (p.vpAdj > 0 ? "+" : "") + p.vpAdj : ""}</div></div>`;
   }).join("");
@@ -653,7 +654,7 @@ function resultsModal() {
   const S = U.S; const rows = S.scores.slice().sort((a, b) => b.total - a.total);
   const race = !!S.cfg.raceScoring, pool = !!S.cfg.poolScoring;
   if (pool) return poolResults(S, rows);
-  const cols = [["prodShare", race ? "Progress race" : "Progress %"]].concat(race ? [] : [["mktShare","Marketing %"]]).concat([["hypeStrength", race ? "Hype race" : "Hype"]]).concat(race ? [] : [["delivery","Deliv."]]).concat([["debtPenalty","Debt"],["culture","Culture"],["objectives","Obj."],["synergy","Synergy"],["systems","Sys"]]).concat(race ? [] : [["launch","Launch"]]).concat([["reach","Reach"],["gold","Gold"],["crisis","Crisis/Gates"]]);
+  const cols = [["prodShare", race ? "Progress race" : "Progress %"]].concat(race ? [] : [["mktShare","Marketing %"]]).concat([["hypeStrength", race ? "Hype race" : "Hype"]]).concat(race ? [] : [["delivery","Deliv."]]).concat([["debtPenalty","Debt"],["culture","Culture"]]).concat(S.cfg.burnout ? [["burnout","Burnout"]] : []).concat([["objectives","Obj."],["synergy","Synergy"],["systems","Sys"]]).concat(race ? [] : [["launch","Launch"]]).concat([["reach","Reach"],["gold","Gold"],["crisis","Crisis/Gates"]]);
   let h = `<h2>${esc(P(S.winner).name)} ships the best game!</h2><div class="scroll-y"><table class="scoretbl"><thead><tr><th>Studio</th>${cols.map(c => `<th>${c[1]}</th>`).join("")}<th>TOTAL</th></tr></thead><tbody>`;
   rows.forEach(r => { h += `<tr class="${r.id === S.winner ? "win" : ""}"><td><span class="dot" style="background:${P(r.id).color};display:inline-block;margin-right:6px"></span>${esc(r.name)} <span class="dim">${race ? "Debt " + P(r.id).debt + " · Mktg " + P(r.id).mktg : r.parts.threshold + " " + r.parts.debtPct + "%"}</span></td>${cols.map(c => `<td>${(+r.parts[c[0]]).toFixed(c[0].includes("Share") && !S.cfg.raceScoring ? 1 : 0)}</td>`).join("")}<td><b>${r.total.toFixed(0)}</b></td></tr>`; });
   h += `</tbody></table>${U.tut || U.tutDone ? SI.tutScoreExplainer(S) : ""}</div><div class="row" style="margin-top:14px"><button class="btn primary" data-act="${U.net ? "online-again" : "start"}">${U.tut || U.tutDone ? "Start a real game" : "Play again"}</button><button class="btn" data-act="menu">Menu</button><button class="btn" data-act="close">Close</button></div>`;
@@ -880,7 +881,7 @@ $root.addEventListener("click", e => {
       if ((w === "studio" || w === "all") && U.owner) { U.studio = SI.resetStudio(); SI.clearDraft(); U.active = SI.defaults(); }
       if (w === "all") { rm("shipit.name"); U.name = ""; }
       U.modal = null; toast("Cleared"); return; }
-    case "variant": root.location.href = v === "b" ? "/b/" : v === "a" ? "/a/" : "/"; return;
+    case "variant": root.location.href = v === "b" ? "/b/" : v === "a" ? "/a/" : v === "d" ? "/d/" : "/"; return;
     case "logout": {
       ["shipit.room", "shipit.save.v1", "shipit.auto.v1", "shipit.name"].forEach(k => { try { root.localStorage.removeItem(k); } catch (e) {} });
       try { root.sessionStorage.removeItem("shipit.ok"); } catch (e) {}

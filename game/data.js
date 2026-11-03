@@ -211,6 +211,24 @@ D.crisis = [
 /* ---------- DEFAULT CONFIG (every value is tunable in the Data Studio) ---------- */
 D.config = {
   _meta:{
+    burnout:["D: Burnout track on","1 = Variant D: each studio has a Burnout token (0 to max). Overwork and unpaid salaries raise it, calm rounds and Team Events lower it"],
+    burnMax:["D: Burnout max","Top of the Burnout track"],
+    burnOverStep:["D: Over-Tired workers per +1 Burnout","At upkeep, Burnout rises 1 for every this many Over-Tired workers you placed this round"],
+    burnOverMax:["D: Max Burnout from overwork per round","Cap on the overwork increase each round"],
+    burnUnpaidMin:["D: Gold short for Burnout","If salaries are short by at least this much Gold, Burnout rises"],
+    burnUnpaidPer:["D: Gold short per extra Burnout","Each full block of this much Gold short adds 1 more Burnout (up to the cap)"],
+    burnUnpaidMax:["D: Max Burnout from unpaid salaries per round","Cap per round"],
+    burnRelief:["D: Calm round relief","Burnout falls this much in a round with no overwork increase and every salary paid"],
+    burnTeamRelief:["D: Team Event relief","Burnout removed when you place a Team Event"],
+    burnStrainAt:["D: Strained at Burnout","From here, Hype falls extra at upkeep"],
+    burnStrainHype:["D: Strained extra Hype loss","Extra Hype lost at upkeep while Strained or worse"],
+    burnBenchAt:["D: Burned out at Burnout","From here, your most tired worker sits out each round"],
+    burnQuitAt:["D: Meltdown at Burnout","At this level a worker quits and Burnout drops to the reset value"],
+    burnQuitReset:["D: Burnout after a Meltdown","Burnout is lowered to this after a worker quits"],
+    energizedBurnMax:["D: Energized needs Burnout at most","Energized needs Burnout at or below this"],
+    energizedCulture:["D: Energized needs Culture at least","Energized needs Culture at or above this"],
+    energizedGold:["D: Energized Gold","Extra Gold at the start of each round while Energized"],
+    burnVP:["D: Burnout VP","JSON: Burnout value -> VP at the end of the game"],
     gateLossCap:["Gate loss cap (VP)","Most VP a team can lose by missing a publisher gate"],
     objPartial:["Partial objective credit","1 = unfinished objectives still score a share of their VP"],
     gateContract:["Gate contract on","1 = gate requirements are a contract that costs VP if failed"],
@@ -405,7 +423,7 @@ D.spotsC = [
 D.configC = {
   varC:1, noSwaps:1, resSubMax:0, envLabel:"ENV C · PHASES", rowNames:{EARN:["Backlog","Backlog","Backlog","Backlog"],PROGRESS:["Prototype","Vertical Slice","Beta Build","Gold Master"],HYPE:["Pitch Deck","Trailer Drop","Press Tour","Launch Party"],CREW:["Game Jam","Game Jam","Game Jam","Game Jam"],UTILITY:["Studio Perks","Studio Perks","Studio Perks","Studio Perks"]}, raceCurveByN:{2:0.12,3:0.2,4:0.25,5:0.25,6:0.3}, racePotByN:{2:38,3:38,4:40,5:42,6:42}, debtLossByN:{2:4,3:6,4:8}, cultLossByN:{2:3,3:5,4:6}, phaseEnds:[3,8,11,12],
   spotResOr:1, srSystems:1, srPromoteOnly:1, srAllowedPreProd:1,
-  promoFree:1, promoNeedsRest:1, promotionsPerRest:1, headhuntsPerRest:0, overworkCulture:-1,
+  promoFree:1, promoNeedsRest:1, promotionsPerRest:1, headhuntsPerRest:0, overworkCulture:-1, burnout:0, burnMax:6, burnOver:1, burnUnpaidPer:2, burnOverStep:2, burnOverMax:2, burnUnpaidMax:1, burnUnpaidMin:2, burnRelief:1, burnTeamRelief:1, burnStrainAt:3, burnStrainHype:1, burnBenchAt:5, burnQuitAt:6, burnQuitReset:4, energizedBurnMax:0, energizedCulture:2, energizedGold:1, burnVP:{"0":0,"1":0,"2":0,"3":-1,"4":-3,"5":-5,"6":-8},
   recruitCost:3, recruitPerRound:1, recruitSize2:2, recruitSize34:3, recruitSize56:4, recruitInLaunch:0,
   bidEveryRound:1, bidWinnerOnly:0, buildDelay:2, crunchDelay:1, crunchGold:2, rdCrunch:1, rdDiscount:0, convertRate:3,
   income:6, sysGoldMult:0.5, sysCostMult:1, gateProgMult:0.6, gateHypeMult:0.6,

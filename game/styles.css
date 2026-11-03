@@ -365,3 +365,5 @@ table.dt input.n{width:62px}
 .spot{gap:7px}
 .spot .dc{margin-bottom:3px}
 .spot .fx,.spot .fx1{padding-top:6px}
+
+.st.bo b{color:var(--bad)} .st.bo.hot{outline:1px solid var(--bad);border-radius:8px}

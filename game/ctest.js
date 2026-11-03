@@ -42,4 +42,12 @@ S=mk(10);toStep(S,'rest',4);pi=E.currentActor(S);q=S.players[pi];q.workers.push(
 q.gold=10;r=E.act(S,{type:'promote',p:pi,worker:904});ok(!r.ok,'cannot promote a worker who has not worked');r=E.act(S,{type:'promote',p:pi,worker:903});ok(r.ok&&q.gold===10,'free promotion of a rested worker who has worked');
 // A/B untouched
 const SA=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:3});ok(!SA.cfg.varC&&D.phases[0].rounds[1]===2,'Env A rules unchanged (phase 1 ends round 2)');
+
+// Variant D: Burnout
+{const mkD=(n,seed)=>E.newGame(Array.from({length:n},(_,i)=>({name:'P'+i,bot:true})),{seed,config:{varC:1,burnout:1}});
+ let allOk=true,seen=0;for(const n of [2,4,6]){for(let sd=1;sd<=6;sd++){const S=mkD(n,sd);B.run(S,40000);if(!S.over)allOk=false;S.players.forEach(p=>{if(p.burnout<0||p.burnout>6)allOk=false;seen+=p.burnout});if(!(S.scores||E.score(S)).every(x=>typeof x.parts.burnout==='number'))allOk=false}}
+ ok(allOk&&seen>0,'Env D: bot games finish, Burnout stays on the track and is scored');
+ const C=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:2,config:{varC:1}});B.run(C,40000);ok(C.players.every(p=>p.burnout===0)&&C.cfg.burnout===0,'Env C: Burnout stays off');
+ const S=mkD(2,5);const p=S.players[0];p.burnout=0;p.culture=2;ok(E.burnBand(S,p)==='Energized','band: Energized at Burnout 0 and Culture 2');p.culture=0;ok(E.burnBand(S,p)==='Steady','band: Steady');p.burnout=3;ok(E.burnBand(S,p)==='Strained','band: Strained at 3');p.burnout=5;ok(E.burnBand(S,p)==='Burned out','band: Burned out at 5');p.burnout=6;ok(E.burnBand(S,p)==='Meltdown','band: Meltdown at 6');
+ E.statChange(S,0,'burnout',99);ok(p.burnout===6,'Burnout is capped at the top of the track');E.statChange(S,0,'burnout',-99);ok(p.burnout===0,'Burnout cannot go below 0');}
 console.log('fails',fails);

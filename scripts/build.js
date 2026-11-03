@@ -1,4 +1,4 @@
-// Builds the three environments (A at /, B at /b/, C at /c/) into dist/shipit-site.json (minified)
+// Builds the four environments (C at /, A at /a/, B at /b/, D at /d/) into dist/shipit-site.json (minified)
 const fs=require("fs"),path=require("path"),cp=require("child_process");
 const G=path.join(__dirname,"..","game"), OUT=path.join(__dirname,"..","dist");
 const FILES=["index.html","styles.css","data.js","core.js","engine.js","bot.js","studio.js","studio2.js","tutorial.js","net.js","analytics.js","admin.js","stats.js","simui.js","rules.js","ui.js"];
@@ -22,6 +22,7 @@ const TITLE="<title>SHIP IT!: Hot-seat Prototype</title>";
 const out={
   a:env({}),
   b:env({data:[["poolScoring:0,","poolScoring:1,"],['envLabel:"",','envLabel:"ENV B · POOLS",'],[/poolDebtMult:[0-9.]*,/,"poolDebtMult:4,"]],html:[[TITLE,"<title>SHIP IT! (Env B: Pools)</title>"]]}),
+  d:env({data:[[" varC:0,"," varC:1,"],[" burnout:0,"," burnout:1,"],['envLabel:"",','envLabel:"ENV D · BURNOUT"' + ","]],html:[[TITLE,"<title>SHIP IT! (Env D: Burnout)</title>"]]}),
   c:env({data:[[" varC:0,"," varC:1,"],['envLabel:"",','envLabel:"ENV C · PHASES"' + ","]],html:[[TITLE,"<title>SHIP IT! (Env C: Phases)</title>"]]}),
 };
 fs.unlinkSync(path.join(OUT,"_t.js"));

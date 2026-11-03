@@ -17,6 +17,7 @@ const CFG_GROUPS = [
   ["Systems & cards", ["buildsPerRound","rdDiscount","gatesRandom","slotsPerCategory","handSize","objDraw","objKeep","teamEventCulture","launchMult","crisisEnabled"]],
   ["Tracks", ["culMin","culMax","cultureDecay","hypeDecay","hypeCap","prodCap","debtMode"]],
   ["Variant C: phase-shaped economy", ["varC","noSwaps","spotResOr","srSystems","srPromoteOnly","promoFree","promoNeedsRest","overworkCulture","recruitCost","recruitPerRound","recruitSize2","recruitSize34","recruitSize56","recruitInLaunch","bidEveryRound","bidWinnerOnly","bidWinnerOnly","buildDelay","crunchDelay","crunchGold","rdCrunch","convertRate","gateProgMult","gateHypeMult","sysGoldMult"]],
+  ["Variant D: Burnout", ["burnout","burnMax","burnOverStep","burnOverMax","burnUnpaidMin","burnUnpaidPer","burnUnpaidMax","burnRelief","burnTeamRelief","burnStrainAt","burnStrainHype","burnBenchAt","burnQuitAt","burnQuitReset","energizedBurnMax","energizedCulture","energizedGold"]],
   ["Pool scoring (B)", ["poolScoring","poolPot","poolSysMult","poolObjMult","poolDebtMult"]],
   ["Race scoring", ["raceScoring","mktgToHype","raceCurve","racePot","debtLossMax","cultLossMax","trackScoring"]],
   ["Market, scale and gates", ["salaryJr","salarySr","reachFade","maxSystems","marketSize","marketRefreshGold","marketRefreshesPerRound","headhuntCatchUp","gatesEnabled","gateBestVP","gateLossCap","gateContract","objPartial","reachMajorVP","srBuildDiscount","sysVPMult","synergyMult","draftPool","deliveredBonus"]],
@@ -44,7 +45,7 @@ function cellVal(v, kind) { return kind === "csv" || kind === "csvn" || /^multi:
 
 
 /* ---------- field widgets: drop-downs, check boxes and radios instead of free text ---------- */
-const BOOLS = new Set(["reachFade","gateContract","objPartial","mergeMktg","raceEnd","headhuntCatchUp","varC","noSwaps","spotResOr","srSystems","srPromoteOnly","promoFree","promoNeedsRest","recruitInLaunch","rdCrunch","bidEveryRound","bidWinnerOnly","poolScoring","raceScoring","gatesRandom","gatesEnabled","crisisEnabled","synergyOn","headhuntCatchUp","srAllowedPreProd","qaAllowedPreProd","trackScoring","scoreShareNormalize"]);
+const BOOLS = new Set(["burnout","reachFade","gateContract","objPartial","mergeMktg","raceEnd","headhuntCatchUp","varC","noSwaps","spotResOr","srSystems","srPromoteOnly","promoFree","promoNeedsRest","recruitInLaunch","rdCrunch","bidEveryRound","bidWinnerOnly","poolScoring","raceScoring","gatesRandom","gatesEnabled","crisisEnabled","synergyOn","headhuntCatchUp","srAllowedPreProd","qaAllowedPreProd","trackScoring","scoreShareNormalize"]);
 const CFG_SELECTS = { debtMode: [[1, "Debt as a percent of Progress"], [0, "Raw Debt points"]] };
 function optsFor(list, st) {
   const lab = x => ({ ideas: "Ideas", code: "Code", process: "Process", buzz: "Buzz" }[x] || x);
@@ -77,7 +78,7 @@ SI.renderStudio = function (st, tab, sim) {
       h += "</div>";
     });
     h += `<h4 style="margin:14px 0 6px">Table values (JSON)</h4><div class="cfg-grid">`;
-    ["hypeBands","deliveryBands","cultureVP","phaseEnds","rowNames","raceCurveByN","racePotByN","debtLossByN","cultLossByN","poolPotN","progTrack","mktTrack"].forEach(k => { h += `<div class="cfg" data-hay="${k.toLowerCase()}" data-ed="${dirtyCfg(st, k) ? 1 : 0}" ${V.q && !k.toLowerCase().includes(V.q) ? "hidden" : ""}><label>${(D.config._meta[k] || [k])[0]} <i class="chip live">live</i></label><small>${(D.config._meta[k] || ["", ""])[1] && !["hypeBands","cultureVP","phaseEnds"].includes(k) ? esc(D.config._meta[k][1]) : k === "hypeBands" ? "[[min Hype %, VP], ...]" : k === "cultureVP" ? "Culture value -> VP" : k === "phaseEnds" ? "Variant C: last round of Concept, Production, Polish, Launch, e.g. [3,8,11,12]" : "Delivery bonus bands"}</small><textarea rows="4" style="width:100%" data-cfgjson="${k}" class="${dirtyCfg(st, k) ? "dirty" : ""}">${esc(JSON.stringify(st.config[k]))}</textarea></div>`; });
+    ["hypeBands","deliveryBands","cultureVP","phaseEnds","rowNames","raceCurveByN","racePotByN","debtLossByN","cultLossByN","poolPotN","progTrack","mktTrack","burnVP"].forEach(k => { h += `<div class="cfg" data-hay="${k.toLowerCase()}" data-ed="${dirtyCfg(st, k) ? 1 : 0}" ${V.q && !k.toLowerCase().includes(V.q) ? "hidden" : ""}><label>${(D.config._meta[k] || [k])[0]} <i class="chip live">live</i></label><small>${(D.config._meta[k] || ["", ""])[1] && !["hypeBands","cultureVP","phaseEnds"].includes(k) ? esc(D.config._meta[k][1]) : k === "hypeBands" ? "[[min Hype %, VP], ...]" : k === "cultureVP" ? "Culture value -> VP" : k === "phaseEnds" ? "Variant C: last round of Concept, Production, Polish, Launch, e.g. [3,8,11,12]" : "Delivery bonus bands"}</small><textarea rows="4" style="width:100%" data-cfgjson="${k}" class="${dirtyCfg(st, k) ? "dirty" : ""}">${esc(JSON.stringify(st.config[k]))}</textarea></div>`; });
     h += "</div></div>";
   } else if (["spots","systems","milestones","objectives","crisis","publisherGates","gatePool","roles","phases","teams"].includes(tab)) {
     const cols = COLS[tab]; const list = st.data[tab], def = E.defaultData(E.defaultConfig())[tab];
