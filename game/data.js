@@ -10,15 +10,15 @@ const D = {};
 D.version = "v47-proto-0.1";
 
 D.disciplines = {
-  ENG:{name:"Engineer",   cat:"Development", short:"Builds Progress, can fix Debt", util:"Alt action: fix Tech Debt instead of gaining Progress"},
-  ART:{name:"Artist",     cat:"Creative", short:"Builds Progress, can make Hype", util:"Alt action: gain Hype instead of Progress"},
-  DES:{name:"Designer",   cat:"Creative", short:"Amplifies a paired placement", util:"Amplifier: +1 value when paired with another placement this round"},
-  QA: {name:"Quality",    cat:"Development", short:"Removes Tech Debt", util:"Reduces Tech Debt only. Bug Bounty: +1G per Debt removed"},
-  PX: {name:"Community",  cat:"Marketing", short:"Objective swaps", util:"Jr resting: draw 2 objectives keep 1. Sr placed: swap an objective"},
-  DATA:{name:"Analytics", cat:"Operations", short:"Milestone swaps", util:"Jr resting: draw 2 milestones keep 1. Sr placed: swap a milestone"},
-  ADV:{name:"Advertising",cat:"Marketing", short:"+1 Hype on marketing", util:"+1 Hype on marketing spots"},
-  PM: {name:"Product Manager",cat:"Operations", short:"Wild: acts as DES or DATA", util:"Declare as DES or DATA when placed", wild:["DES","DATA"]},
-  PROD:{name:"Producer",  cat:"Operations", short:"Wild: acts as QA, ADV or DES", util:"Declare as QA, ADV or DES when placed", wild:["QA","ADV","DES"]}
+  ENG:{name:"Engineer",   cat:"Development", short:"Flexible", util:"Flexible: may fix Tech Debt instead of gaining Progress"},
+  ART:{name:"Artist",     cat:"Creative", short:"Flexible", util:"Flexible: may gain Hype instead of Progress"},
+  DES:{name:"Designer",   cat:"Creative", short:"Amplifier", util:"Amplifier: +1 value when paired with another placement this round"},
+  QA: {name:"Quality",    cat:"Development", short:"Dedicated", util:"Dedicated: removes Tech Debt only, never gains Progress. Bug Bounty: +1G per Debt removed"},
+  PX: {name:"Community",  cat:"Marketing", short:"Resourceful", alt:"Reliable", util:"Resourceful: Jr resting draws 2 objectives and keeps 1. Sr placed swaps an objective", altUtil:"Reliable: no special action, just a steady source of Buzz"},
+  DATA:{name:"Analytics", cat:"Operations", short:"Resourceful", alt:"Reliable", util:"Resourceful: Jr resting draws 2 milestones and keeps 1. Sr placed swaps a milestone", altUtil:"Reliable: no special action, just a steady source of Process"},
+  ADV:{name:"Advertising",cat:"Marketing", short:"Booster", util:"Booster: +1 Hype on marketing spots"},
+  PM: {name:"Product Manager",cat:"Operations", short:"Wild", util:"Wild: declare as Designer or Analytics when placed", wild:["DES","DATA"]},
+  PROD:{name:"Producer",  cat:"Operations", short:"Wild", util:"Wild: declare as Quality, Advertising or Designer when placed", wild:["QA","ADV","DES"]}
 };
 // words shown to players (internal effect strings keep the short forms; the UI translates them)
 D.typeRules = {Reach:"Each Reach system you own: your Hype fades 1 less each round. The player with the most Reach systems at the end (at least 2, no ties): +5 VP.", Revenue:"Revenue systems pay gold when triggered. Early Access and Publisher Deal also pay +1G at every Income.", Innovation:"Innovation systems add Tech Debt when built but boost your workers on every placement.", Stability:"Stability systems keep Tech Debt down."};

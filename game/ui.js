@@ -300,9 +300,11 @@ function playerPanel(S) {
   } else h += `<p class="mute" style="margin-top:12px">Hand, milestones and objectives are hidden until it is ${esc(p.name)}'s turn.</p>`;
   return h + "</div>";
 }
+const noSw = () => !!(U.S ? U.S.cfg.noSwaps : (E.rawConfig && E.rawConfig().noSwaps));
+const discTag = disc => { const d = D.disciplines[disc]; return noSw() && d.alt ? d.alt : d.short; };
 function discCardHtml(disc, cls, attrs, hint, foot) {
   const d = D.disciplines[disc];
-  return `<div class="dcard ${cls || ""}" ${attrs || ""}><div class="hd" style="background:${dcol(disc)}">${esc(d.cat)}</div><div class="bd"><div class="code">${esc(d.name)}</div><div class="sm">${esc(U.S && U.S.cfg.noSwaps && /swaps/.test(d.short) ? "Earns " + ICN[E.RES_OF[d.cat]] : d.short)}</div>${hint ? `<div class="hint">${esc(hint)}</div>` : ""}${foot ? `<div class="foot">${foot}</div>` : ""}</div></div>`;
+  return `<div class="dcard ${cls || ""}" ${attrs || ""}><div class="hd" style="background:${dcol(disc)}">${esc(d.cat)}</div><div class="bd"><div class="code">${esc(d.name)}</div><div class="sm"><span class="dtag">${esc(discTag(disc))}</span></div>${hint ? `<div class="hint">${esc(hint)}</div>` : ""}${foot ? `<div class="foot">${foot}</div>` : ""}</div></div>`;
 }
 function handCard(S, c, vi, mine) {
   const hint = mine && S.step === "hire" && !S.dq.length ? "Click to hire" : "";
@@ -482,11 +484,12 @@ const dname = d => (D.disciplines[d] || {}).name || d;
 function lines(items) { return `<ul class="dl">${items.filter(Boolean).map(s => `<li>${s}</li>`).join("")}</ul>`; }
 function sec(title, items) { return `<div class="dsec"><h4>${esc(title)}</h4>${lines(items)}</div>`; }
 function utilLines(disc) {
-  return D.disciplines[disc].util.split(/\.\s+/).map(s => s.replace(/\.$/, "")).filter(Boolean).map(s => { const m = s.match(/^([^:]{2,20}):\s*(.+)$/); return m ? `<b>${esc(m[1])}:</b> ${esc(m[2])}` : esc(s); });
+  const dd = D.disciplines[disc];
+  return (noSw() && dd.altUtil ? dd.altUtil : dd.util).split(/\.\s+/).map(s => s.replace(/\.$/, "")).filter(Boolean).map(s => { const m = s.match(/^([^:]{2,20}):\s*(.+)$/); return m ? `<b>${esc(m[1])}:</b> ${esc(m[2])}` : esc(s); });
 }
 function discInfo(disc) {
   const d = D.disciplines[disc];
-  return `<div class="dtitle">${esc(d.name)}</div>${sec("What they do", utilLines(disc).concat(d.wild ? ["<b>Wild card:</b> counts as " + d.wild.map(dname).join(", ") + " when placed"] : []))}${sec("Good to know", ["Board spots list this role as <b>" + disc + "</b>", "Placing them earns the skill of their role (" + ({ Creative: "Ideas", Development: "Code", Operations: "Process", Marketing: "Buzz" })[d.cat] + "). Junior: +" + U.S.cfg.resJr + ". Senior: +" + U.S.cfg.resSr + " and +" + U.S.cfg.srBonus + " Progress or Marketing"])}`;
+  return `<div class="dtitle">${esc(d.name)}</div>${sec("What they do", utilLines(disc))}${sec("Good to know", ["Board spots list this role as <b>" + disc + "</b>", "Placing them earns the skill of their role (" + ({ Creative: "Ideas", Development: "Code", Operations: "Process", Marketing: "Buzz" })[d.cat] + "). Junior: +" + U.S.cfg.resJr + ". Senior: +" + U.S.cfg.resSr + " and +" + U.S.cfg.srBonus + " Progress or Marketing"])}`;
 }
 function placeForm(S, pi, w, target) {
   const o = E.placementOptions(S, pi, w).find(x => x.target === target);
@@ -533,7 +536,7 @@ function detailModal() {
       const fatNext = ["Placing them makes them Tired", "Placing them again makes them Over-Tired. Resting recovers them", "Placing them earns no skill. They may quit at Upkeep. Resting recovers them"][w.fat];
       const abil = (w.disc === "PX" || w.disc === "DATA") ? ((w.lvl === "Sr" && w.placed) || (w.lvl === "Jr" && !w.placed) ? "<b>Ability ready:</b> triggers at Rest" : "<b>Ability not active:</b> " + (w.lvl === "Jr" ? "a Junior must rest (stay unplaced)" : "a Senior must be placed")) : "";
       h += discHead(w.disc) + `<div class="dtitle">${w.lvl === "Sr" ? "Senior" : "Junior"} ${esc(dname(w.disc))}</div>`
-        + sec("What they do", utilLines(w.disc).concat(D.disciplines[w.disc].wild ? ["<b>Wild card:</b> counts as " + D.disciplines[w.disc].wild.map(dname).join(", ") + " when placed"] : []))
+        + sec("What they do", utilLines(w.disc))
         + sec(w.lvl === "Sr" ? "As a Senior" : "As a Junior", w.lvl === "Sr" ? [`+${S.cfg.resSr} skills of their role when placed`, S.cfg.spotResOr ? "Can trigger system tiles (Juniors cannot)" : `+${S.cfg.srBonus} Progress or Marketing on most spots`, S.cfg.srPromoteOnly ? "Promoted from a Junior who has worked and rested" : "Costs more to hire"] : [`+${S.cfg.resJr} skill of their role when placed`, "Can be promoted to Senior during Rest", abil ? "" : ""])
         + sec("Condition", [fatTxt, fatNext])
         + sec("This round", [w.placed ? "Placed on the board" : "Not placed yet (resting if you leave them)", w.as ? "Declared as " + nameOf(w.as) : "", abil]);
