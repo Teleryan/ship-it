@@ -303,7 +303,7 @@ function beginDraft(S) {
 function beginRound(S) {
   S.players.forEach(p => {
     p.rs = { spent: 0, gained: 0, spentRes: 0, hires: 0, placed: 0, triggers: 0, builds: 0, debtRemoved: 0, hypeGained: 0, discards: 0, cashed: 0, debtStart: p.debt };
-    p.workers.forEach(w => { w.placed = false; w.benched = false; });
+    p.workers.forEach(w => { w.placed = false; w.benched = false; if (w.training) { w.benched = "Training"; w.training = false; } });
     p.rd = false; p.rdDisc = 0; p.refreshed = 0; p.builds = 0; p.promos = 0; p.hunts = 0; p.swapObj = 0; p.swapMile = 0; p.recruited = 0; p.recruitExtra = 0;
     p.systems.forEach(s => s.t = false);
   });
@@ -345,8 +345,8 @@ function burnBands(S) {
       const q = p.workers.filter(w => !w.build).sort((a, b) => (a.lvl === "Sr") - (b.lvl === "Sr") || b.fat - a.fat || a.id - b.id)[0];
       if (q) { log(S, p.name + " Meltdown: a " + q.lvl + " " + dn(q.disc) + " quits"); removeWorker(S, p.id, q.id); p.burnout = Math.min(p.burnout, c.burnQuitReset); }
     } else if (p.burnout >= c.burnBenchAt) {
-      const q = p.workers.filter(w => !w.build).sort((a, b) => b.fat - a.fat || (a.lvl === "Sr") - (b.lvl === "Sr") || a.id - b.id)[0];
-      if (q) { q.benched = true; log(S, p.name + " is Burned out: " + q.lvl + " " + dn(q.disc) + " sits out this round"); }
+      const q = p.workers.filter(w => !w.build && !w.benched).sort((a, b) => b.fat - a.fat || (a.lvl === "Sr") - (b.lvl === "Sr") || a.id - b.id)[0];
+      if (q) { q.benched = "Burned out"; log(S, p.name + " is Burned out: " + q.lvl + " " + dn(q.disc) + " sits out this round"); }
     }
   });
 }
@@ -581,7 +581,7 @@ function placementOptions(S, pi, w) {
   const p = P(S, pi); const out = [];
   if (w.placed) return [{ ok: false, reason: "Already placed this round" }];
   if (w.build) return [{ ok: false, reason: "Busy building " + w.build }];
-  if (w.benched) return [{ ok: false, reason: "Sitting out this round (Burned out)" }];
+  if (w.benched) return [{ ok: false, reason: "Sitting out this round (" + (w.benched === "Training" ? "Training" : "Burned out") + ")" }];
   if (S.phase === 3 && p.flags.skipLaunch) return [{ ok: false, reason: "Skipped (Last-Minute Bug: Delay)" }];
   activeSpots(S).forEach(spot => { const u = spotUsableBy(S, pi, w, spot); out.push(Object.assign({ target: "spot:" + spot.id, label: spot.row, kind: "spot", spot }, u)); });
   p.systems.forEach((s, i) => {
@@ -907,9 +907,10 @@ function restAction(S, a, p) {
       const w = p.workers.find(x => x.id === a.worker); if (!w || w.lvl !== "Jr") return err("Pick a Junior worker");
       if (!srAllowed(S)) return err("No Senior workers in Concept");
       if (p.promos >= c.promotionsPerRest) return err("Promotion limit reached");
-      if (c.promoNeedsRest && (w.placed || !w.worked)) return err("Needs a worker that has worked and is resting this round");
+      if (c.train) { if ((w.trained || 0) < c.trainNeeded) return err("Needs " + c.trainNeeded + " training sessions first (this worker has " + (w.trained || 0) + ")"); }
+      else if (c.promoNeedsRest && (w.placed || !w.worked)) return err("Needs a worker that has worked and is resting this round");
       const cost = c.promoFree ? 0 : promoCost(S); if (p.gold < cost) return err("Needs " + cost + "G");
-      gain(S, pi, "gold", -cost); w.lvl = "Sr"; p.promos++; p.cs.promotions++; log(S, p.name + " promotes " + dn(w.disc) + " to Sr"); return { ok: true };
+      gain(S, pi, "gold", -cost); w.lvl = "Sr"; w.trained = 0; p.promos++; p.cs.promotions++; log(S, p.name + " promotes " + dn(w.disc) + " to Sr"); return { ok: true };
     }
     case "headhunt": {
       if (p.hunts >= c.headhuntsPerRest) return err("Headhunt limit reached");
@@ -922,7 +923,19 @@ function restAction(S, a, p) {
       t.workers.splice(t.workers.indexOf(w), 1); w.fat = 0; w.placed = false; w.overWhenPlaced = false; p.workers.push(w); p.hunts++;
       log(S, p.name + " headhunts " + t.name + "'s " + w.lvl + " " + dn(w.disc) + " for " + cost + "G"); return { ok: true };
     }
+    case "train": {
+      if (!c.train) return err("Training is not part of these rules");
+      const w = p.workers.find(x => x.id === a.worker); if (!w || w.lvl !== "Jr") return err("Pick a Junior worker");
+      if (S.round >= PHASE_ENDS[3]) return err("The game ends this round: no time to train");
+      if (w.placed || w.build) return err("A worker who worked or is building cannot train this round");
+      if (w.training) return err("Already training");
+      if ((p.rs.trains || 0) >= c.trainsPerRest) return err("Training limit reached this round");
+      if (p.gold < c.trainCost) return err("Needs " + c.trainCost + "G");
+      gain(S, pi, "gold", -c.trainCost); gain(S, pi, "culture", c.trainCulture); w.training = true; w.trained = (w.trained || 0) + 1; p.rs.trains = (p.rs.trains || 0) + 1; p.cs.trainings = (p.cs.trainings || 0) + 1;
+      log(S, p.name + " trains a Junior " + dn(w.disc) + " (" + w.trained + "/" + c.trainNeeded + "): -" + c.trainCost + "G, Culture +" + c.trainCulture + ". They sit out next round"); return { ok: true };
+    }
     case "fire": {
+      if (c.train) return err("Workers cannot be released in these rules");
       const w = p.workers.find(x => x.id === a.worker); if (!w) return err("Pick a worker");
       removeWorker(S, pi, w.id); p.cs.fired++; log(S, p.name + " releases a " + w.lvl + " " + dn(w.disc)); return { ok: true };
     }

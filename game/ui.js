@@ -275,9 +275,10 @@ function viewIndex(S) {
 function priv(S, vi) { if (U.net) return S.over || U.net.mine.includes(vi); const a = E.currentActor(S); return S.over || (a === vi && !S.players[vi].bot) || S.players.every(p => p.bot); }
 function workerCard(S, w, vi, selectable) {
   const sel = U.sel === w.id; const lvl = w.lvl === "Sr" ? "Senior" : "Junior";
-  return `<div class="wk ${sel ? "sel" : ""} ${w.placed || w.build ? "placed" : ""}" data-act="detail" data-k="worker" data-id="${w.id}" data-p="${vi}">
+  const pick = !!selectable && S.step === "place" && !S.dq.length && !w.placed && !w.build && !w.benched;
+  return `<div class="wk ${sel ? "sel" : ""} ${w.placed || w.build ? "placed" : ""} ${pick ? "pick" : ""}" ${pick ? `data-act="sel-worker" data-id="${w.id}" title="Click to ${sel ? "deselect" : "select"} for placing"` : `data-act="detail" data-k="worker" data-id="${w.id}" data-p="${vi}"`}>
    <div class="whd" style="background:${dcol(w.disc)}">${esc(dcat(w.disc))}</div>
-   <div class="wbd"><div class="d">${esc(D.disciplines[w.disc].name)}</div>${w.as ? `<div class="as">acts as ${nameOf(w.as)}</div>` : ""}<div class="l ${w.lvl === "Sr" ? "sr" : ""}">${lvl}</div><div class="fat f${w.fat}" title="${FAT[w.fat]}"><i></i></div><div class="fl">${w.build ? "Building" : w.placed ? "Placed" : FAT[w.fat]}</div></div></div>`;
+   <div class="wbd"><div class="d">${esc(D.disciplines[w.disc].name)}</div>${w.as ? `<div class="as">acts as ${nameOf(w.as)}</div>` : ""}<div class="l ${w.lvl === "Sr" ? "sr" : ""}">${lvl}</div><div class="fat f${w.fat}" title="${FAT[w.fat]}"><i></i></div><div class="fl">${w.build ? "Building" : w.benched === "Training" ? "Training" : w.training ? "Training next round" : w.placed ? "Placed" : FAT[w.fat]}</div></div>${pick ? `<button class="wi" data-act="detail" data-k="worker" data-id="${w.id}" data-p="${vi}" aria-label="Worker details">Details</button>` : ""}</div>`;
 }
 // the studio's workers sit above the main board so the worker you place is next to the spot you place it on
 function workersPanel(S) {
@@ -550,13 +551,17 @@ function detailModal() {
       const abil = (w.disc === "PX" || w.disc === "DATA") ? ((w.lvl === "Sr" && w.placed) || (w.lvl === "Jr" && !w.placed) ? "<b>Ability ready:</b> triggers at Rest" : "<b>Ability not active:</b> " + (w.lvl === "Jr" ? "a Junior must rest (stay unplaced)" : "a Senior must be placed")) : "";
       h += discHead(w.disc) + `<div class="dtitle">${w.lvl === "Sr" ? "Senior" : "Junior"} ${esc(dname(w.disc))}</div>`
         + sec("What they do", utilLines(w.disc))
-        + sec(w.lvl === "Sr" ? "As a Senior" : "As a Junior", w.lvl === "Sr" ? [`+${S.cfg.resSr} skills of their role when placed`, S.cfg.spotResOr ? "Can trigger system tiles (Juniors cannot)" : `+${S.cfg.srBonus} Progress or Marketing on most spots`, S.cfg.srPromoteOnly ? "Promoted from a Junior who has worked and rested" : "Costs more to hire"] : [`+${S.cfg.resJr} skill of their role when placed`, "Can be promoted to Senior during Rest", abil ? "" : ""])
+        + sec(w.lvl === "Sr" ? "As a Senior" : "As a Junior", w.lvl === "Sr" ? [`+${S.cfg.resSr} skills of their role when placed`, S.cfg.spotResOr ? "Can trigger system tiles (Juniors cannot)" : `+${S.cfg.srBonus} Progress or Marketing on most spots`, S.cfg.srPromoteOnly ? (S.cfg.train ? "Promoted from a Junior who trained " + S.cfg.trainNeeded + " times" : "Promoted from a Junior who has worked and rested") : "Costs more to hire"] : [`+${S.cfg.resJr} skill of their role when placed`, "Can be promoted to Senior during Rest", abil ? "" : ""])
         + sec("Condition", [fatTxt, fatNext])
-        + sec("This round", [w.placed ? "Placed on the board" : "Not placed yet (resting if you leave them)", w.as ? "Declared as " + nameOf(w.as) : "", abil]);
+        + sec("This round", [S.cfg.train && w.lvl === "Jr" ? "Training: " + (w.trained || 0) + " of " + S.cfg.trainNeeded + (w.training ? " (away next round)" : "") : "", w.placed ? "Placed on the board" : "Not placed yet (resting if you leave them)", w.as ? "Declared as " + nameOf(w.as) : "", abil]);
       if (a === pi && mineTurn && !S.dq.length) {
         if (S.step === "place") h += `<div class="row" style="margin-top:12px">${actBtn(U.sel === w.id ? "Deselect worker" : "Select this worker", 'data-act="sel-worker" data-id="' + w.id + '"', w.placed, w.placed ? "Already placed this round" : "")}</div>`;
         if (S.step === "rest") {
-          const cost = S.cfg.promoFree ? 0 : E.promoCost(S), needRest = S.cfg.promoNeedsRest && (w.placed || !w.worked);
+          const cost = S.cfg.promoFree ? 0 : E.promoCost(S), needRest = S.cfg.train ? (w.trained || 0) < S.cfg.trainNeeded : S.cfg.promoNeedsRest && (w.placed || !w.worked);
+          if (S.cfg.train) {
+            const pp = P(a), tr = pp.rs.trains || 0, why = w.lvl !== "Jr" ? "Only Juniors train" : S.round >= 12 ? "The game ends this round" : w.placed || w.build ? "Worked or building this round" : w.training ? "Already training" : tr >= S.cfg.trainsPerRest ? "Training limit reached" : pp.gold < S.cfg.trainCost ? "Not enough gold" : "";
+            h += `<div class="row" style="margin-top:12px">${w.lvl === "Jr" ? actBtn("Train · " + S.cfg.trainCost + "G, +" + S.cfg.trainCulture + " Culture", `data-act="train" data-w="${w.id}"`, !!why, why) : ""}${w.lvl === "Jr" ? actBtn("Promote · " + (cost ? cost + "G" : "free"), `data-act="promote" data-w="${w.id}"`, pp.gold < cost || pp.promos >= S.cfg.promotionsPerRest || !E.srAllowed(S) || needRest, !E.srAllowed(S) ? "Seniors unlock in Production" : needRest ? "Needs " + S.cfg.trainNeeded + " trainings (" + (w.trained || 0) + " so far)" : "") : ""}</div>`;
+          } else
           h += `<div class="row" style="margin-top:12px">${w.lvl === "Jr" ? actBtn("Promote · " + (cost ? cost + "G" : "free"), `data-act="promote" data-w="${w.id}"`, P(a).gold < cost || P(a).promos >= S.cfg.promotionsPerRest || !E.srAllowed(S) || needRest, !E.srAllowed(S) ? "Seniors unlock in Production" : needRest ? "Needs a worker who has worked and is resting this round" : P(a).gold < cost ? "Not enough gold" : P(a).promos >= S.cfg.promotionsPerRest ? "Promotion limit reached" : "") : ""}${actBtn("Release", `data-act="fire" data-w="${w.id}"`, false, "", false)}</div>`;
         }
       }
@@ -944,6 +949,7 @@ $root.addEventListener("click", e => {
     case "mcat": U.marketCat = v; render(); return;
     case "build": { const r = act({ type: "build", p: pi, name: t.dataset.name, free: t.dataset.free === "1", crunch: S.cfg.varC && U.crunch ? U.crunch : undefined }); if (r.ok) { U.modal = "market"; render(); } return; }
     case "promote": act({ type: "promote", p: pi, worker: +t.dataset.w }); return;
+    case "train": act({ type: "train", p: pi, worker: +t.dataset.w }); return;
     case "fire": act({ type: "fire", p: pi, worker: +t.dataset.w }); return;
     case "hunt": act({ type: "headhunt", p: pi, target: +t.dataset.t, worker: +t.dataset.w }); return;
     case "swapObj": act({ type: "swapObj", p: pi, obj: +t.dataset.obj }); return;

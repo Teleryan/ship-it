@@ -368,3 +368,7 @@ table.dt input.n{width:62px}
 
 .st.bo b{color:var(--bad)} .st.bo.hot{outline:1px solid var(--bad);border-radius:8px}
 .fx1.t{white-space:normal;display:block;line-height:1.2}
+
+.wk .wi{display:block;width:100%;border:0;border-top:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--mute);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:4px 0;cursor:pointer}
+.wk .wi:hover{color:var(--ink);background:rgba(255,255,255,.1)}
+.wk.pick{cursor:pointer}

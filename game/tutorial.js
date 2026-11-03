@@ -203,10 +203,12 @@ function tokens(S) {
     convertRate: c.convertRate || 3, refreshGold: c.marketRefreshGold, gateName: esc(g.name || ""), gate2Name: esc(g2.name || ""), gateReqs: esc((g.reqs || []).join(", ")),
     gateEnd: (c.phaseEnds || [])[g.phase || 0] || "", gateFund: g.fund || 0, gatePenalty: g.penalty || 0,
     crisisLine: crisis ? ": <b>" + esc(crisis.name) + "</b>. " + esc(crisis.text) : "",
+    trainCost: c.trainCost, trainCulture: c.trainCulture, trainNeeded: c.trainNeeded,
     freeBuild: p.freeBuilds ? "<br><br><b>A free build is on the house this round.</b>" : "",
     burnMax: c.burnMax, burnOverStep: c.burnOverStep, burnOverMax: c.burnOverMax, burnUnpaidMin: c.burnUnpaidMin, burnRelief: c.burnRelief, burnTeamRelief: c.burnTeamRelief,
     energizedCulture: c.energizedCulture, energizedGold: c.energizedGold, burnStrainAt: c.burnStrainAt, burnStrainHype: c.burnStrainHype, burnBenchAt: c.burnBenchAt, burnQuitAt: c.burnQuitAt, burnQuitReset: c.burnQuitReset
   };
+  t.restTeam = fmt(rw(c.train ? "rest_train" : "rest_nontrain").text, t);
   ["burnStats", "burnRest", "burnUpkeep"].forEach(k => { t[k] = c.burnout ? fmt(rw("burn_" + k.slice(4).toLowerCase()).text, t) : ""; });
   t.gateResult = done ? fmt(rw(done.passed.includes(0) ? "gate_pass" : "gate_miss").text, t) : "";
   t.hint = fmt(rw(hintId(S)).text, t);
@@ -216,13 +218,14 @@ const sysOpt = S => me(S).workers.some(w => w.lvl === "Sr" && !w.placed && E.pla
 const srIds = S => me(S).workers.filter(w => w.lvl === "Sr" && !w.placed && E.placementOptions(S, 0, w).some(o => o.kind === "sys" && o.ok)).map(w => w.id);
 const convOpt = S => me(S).workers.some(w => !w.placed && E.placementOptions(S, 0, w).some(o => o.ok && o.spot && o.spot.special === "convert"));
 const trigOk = (S, w) => { const lv = w.lvl, pl = w.placed; w.lvl = "Sr"; w.placed = false; let ok = false; try { ok = E.placementOptions(S, 0, w).some(o => o.kind === "sys" && o.ok); } finally { w.lvl = lv; w.placed = pl; } return ok; };
-const eligibleJr = S => me(S).workers.filter(w => w.lvl === "Jr" && w.worked && !w.placed);
+const eligibleJr = S => me(S).workers.filter(w => w.lvl === "Jr" && !w.placed && (S.cfg.train ? !w.build && !w.training : w.worked));
 // make a step whose title, button and text come from the editable rows
 function mk(id, o) {
   const st = Object.assign({ id, rid: id }, o);
-  Object.defineProperty(st, "title", { get: () => rw(st.rid).title, enumerable: true });
-  Object.defineProperty(st, "btn", { get: () => rw(st.rid).btn || "Next", enumerable: true });
-  st.text = (S, T) => fmt(rw(st.vid ? st.vid(S) : st.rid).text, tokens(S));
+  const rowId = () => st.rv ? st.rv() : st.rid;
+  Object.defineProperty(st, "title", { get: () => rw(rowId()).title, enumerable: true });
+  Object.defineProperty(st, "btn", { get: () => rw(rowId()).btn || "Next", enumerable: true });
+  st.text = (S, T) => fmt(rw(st.vid ? st.vid(S) : rowId()).text, tokens(S));
   return st;
 }
 const info = (id, o) => mk(id, Object.assign({ kind: "info", allow: () => MSG("msg_next") }, o));
@@ -257,7 +260,7 @@ const STEPS_C = [
   doing("build", { hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"), done: S => after(S, "build", 1),
     allow: (a, S) => a.type === "build" ? null : a.type === "done" ? ((me(S).builds >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : MSG("msg_build_first")) : MSG("msg_build") }),
   info("build_rd", { hl: () => "[data-spot=rd]" }),
-  doing("rest1", { hl: () => "[data-tut=workers]", done: S => after(S, "rest", 1), allow: a => (a.type === "done" || a.type === "fire" || a.type === "swapObj" || a.type === "swapMile") ? null : MSG("msg_rest") }),
+  doing("rest1", { hl: () => "[data-tut=workers]", done: S => after(S, "rest", 1), allow: a => a.type === "train" ? MSG("msg_train_later") : (a.type === "done" || a.type === "fire" || a.type === "swapObj" || a.type === "swapMile") ? null : MSG("msg_rest") }),
   doing("miles", { hl: () => "[data-tut=miles]", done: S => after(S, "milestones", 1), allow: a => (a.type === "claim" || a.type === "done") ? null : MSG("msg_miles") }),
   info("upkeep", { hl: () => "[data-tut=steps]" }),
   info("gates", { hl: () => "[data-tut=gates]" }),
@@ -273,8 +276,8 @@ const STEPS_C = [
   softInfo("gateresult", { hl: () => "[data-tut=gates]" }),
   softInfo("crisis", { hl: () => "[data-tut=crisis]" }),
   play("r4play", { hl: () => null, done: S => reachedRound(S, 4, "rest") }),
-  doing("promote", { hl: () => "[data-tut=rest]", done: S => me(S).workers.some(w => w.lvl === "Sr") || reachedRound(S, 4, "milestones"),
-    allow: (a, S) => a.type === "promote" ? (eligibleJr(S).some(w => trigOk(S, w)) && !trigOk(S, me(S).workers.find(w => w.id === a.worker) || {}) ? MSG("msg_promote_fit") : null) : a.type === "done" ? (eligibleJr(S).length ? MSG("msg_promote") : null) : MSG("msg_promote") }),
+  doing("promote", { rv: () => (U().S && U().S.cfg.train) ? "promote_train" : "promote", hl: () => "[data-tut=rest]", done: S => me(S).workers.some(w => w.lvl === "Sr") || reachedRound(S, 4, "milestones"),
+    allow: (a, S) => a.type === "train" ? (S.cfg.train && !trigOk(S, me(S).workers.find(w => w.id === a.worker) || {}) && eligibleJr(S).some(w => trigOk(S, w)) ? MSG("msg_promote_fit") : null) : a.type === "promote" ? (eligibleJr(S).some(w => trigOk(S, w)) && !trigOk(S, me(S).workers.find(w => w.id === a.worker) || {}) ? MSG("msg_promote_fit") : null) : a.type === "done" ? (eligibleJr(S).length ? MSG(S.cfg.train ? "msg_promote_train" : "msg_promote") : null) : MSG(S.cfg.train ? "msg_promote_train" : "msg_promote") }),
   doing("trigger", { hl: () => "[data-tut=workers]", done: S => me(S).rs.triggers >= 1 || reachedRound(S, 5, "build") || (S.round >= 5 && !sysOpt(S)),
     allow: (a, S) => a.type === "place" ? (srIds(S).includes(a.worker) && !String(a.target).startsWith("sys:") ? MSG("msg_trigger") : null) : a.type === "pass" ? MSG("msg_trigger") : null }),
   play("prod", { hl: () => null, done: S => S.round >= 9 }),
@@ -325,7 +328,8 @@ SI.tutTick = function () {
   if (st.id === "promote" && !T.gave[key] && S.step === "rest" && actorIsMe(S) && !S.dq.length) {
     T.gave[key] = true;
     // make sure a Junior who fits one of the player's systems can be promoted, so the next lesson (a Senior triggers a system) can be played
-    if (!eligibleJr(S).some(w => trigOk(S, w))) { const w = me(S).workers.find(x => x.lvl === "Jr" && trigOk(S, x)) || (eligibleJr(S).length ? null : me(S).workers.find(x => x.lvl === "Jr")); if (w) { w.worked = true; w.placed = false; } }
+    if (S.cfg.train) { const w = me(S).workers.find(x => x.lvl === "Jr" && !x.placed && !x.build && trigOk(S, x)) || me(S).workers.find(x => x.lvl === "Jr" && !x.placed && !x.build); if (w) { w.trained = Math.max(w.trained || 0, S.cfg.trainNeeded - 1); } if (me(S).gold < S.cfg.trainCost) me(S).gold = S.cfg.trainCost; }
+    else if (!eligibleJr(S).some(w => trigOk(S, w))) { const w = me(S).workers.find(x => x.lvl === "Jr" && trigOk(S, x)) || (eligibleJr(S).length ? null : me(S).workers.find(x => x.lvl === "Jr")); if (w) { w.worked = true; w.placed = false; } }
   }
 };
 SI.tutHold = () => SI.tutLockMode() === "hard";

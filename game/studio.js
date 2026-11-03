@@ -17,7 +17,7 @@ const CFG_GROUPS = [
   ["Systems & cards", ["buildsPerRound","rdDiscount","gatesRandom","slotsPerCategory","handSize","objDraw","objKeep","teamEventCulture","launchMult","crisisEnabled"]],
   ["Tracks", ["culMin","culMax","cultureDecay","hypeDecay","hypeCap","prodCap","debtMode"]],
   ["Variant C: phase-shaped economy", ["varC","noSwaps","spotResOr","srSystems","srPromoteOnly","promoFree","promoNeedsRest","overworkCulture","recruitCost","recruitPerRound","recruitSize2","recruitSize34","recruitSize56","recruitInLaunch","bidEveryRound","bidWinnerOnly","bidWinnerOnly","buildDelay","crunchDelay","crunchGold","rdCrunch","convertRate","gateProgMult","gateHypeMult","sysGoldMult"]],
-  ["Variant D: Burnout", ["burnout","burnMax","burnOverStep","burnOverMax","burnUnpaidMin","burnUnpaidPer","burnUnpaidMax","burnRelief","burnTeamRelief","burnStrainAt","burnStrainHype","burnBenchAt","burnQuitAt","burnQuitReset","energizedBurnMax","energizedCulture","energizedGold"]],
+  ["Variant D: Burnout and Training", ["train","trainCost","trainCulture","trainNeeded","trainsPerRest","burnout","burnMax","burnOverStep","burnOverMax","burnUnpaidMin","burnUnpaidPer","burnUnpaidMax","burnRelief","burnTeamRelief","burnStrainAt","burnStrainHype","burnBenchAt","burnQuitAt","burnQuitReset","energizedBurnMax","energizedCulture","energizedGold"]],
   ["Systems, deck and bots", ["deckBase","deckExtra","sysGoldAdd"]],
   ["Pool scoring (B)", ["poolScoring","poolPot","poolSysMult","poolObjMult","poolDebtMult"]],
   ["Race scoring", ["raceScoring","mktgToHype","raceCurve","racePot","debtLossMax","cultLossMax","trackScoring"]],
@@ -25,7 +25,7 @@ const CFG_GROUPS = [
   ["Race targets and pool extras", ["mergeMktg","raceEnd","progTarget","hypeTarget","raceTriggerVP","trackLeaderVP","poolGateCap","poolGateMult","poolPassPts","poolFavPts","envLabel"]],
   ["Scoring (older)", ["scoreShareScale","scoreShareNormalize","debtPenaltyMult","debtPenaltyCap","cleanThresh","stdThresh","roughThresh","cleanBonus","blockedPenalty","roughHypeMult","goldPerVP","synergyOn"]]
 ];
-const TUT_TOKENS = "{burnMax} {burnOverStep} {burnOverMax} {burnUnpaidMin} {burnRelief} {burnTeamRelief} {energizedCulture} {energizedGold} {burnStrainAt} {burnStrainHype} {burnBenchAt} {burnQuitAt} {burnQuitReset} {burnStats} {burnRest} {burnUpkeep} {income} {salaryJr} {salarySr} {jrCost} {resJr} {resSr} {hypeDecay} {draftPool} {picks} {recruitCost} {recruitN} {buildDelay} {crunchGold} {buildsPerRound} {bank} {convertRate} {refreshGold} {gateName} {gate2Name} {gateReqs} {gateEnd} {gateFund} {gatePenalty} {gateResult} {crisisLine} {freeBuild} {hint} {n} {total}";
+const TUT_TOKENS = "{trainCost} {trainCulture} {trainNeeded} {restTeam} {burnMax} {burnOverStep} {burnOverMax} {burnUnpaidMin} {burnRelief} {burnTeamRelief} {energizedCulture} {energizedGold} {burnStrainAt} {burnStrainHype} {burnBenchAt} {burnQuitAt} {burnQuitReset} {burnStats} {burnRest} {burnUpkeep} {income} {salaryJr} {salarySr} {jrCost} {resJr} {resSr} {hypeDecay} {draftPool} {picks} {recruitCost} {recruitN} {buildDelay} {crunchGold} {buildsPerRound} {bank} {convertRate} {refreshGold} {gateName} {gate2Name} {gateReqs} {gateEnd} {gateFund} {gatePenalty} {gateResult} {crisisLine} {freeBuild} {hint} {n} {total}";
 const COLS = {
   spots: [["id","ID","ro"],["row","Row","sel:rows"],["discs","Disciplines","multi:discs"],["fx","Effect","str"],["r","Skills ×","num"],["debt","Debt","num"],["mode","Mode","sel:modes"],["phases","Phases","multi:phases"],["note","Note","str"]],
   systems: [["name","Name","str"],["cat","Category","sel:cats"],["build","Build","str"],["trig","Trigger","str"],["fx","Effect","str"],["once","Once (on build)","str"],["each","Each","str"],["debt","Debt","num"],["vp","VP","num"],["syn","Syn","num"],["bt","Build rounds (crew committed)","num"],["res","Skill","sel:res"],["sym","Symbols (Environments A and B)","multi:syms"]],
@@ -47,7 +47,7 @@ function cellVal(v, kind) { return kind === "csv" || kind === "csvn" || /^multi:
 
 
 /* ---------- field widgets: drop-downs, check boxes and radios instead of free text ---------- */
-const BOOLS = new Set(["burnout","reachFade","gateContract","objPartial","mergeMktg","raceEnd","headhuntCatchUp","varC","noSwaps","spotResOr","srSystems","srPromoteOnly","promoFree","promoNeedsRest","recruitInLaunch","rdCrunch","bidEveryRound","bidWinnerOnly","poolScoring","raceScoring","gatesRandom","gatesEnabled","crisisEnabled","synergyOn","headhuntCatchUp","srAllowedPreProd","qaAllowedPreProd","trackScoring","scoreShareNormalize"]);
+const BOOLS = new Set(["train","burnout","reachFade","gateContract","objPartial","mergeMktg","raceEnd","headhuntCatchUp","varC","noSwaps","spotResOr","srSystems","srPromoteOnly","promoFree","promoNeedsRest","recruitInLaunch","rdCrunch","bidEveryRound","bidWinnerOnly","poolScoring","raceScoring","gatesRandom","gatesEnabled","crisisEnabled","synergyOn","headhuntCatchUp","srAllowedPreProd","qaAllowedPreProd","trackScoring","scoreShareNormalize"]);
 const CFG_SELECTS = { debtMode: [[1, "Debt as a percent of Progress"], [0, "Raw Debt points"]] };
 function optsFor(list, st) {
   const lab = x => ({ ideas: "Ideas", code: "Code", process: "Process", buzz: "Buzz" }[x] || x);

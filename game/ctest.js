@@ -50,4 +50,21 @@ const SA=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:3});ok(!SA.cf
  const C=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:2,config:{varC:1}});B.run(C,40000);ok(C.players.every(p=>p.burnout===0)&&C.cfg.burnout===0,'Env C: Burnout stays off');
  const S=mkD(2,5);const p=S.players[0];p.burnout=0;p.culture=2;ok(E.burnBand(S,p)==='Energized','band: Energized at Burnout 0 and Culture 2');p.culture=0;ok(E.burnBand(S,p)==='Steady','band: Steady');p.burnout=3;ok(E.burnBand(S,p)==='Strained','band: Strained at 3');p.burnout=5;ok(E.burnBand(S,p)==='Burned out','band: Burned out at 5');p.burnout=6;ok(E.burnBand(S,p)==='Meltdown','band: Meltdown at 6');
  E.statChange(S,0,'burnout',99);ok(p.burnout===6,'Burnout is capped at the top of the track');E.statChange(S,0,'burnout',-99);ok(p.burnout===0,'Burnout cannot go below 0');}
+
+// Variant D: Training
+{const mk=()=>E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:11,config:{varC:1,burnout:1,train:1}});
+ const S=mk();let g=0;while(g++<4000&&!(S.round>=4&&S.step==='rest'&&!S.dq.length)){const a=B.decide(S);if(!a)break;E.act(S,a)}
+ const pi=E.currentActor(S),p=S.players[pi];p.workers.forEach(w=>{w.placed=false;w.build=null;w.lvl='Jr';w.trained=0;w.training=false});p.rs.trains=0;p.promos=0;p.gold=10;p.culture=0;
+ const w=p.workers[0];let r=E.act(S,{type:'promote',p:pi,worker:w.id});ok(!r.ok,'cannot promote an untrained Junior');
+ r=E.act(S,{type:'train',p:pi,worker:w.id});ok(r.ok&&p.gold===9&&p.culture===1&&w.trained===1&&w.training,'train: costs 1G, +1 Culture, counts one session');
+ r=E.act(S,{type:'train',p:pi,worker:w.id});ok(!r.ok,'a worker already training cannot train again');
+ r=E.act(S,{type:'promote',p:pi,worker:w.id});ok(!r.ok,'one training is not enough to promote');
+ const w2=p.workers[1];w2.trained=1;r=E.act(S,{type:'train',p:pi,worker:w2.id});ok(r.ok&&w2.trained===2,'second training');
+ r=E.act(S,{type:'train',p:pi,worker:p.workers[2].id});ok(!r.ok,'training limit per round');
+ r=E.act(S,{type:'promote',p:pi,worker:w2.id});ok(r.ok&&w2.lvl==='Sr'&&w2.trained===0,'promote after two trainings');
+ r=E.act(S,{type:'fire',p:pi,worker:p.workers[3].id});ok(!r.ok,'releasing workers is removed in Variant D');
+ while(S.step==='rest'&&!S.over){const q=E.currentActor(S);E.act(S,{type:'done',p:q})}
+ let g2=0;while(g2++<200&&S.step!=='place'&&!S.over){const a=B.decide(S);if(!a)break;E.act(S,a)}
+ ok(w.benched==='Training'&&E.placementOptions(S,pi,w)[0].ok===false,'a trainee sits out the next round');
+ const C=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:11,config:{varC:1}});ok(!E.act(C,{type:'train',p:0,worker:1}).ok,'Env C: no training');}
 console.log('fails',fails);
