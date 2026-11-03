@@ -161,7 +161,7 @@ export default {
     if (request.method !== "GET" && request.method !== "HEAD") return secure(new Response("Method not allowed", { status: 405 }));
     const site = siteOf(P); if (P === "/a" || P === "/b" || P === "/d") return new Response(null, { status: 302, headers: { location: P + "/" } });
     if (P === "/c" || P.startsWith("/c/")) return new Response(null, { status: 302, headers: { location: "/" + P.slice(3) } });
-    let rel = (site === "a" || site === "b") ? P.slice(3) : P.slice(1); if (!rel) rel = "index.html";
+    let rel = site !== "c" ? P.slice(3) : P.slice(1); if (!rel) rel = "index.html";
     if (OWNER_FILES.has(rel) && !owner) return secure(new Response("Master account only.", { status: 403 }));
     const body = (await siteFiles(env, site))[rel]; if (body == null) return secure(new Response("Not found", { status: 404 }));
     return secure(new Response(body, { headers: { "content-type": TYPES[rel.split(".").pop()] || "text/plain", "cache-control": "no-cache" } }));

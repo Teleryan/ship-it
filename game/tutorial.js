@@ -203,8 +203,11 @@ function tokens(S) {
     convertRate: c.convertRate || 3, refreshGold: c.marketRefreshGold, gateName: esc(g.name || ""), gate2Name: esc(g2.name || ""), gateReqs: esc((g.reqs || []).join(", ")),
     gateEnd: (c.phaseEnds || [])[g.phase || 0] || "", gateFund: g.fund || 0, gatePenalty: g.penalty || 0,
     crisisLine: crisis ? ": <b>" + esc(crisis.name) + "</b>. " + esc(crisis.text) : "",
-    freeBuild: p.freeBuilds ? "<br><br><b>A free build is on the house this round.</b>" : ""
+    freeBuild: p.freeBuilds ? "<br><br><b>A free build is on the house this round.</b>" : "",
+    burnMax: c.burnMax, burnOverStep: c.burnOverStep, burnOverMax: c.burnOverMax, burnUnpaidMin: c.burnUnpaidMin, burnRelief: c.burnRelief, burnTeamRelief: c.burnTeamRelief,
+    energizedCulture: c.energizedCulture, energizedGold: c.energizedGold, burnStrainAt: c.burnStrainAt, burnStrainHype: c.burnStrainHype, burnBenchAt: c.burnBenchAt, burnQuitAt: c.burnQuitAt, burnQuitReset: c.burnQuitReset
   };
+  ["burnStats", "burnRest", "burnUpkeep"].forEach(k => { t[k] = c.burnout ? fmt(rw("burn_" + k.slice(4).toLowerCase()).text, t) : ""; });
   t.gateResult = done ? fmt(rw(done.passed.includes(0) ? "gate_pass" : "gate_miss").text, t) : "";
   t.hint = fmt(rw(hintId(S)).text, t);
   return t;
