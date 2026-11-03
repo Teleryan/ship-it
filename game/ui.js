@@ -861,7 +861,7 @@ $root.addEventListener("click", e => {
     case "tut-fwd": SI.tutFwd(); render(); return;
     case "tut-auto": SI.tutAuto(); U.pop = null; U.detail = null; U.sel = null; U.modal = null; render(); scheduleBots(); return;
     case "tut-free": U.tut = null; U.tutDone = true; render(); scheduleBots(); return;
-    case "tut-exit": U.tut = null; U.screen = "menu"; U.modal = null; clearTimeout(U.botT); clearAuto(); render(); return;
+    case "tut-exit": clearAuto(); if (U.S && !U.S.over) { U.tut = null; U.tutDone = true; U.modal = null; render(); scheduleBots(); return; } U.tut = null; U.screen = "menu"; U.modal = null; clearTimeout(U.botT); render(); return;
     case "resume": if (loadSave()) { render(); scheduleBots(); } return;
     case "studio": U.modal = "studio"; render(); if (SI.stu2) SI.stu2.loadPub(); return;
     case "endgame": U.modal = "endgame"; render(); return;
