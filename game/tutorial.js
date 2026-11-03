@@ -83,7 +83,7 @@ const STEPS_A = [
     allow: a => a.type === "pick" ? null : "Pick a card from the draft" },
 
   { id: "hireintro", kind: "info", title: "Round 1 starts: Income", btn: "Next", hl: () => ".pt[data-pid='0'] .stats",
-    text: S => `Round 1 begins with ${b("Income")}: every studio just received ${b(S.cfg.income + "G")}. That is the Gold number in your studio panel.<br><br>Right after Income, every worker you have hired is paid a ${b("salary")}: ${b(S.cfg.salaryJr + "G")} per Junior and ${b(S.cfg.salarySr + "G")} per Senior. You have no workers yet, so you pay nothing this round.<br><br>Next is ${b("Hire")}. This happens in ${b("every round")}, not just the first one.`,
+    text: S => `Round 1 begins with ${b("Income")}: every studio just received ${b(S.cfg.income + "G")}. That is the Gold number in your studio card on the right.<br><br>Right after Income, every worker you have hired is paid a ${b("salary")}: ${b(S.cfg.salaryJr + "G")} per Junior and ${b(S.cfg.salarySr + "G")} per Senior. You have no workers yet, so you pay nothing this round.<br><br>Next is ${b("Hire")}. This happens in ${b("every round")}, not just the first one.`,
     allow: blk },
 
   { id: "hire", kind: "do", title: "Hire: cards become workers", hl: () => "[data-tut=hand]",
@@ -100,13 +100,13 @@ const STEPS_A = [
     text: S => !actorIsMe(S) ? `The Rival is placing. You are next. Read the board while you wait.`
       : U().detail && U().detail.k === "spot" ? `Read the spot, then press ${b("Place worker here")} to confirm. The default choices are fine.`
       : U().detail && U().detail.k === "worker" ? `Press ${b("Select this worker")}. The spots they can use will turn green.`
-      : U().sel == null ? `Step 1: ${b("click one of your workers")} in your studio panel below.`
+      : U().sel == null ? `Step 1: ${b("click one of your workers")} in the Studio Workers panel above the board.`
       : `Step 2: green spots accept this worker. Greyed spots cannot be used (hover to see why). ${b("Click a green spot")}, then confirm.`,
     done: S => after(S, "place", 1) || (S.round === 1 && S.step === "place" && me(S).rs.placed >= 1),
     allow: a => a.type === "place" ? null : a.type === "pass" ? "Place at least one worker first" : "Place a worker on a green spot" },
 
   { id: "stats", kind: "info", title: "What your numbers mean", btn: "Next", hl: () => ".pt[data-pid='0'] .stats",
-    text: S => `The spot paid out instantly. Here is what each number in your studio panel is for:<br><br>${b("Gold")} hires workers and pays for some systems.<br>${b("Ideas, Code, Process and Buzz")} are earned by placing. Each worker earns the skill of their role (Creative = Ideas, Development = Code, Operations = Process, Marketing = Buzz): +${S.cfg.resJr} per Junior, +${S.cfg.resSr} per Senior. They are saved between rounds and spent in the Build step.<br>${b("Progress")} and ${b("Marketing")} are your game's quality and its reach. Both score VP at the end.<br>${b("Hype")} builds buzz but fades by ${S.cfg.hypeDecay} every round.<br>${b("Debt")} is Tech Debt. High Debt hurts your launch.<br>${b("Culture")} is team morale.`,
+    text: S => `The spot paid out instantly. Here is what each number in your studio card on the right is for:<br><br>${b("Gold")} hires workers and pays for some systems.<br>${b("Ideas, Code, Process and Buzz")} are earned by placing. Each worker earns the skill of their role (Creative = Ideas, Development = Code, Operations = Process, Marketing = Buzz): +${S.cfg.resJr} per Junior, +${S.cfg.resSr} per Senior. They are saved between rounds and spent in the Build step.<br>${b("Progress")} and ${b("Marketing")} are your game's quality and its reach. Both score VP at the end.<br>${b("Hype")} builds buzz but fades by ${S.cfg.hypeDecay} every round.<br>${b("Debt")} is Tech Debt. High Debt hurts your launch.<br>${b("Culture")} is team morale.`,
     allow: blk },
 
   { id: "place2", kind: "do", title: "Keep placing, or pass", hl: () => "[data-tut=workers]",

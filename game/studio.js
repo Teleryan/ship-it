@@ -25,7 +25,7 @@ const TUT_TOKENS = "{income} {salaryJr} {salarySr} {jrCost} {resJr} {resSr} {hyp
 const COLS = {
   spots: [["id","ID","ro"],["row","Row","sel:rows"],["discs","Disciplines","multi:discs"],["fx","Effect","str"],["r","Skills ×","num"],["debt","Debt","num"],["mode","Mode","sel:modes"],["phases","Phases","multi:phases"],["note","Note","str"]],
   systems: [["name","Name","str"],["cat","Category","sel:cats"],["build","Build","str"],["trig","Trigger","str"],["fx","Effect","str"],["once","Once (on build)","str"],["each","Each","str"],["debt","Debt","num"],["vp","VP","num"],["syn","Syn","num"],["bt","Build rounds (crew committed)","num"],["res","Skill","sel:res"],["sym","Symbols (Environments A and B)","multi:syms"]],
-  milestones: [["name","Name","ro"],["cat","Category","ro"],["gold","Gold","num"],["text","Requirement (rule is coded)","str"]],
+  milestones: [["name","Name","ro"],["cat","Category","ro"],["gold","Gold","num"],["phases","Can be cashed in during","multi:phases"],["text","Requirement (rule is coded)","str"]],
   objectives: [["name","Name","str"],["type","Type","ro"],["vp","VP","num"],["reqs","Requirements (; separated)","semi"],["res","Skill","sel:res"],["sym","Symbols (Environments A and B)","multi:syms"]],
   publisherGates: [["name","Name","str"],["phase","Phase (0 to 3)","ro"],["pts","Points scale","num"],["reqs","Requirements (; separated)","semi"],["fund","Funding (Gold)","num"],["vp","VP if passed","num"],["penalty","Penalty","num"],["flavor","Flavor","str"]],
   gatePool: [["name","Name","str"],["phase","Phase (0 to 3)","ro"],["pts","Points scale","num"],["reqs","Requirements (; separated)","semi"],["fund","Funding (Gold)","num"],["vp","VP if passed","num"],["penalty","Penalty","num"],["flavor","Flavor","str"]],

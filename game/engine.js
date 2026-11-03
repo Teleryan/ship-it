@@ -243,6 +243,12 @@ function beginPhase(S) {
   S.players.forEach(p => { p.flags.noMentor = false; });
   S.order = S.order.slice(); S.bids = {};
   log(S, "=== PHASE START: " + D0.phases[S.phase].name + " ===");
+  S.players.forEach(p => { // milestones whose phase window has passed are swapped for fresh ones
+    const old = p.miles.filter(id => mileExpired(S, S.data.milestones[id])); if (!old.length) return;
+    p.miles = p.miles.filter(id => !old.includes(id));
+    old.forEach(() => { for (let t = 0; t < 8; t++) { const c = drawMile(S, p.id, true); if (c == null) break; if (!mileExpired(S, S.data.milestones[c])) break; p.miles.splice(p.miles.indexOf(c), 1); } });
+    log(S, p.name + " swaps " + old.length + " expired milestone" + (old.length > 1 ? "s" : ""));
+  });
   if (S.phase === 2 && S.invest) { // Investor Pressure resolves at the end of Production
     S.players.forEach(p => { if (p.prod < S.invest.need) { adjTrack(S, p.id, "P", -S.invest.penalty); log(S, p.name + " missed Investor Pressure target: -" + S.invest.penalty + " VP"); } });
     S.invest = null;
@@ -827,7 +833,7 @@ function stepAction(S, a, actor) {
       if (a.type === "done") { S.cur++; return { ok: true }; }
       if (a.type === "claim") {
         const idx = p.miles.indexOf(a.mile); if (idx < 0) return err("Not in hand");
-        const m = S.data.milestones[a.mile]; if (!MILE_CHECK[m.name] || !MILE_CHECK[m.name](S, p)) return err("Requirement not met");
+        const m = S.data.milestones[a.mile]; if (!MILE_CHECK[m.name] || !mileOpen(S, m) || !MILE_CHECK[m.name](S, p)) return err(!mileOpen(S, m) ? "Not in this milestone's phase" : "Requirement not met");
         p.miles.splice(idx, 1); p.claimed.push(a.mile); gain(S, pi, "gold", m.gold); p.rs.cashed++; p.cs.cashedTotal++;
         drawMile(S, pi, true); log(S, p.name + " cashes in " + m.name + " (+" + m.gold + "G)"); return { ok: true };
       }
@@ -1100,14 +1106,14 @@ const MILE_CHECK = {
   "Specialist Team": (S, p) => DISCS.some(d => p.workers.filter(w => w.disc === d).length >= 3),
   "Balanced Studio": (S, p) => p.workers.some(w => dev.includes(w.disc)) && p.workers.some(w => mkt.includes(w.disc)),
   "Exactly Five": (S, p) => p.workers.length === 5,
-  "Lean Operation": (S, p) => p.rs.placed === 2,
+  "Lean Operation": (S, p) => p.rs.placed === 2 && p.workers.length >= 5,
   "All-Star Team": (S, p) => sr(p) >= 3,
   "Hiring Spree": (S, p) => p.rs.hires >= 3,
   "Diverse Perspectives": (S, p) => new Set(p.workers.map(w => w.disc)).size >= 4,
   "Growing Pains": (S, p) => p.cs.fired >= 1,
   "Mentor Program": (S, p) => jr(p) === 2 && sr(p) === 2,
-  "Budget Conscious": (S, p) => p.gold === 0,
-  "Savings Account": (S, p) => p.gold >= 15,
+  "Budget Conscious": (S, p) => p.gold === 0 && p.rs.spent >= 6,
+  "Savings Account": (S, p) => p.gold >= 20,
   "Big Spender": (S, p) => p.rs.spent >= 10,
   "Gold Rush": (S, p) => p.rs.gained >= 8,
   "Investment Return": (S, p) => p.rs.triggers >= 3,
@@ -1119,26 +1125,30 @@ const MILE_CHECK = {
   "Foundation": (S, p) => nSys(p) >= 1,
   "Category Focus": (S, p) => CATS.some(c => sysCount(p, c) >= 3),
   "Balanced Build": (S, p) => catSet(p) >= 3,
-  "Quality First": (S, p) => p.debt === 0 && p.cs.debtEver,
+  "Quality First": (S, p) => p.debt === 0 && p.systems.length >= 2 && p.prod >= 8,
   "Tech Debt Accepted": (S, p) => p.debt === 5,
-  "Rapid Prototype": (S, p) => p.rs.builds >= 2,
+  "Rapid Prototype": (S, p) => nSys(p) >= 2,
   "Progress Push": (S, p) => p.prod >= 20,
-  "Feature Complete": (S, p) => nSys(p) >= 5,
-  "System Architect": (S, p) => nSys(p) >= 8,
+  "Feature Complete": (S, p) => nSys(p) >= 4,
+  "System Architect": (S, p) => nSys(p) >= 5,
   "Debt Recovery": (S, p) => p.rs.debtRemoved >= 3,
   "Going Viral": (S, p) => p.hype >= 15,
   "Hype Train": (S, p) => p.rs.hypeGained >= 5,
-  "Stealth Launch": (S, p) => p.hype === 0 && p.cs.hypeEver,
+  "Stealth Launch": (S, p) => p.hype === 0 && p.prod >= 6,
   "Marketing Push": (S, p) => p.mktg >= 20,
   "Influencer Network": (S, p) => sysCount(p, "Reach") >= 2,
   "Community Built": (S, p) => p.workers.filter(w => w.disc === "PX").length >= 3,
   "Ad Blitz": (S, p) => p.cs.reachGold >= 8,
   "Peak Hype": (S, p) => p.hype >= 30,
   "Sustained Buzz": (S, p) => p.cs.hypeStreak >= 3,
-  "Market Leader": (S, p) => p.mktg > 0 && S.players.every(q => q.id === p.id || q.mktg < p.mktg)
+  "Market Leader": (S, p) => p.mktg >= 6 && S.players.every(q => q.id === p.id || q.mktg < p.mktg)
 };
 E.MILE_CHECK = MILE_CHECK;
-E.milestoneMet = (S, pi, idx) => { const m = S.data.milestones[idx]; const f = MILE_CHECK[m.name]; return !!(f && f(S, P(S, pi))); };
+/* A milestone can only be completed inside its phase window (m.phases); a card whose window has passed is swapped out at the next phase start. */
+const mileOpen = (S, m) => !m.phases || !m.phases.length || m.phases.includes(S.phase);
+const mileExpired = (S, m) => !!(m.phases && m.phases.length) && Math.max.apply(null, m.phases) < S.phase;
+E.mileWindow = (S, m) => mileOpen(S, m) ? "open" : mileExpired(S, m) ? "expired" : "later";
+E.milestoneMet = (S, pi, idx) => { const m = S.data.milestones[idx]; const f = MILE_CHECK[m.name]; return !!(f && mileOpen(S, m) && f(S, P(S, pi))); };
 
 /* ============================================================
    OBJECTIVE REQUIREMENTS (parsed from card text)

@@ -278,13 +278,18 @@ function workerCard(S, w, vi, selectable) {
    <div class="whd" style="background:${dcol(w.disc)}">${esc(dcat(w.disc))}</div>
    <div class="wbd"><div class="d">${esc(D.disciplines[w.disc].name)}</div>${w.as ? `<div class="as">acts as ${nameOf(w.as)}</div>` : ""}<div class="l ${w.lvl === "Sr" ? "sr" : ""}">${lvl}</div><div class="fat f${w.fat}" title="${FAT[w.fat]}"><i></i></div><div class="fl">${w.build ? "Building" : w.placed ? "Placed" : FAT[w.fat]}</div></div></div>`;
 }
+// the studio's workers sit above the main board so the worker you place is next to the spot you place it on
+function workersPanel(S) {
+  const vi = viewIndex(S); const p = P(vi); const a = E.currentActor(S); const mine = a === vi && !p.bot;
+  const sel = mine && S.step === "place" && !S.dq.length;
+  return `<div class="panel"><h3><span style="color:${p.color}">${esc(p.name)}'s studio workers</span><span class="mute" style="text-transform:none;letter-spacing:0">${p.workers.length} workers</span></h3><div class="workers" data-tut="workers">${p.workers.length ? p.workers.map(w => workerCard(S, w, vi, sel && !w.placed)).join("") : '<span class="mute">No workers yet. Draft cards and hire.</span>'}</div></div>`;
+}
 function playerPanel(S) {
   const vi = viewIndex(S); const p = P(vi); const a = E.currentActor(S); const mine = a === vi && !p.bot;
   const sel = mine && S.step === "place" && !S.dq.length;
-  let h = `<div class="panel"><h3><span style="color:${p.color}">${esc(p.name)}'s studio</span><span class="mute" style="text-transform:none;letter-spacing:0">${p.workers.length} workers · ${p.systems.length} systems</span></h3>`;
-  h += `<div class="workers" data-tut="workers">${p.workers.length ? p.workers.map(w => workerCard(S, w, vi, sel && !w.placed)).join("") : '<span class="mute">No workers yet. Draft cards and hire.</span>'}</div>`;
+  let h = `<div class="panel"><h3><span style="color:${p.color}">${esc(p.name)}'s systems and goals</span><span class="mute" style="text-transform:none;letter-spacing:0">${p.systems.length} systems</span></h3>`;
   // systems
-  h += `<div style="margin:12px 0 4px" class="mute">Systems <span class="dim">(slots ${S.cfg.slotsPerCategory}/category)</span></div><div class="row wrap">`;
+  h += `<div style="margin:2px 0 4px" class="mute">Systems <span class="dim">(slots ${S.cfg.slotsPerCategory}/category)</span></div><div class="row wrap">`;
   if (!p.systems.length) h += '<span class="mute">None built.</span>';
   p.systems.forEach((sy, i) => {
     const def = E.sysDef(S, sy.name); let cls = "sys";
@@ -311,9 +316,15 @@ function handCard(S, c, vi, mine) {
   const hint = mine && S.step === "hire" && !S.dq.length ? "Click to hire" : "";
   return discCardHtml(c.disc, hint ? "pick" : "", `data-act="detail" data-k="hand" data-id="${c.id}"`, hint);
 }
+function mileWhen(m, win) {
+  const ph = (m.phases || []).slice().sort((a, b) => a - b); if (!ph.length) return "Any phase";
+  const nm = i => esc((D.phases[i] || {}).name || "");
+  const span = ph.length === 1 ? nm(ph[0]) : nm(ph[0]) + " to " + nm(ph[ph.length - 1]);
+  return (win === "open" ? "Open now: " : win === "later" ? "Opens in " : "Expired: ") + span;
+}
 function mileCard(S, id, vi, mine) {
-  const m = S.data.milestones[id]; const met = E.milestoneMet(S, vi, id);
-  return `<div class="sys" data-act="detail" data-k="mile" data-id="${id}" data-p="${vi}" style="width:170px;cursor:pointer;border-color:${met ? "var(--good)" : "var(--line)"}"><div class="t">${esc(m.name)}</div><div class="e" style="color:var(--gold)">+${m.gold}G ${met ? '<span style="color:var(--good)">MET</span>' : ""}</div></div>`;
+  const m = S.data.milestones[id]; const met = E.milestoneMet(S, vi, id), win = E.mileWindow(S, m);
+  return `<div class="sys" data-act="detail" data-k="mile" data-id="${id}" data-p="${vi}" style="width:170px;cursor:pointer;border-color:${met ? "var(--good)" : "var(--line)"};${win === "later" ? "opacity:.7" : ""}"><div class="t">${esc(m.name)}</div><div class="e" style="color:var(--gold)">+${m.gold}G ${met ? '<span style="color:var(--good)">MET</span>' : ""}</div><div class="mute" style="font-size:11px">${mileWhen(m, win)}</div></div>`;
 }
 function objCard(S, id, vi, mine) {
   const o = S.data.objectives[id]; const st = E.objectiveStatus(S, vi, id); const n = st.reqs.filter(r => r.ok).length;
@@ -415,7 +426,7 @@ function crisisCardHtml(c) {
 function gameView() {
   const S = U.S;
   const crisis = S.crisisCard ? S.data.crisis.find(c => c.id === S.crisisCard) : null;
-  return `<div class="app ${U.tut ? "tutmode" : ""}">${topbar(S)}<div class="main"><div class="left">${banner(S)}${actionArea(S)}${recruitPanel(S)}${boardView(S)}${marketStrip(S)}${playerPanel(S)}</div>
+  return `<div class="app ${U.tut ? "tutmode" : ""}">${topbar(S)}<div class="main"><div class="left">${banner(S)}${actionArea(S)}${recruitPanel(S)}${workersPanel(S)}${boardView(S)}${marketStrip(S)}${playerPanel(S)}</div>
   <div class="right"><div class="panel"><h3>Studios</h3><div class="col">${playersPanel(S)}</div></div>${racePanel(S)}${gatesPanel(S)}${crisis ? `<div class="panel" data-tut="crisis" data-act="detail" data-k="crisis" style="cursor:pointer"><h3>Active crisis</h3>${crisisCardHtml(crisis)}</div>` : ""}
   <div class="panel"><h3>Game log <button class="btn sm" data-act="log">${U.logOpen ? "Hide" : "Show all"}</button></h3><div class="log" style="${U.logOpen ? "max-height:60vh" : ""}">${S.log.slice(U.logOpen ? -300 : -14).reverse().map(l => `<div><span class="r">R${l.r}</span> ${esc(l.m)}</div>`).join("")}</div></div></div></div></div>`;
 }
@@ -572,7 +583,7 @@ function detailModal() {
       break; }
     case "mile": {
       const id = +d.id, m = S.data.milestones[id]; if (!m) return closeOnly(); const met = E.milestoneMet(S, +d.p, id);
-      h += `<div class="dtitle">${esc(m.name)}</div><p>${esc(m.text)}</p><p style="color:var(--gold)"><b>Reward: +${m.gold}G</b> ${met ? '<span style="color:var(--good)">MET</span>' : '<span class="mute">not met yet</span>'}</p>`;
+      h += `<div class="dtitle">${esc(m.name)}</div><p>${esc(m.text)}</p><p class="mute">Phase window: ${mileWhen(m, E.mileWindow(S, m))}. A milestone can only be completed inside its window; a card whose window has passed is swapped for a new one at the next phase start.</p><p style="color:var(--gold)"><b>Reward: +${m.gold}G</b> ${met ? '<span style="color:var(--good)">MET</span>' : '<span class="mute">not met yet</span>'}</p>`;
       if (S.step === "milestones" && mineTurn && a === +d.p && !S.dq.length) h += `<div class="row" style="margin-top:12px">${actBtn("Cash in", `data-act="claim" data-mile="${id}"`, !met, "Requirement not met yet")}</div>`;
       break; }
     case "obj": {
