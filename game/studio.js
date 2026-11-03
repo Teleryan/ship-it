@@ -35,36 +35,42 @@ function dirtyCfg(st, k) { return JSON.stringify(st.config[k]) !== JSON.stringif
 function cellVal(v, kind) { return kind === "csv" || kind === "csvn" ? (v || []).join(",") : kind === "semi" ? (v || []).join("; ") : (v == null ? "" : v); }
 
 SI.renderStudio = function (st, tab, sim) {
-  const tabs = [["rules","Rules"],["spots","Board spots"],["systems","Systems"],["milestones","Milestones"],["objectives","Objectives"],["crisis","Crisis cards"],["tutorial","Tutorial"],["sim","Simulator"],["io","Import / Export"]];
-  let h = '<div class="tabs">' + tabs.map(t => `<button class="tab ${tab === t[0] ? "on" : ""}" data-act="studio-tab" data-v="${t[0]}">${t[1]}</button>`).join("") + "</div>";
+  const tabs = [["rules","Rules"],["spots","Board spots"],["systems","Systems"],["milestones","Milestones"],["objectives","Objectives"],["crisis","Crisis cards"],["tutorial","Text"],["sim","Simulator"]];
+  const X = SI.stu2 || {}, V = X.state ? X.state() : { q: "", ed: false, view: "table", sel: {} };
+  let h = X.frame ? X.frame(st, tab, tabs) : "";
+  if (V.view === "changes" && tab !== "sim" && X.changes) return h + X.changes(st);
   if (tab === "rules") {
     h += '<p class="mute" style="margin:0 0 8px">Every value below is a live knob. Yellow = changed from the v47 default. Changes apply to the <b>next new game</b>.</p><div class="scroll-y">';
     CFG_GROUPS.forEach(g => {
       h += `<h4 style="margin:12px 0 6px">${g[0]}</h4><div class="cfg-grid">`;
-      g[1].forEach(k => { const m = D.config._meta[k] || [k, ""]; h += `<div class="cfg"><label>${esc(m[0])}</label><small>${esc(m[1])}</small><input type="number" step="any" data-cfg="${k}" value="${esc(st.config[k])}" class="${dirtyCfg(st, k) ? "dirty" : ""}"></div>`; });
+      g[1].forEach(k => { const m = D.config._meta[k] || [k, ""]; const ed = dirtyCfg(st, k); if (V.ed && !ed) return; h += `<div class="cfg" data-hay="${esc((m[0] + " " + m[1] + " " + k).toLowerCase())}" data-ed="${ed ? 1 : 0}" ${V.q && !(m[0] + " " + m[1] + " " + k).toLowerCase().includes(V.q) ? "hidden" : ""}><label>${esc(m[0])} <i class="chip live" title="The engine reads this value when a new game starts.">live</i></label><small>${esc(m[1])}</small><input type="number" step="any" data-cfg="${k}" value="${esc(st.config[k])}" class="${ed ? "dirty" : ""}"></div>`; });
       h += "</div>";
     });
     h += `<h4 style="margin:14px 0 6px">Table values (JSON)</h4><div class="cfg-grid">`;
-    ["hypeBands","deliveryBands","cultureVP","phaseEnds","rowNames"].forEach(k => { h += `<div class="cfg"><label>${k}</label><small>${k === "hypeBands" ? "[[min Hype %, VP], ...]" : k === "cultureVP" ? "Culture value -> VP" : k === "phaseEnds" ? "Variant C: last round of Concept, Production, Polish, Launch, e.g. [3,8,11,12]" : "Delivery bonus bands"}</small><textarea rows="4" style="width:100%" data-cfgjson="${k}" class="${dirtyCfg(st, k) ? "dirty" : ""}">${esc(JSON.stringify(st.config[k]))}</textarea></div>`; });
+    ["hypeBands","deliveryBands","cultureVP","phaseEnds","rowNames"].forEach(k => { h += `<div class="cfg" data-hay="${k.toLowerCase()}" data-ed="${dirtyCfg(st, k) ? 1 : 0}" ${V.q && !k.toLowerCase().includes(V.q) ? "hidden" : ""}><label>${k} <i class="chip live">live</i></label><small>${k === "hypeBands" ? "[[min Hype %, VP], ...]" : k === "cultureVP" ? "Culture value -> VP" : k === "phaseEnds" ? "Variant C: last round of Concept, Production, Polish, Launch, e.g. [3,8,11,12]" : "Delivery bonus bands"}</small><textarea rows="4" style="width:100%" data-cfgjson="${k}" class="${dirtyCfg(st, k) ? "dirty" : ""}">${esc(JSON.stringify(st.config[k]))}</textarea></div>`; });
     h += "</div></div>";
   } else if (["spots","systems","milestones","objectives","crisis"].includes(tab)) {
     const cols = COLS[tab]; const list = st.data[tab], def = E.defaultData(E.defaultConfig())[tab];
-    h += `<p class="mute" style="margin:0 0 6px">${list.length} rows. Effect strings use: <span class="mono">+2 Progress, -1 Debt, +3G, +1 Hype, +1 Marketing, +1 Culture, Draw 1 Milestone, +1G per Reach, +1 Prod OR +1 Mktg</span></p><div class="scroll-y"><table class="dt"><thead><tr>` + cols.map(c => `<th>${c[1]}</th>`).join("") + "</tr></thead><tbody>";
+    const sel = (V.sel && V.sel[tab]) || 0;
+    h += `<p class="mute" style="margin:0 0 6px">${list.length} rows. Effect strings use: <span class="mono">+2 Progress, -1 Debt, +3G, +1 Hype, +1 Marketing, +1 Culture, Draw 1 Milestone, +1G per Reach, +1 Prod OR +1 Mktg</span></p><div class="stu-split"><div class="scroll-y stu-tbl"><table class="dt"><thead><tr><th></th>` + cols.map(c => `<th>${c[1]} ${X.chip ? X.chip(tab, c[0]) : ""}</th>`).join("") + "</tr></thead><tbody>";
     list.forEach((row, i) => {
-      h += "<tr>" + cols.map(c => {
+      const rowEd = JSON.stringify(row) !== JSON.stringify(def[i]); if (V.ed && !rowEd) return;
+      const hay = cols.map(c => cellVal(row[c[0]], c[2])).join(" ").toLowerCase();
+      h += `<tr data-hay="${esc(hay)}" data-ed="${rowEd ? 1 : 0}" class="${i === sel ? "sel" : ""}" ${V.q && !hay.includes(V.q) ? "hidden" : ""}><td><button class="btn sm" data-act="st-sel" data-v="${i}" title="Show this row as a card on the right">View</button></td>` + cols.map(c => {
         const v = row[c[0]], dv = def[i] ? def[i][c[0]] : undefined; const dirty = JSON.stringify(v) !== JSON.stringify(dv);
         if (c[2] === "ro") return `<td class="mute" style="padding:4px 6px">${esc(c[0] === "deck" ? ["Blue","Orange","Pink"][v] : v)}</td>`;
         return `<td><input ${c[2] === "num" ? 'type="number" class="n' + (dirty ? " dirty" : "") + '"' : 'class="' + (dirty ? "dirty" : "") + '"'} data-path="${tab}.${i}.${c[0]}" data-kind="${c[2]}" value="${esc(cellVal(v, c[2]))}"></td>`;
       }).join("") + "</tr>";
     });
-    h += "</tbody></table></div>";
+    h += "</tbody></table></div>" + (X.preview ? X.preview(tab, st, def, sel) : "") + "</div>";
   } else if (tab === "tutorial") {
     const list = st.data.tutorial || [], def = E.defaultData(E.defaultConfig()).tutorial;
     h += `<p class="mute" style="margin:0 0 6px">${list.length} tutorial strings for the guided game (Variant C). Edits apply to the <b>next tutorial</b> you start. Markup: <span class="mono">**bold**</span>, a blank line starts a new paragraph, and <span class="mono">{token}</span> is replaced by a live value: <span class="mono">${esc(TUT_TOKENS)}</span>. Leave a token in place if the sentence needs the number. Step order follows the Step numbers.</p><div class="scroll-y">`;
     list.forEach((row, i) => {
       const d = def[i] && def[i].id === row.id ? def[i] : (def.find(x => x.id === row.id) || {});
       const dirty = f => (row[f] || "") !== (d[f] || "") ? " dirty" : "";
-      h += `<div class="panel" style="margin:6px 0;padding:8px"><div class="row" style="gap:10px;margin-bottom:4px"><b class="mono">${esc(row.id)}</b><span class="mute">${esc(row.when)}</span></div>`;
+      const tEd = ["title", "btn", "text"].some(f => (row[f] || "") !== (d[f] || "")), tHay = [row.id, row.when, row.title, row.btn, row.text].join(" ").toLowerCase(); if (V.ed && !tEd) return;
+      h += `<div class="panel" data-hay="${esc(tHay)}" data-ed="${tEd ? 1 : 0}" ${V.q && !tHay.includes(V.q) ? "hidden" : ""} style="margin:6px 0;padding:8px"><div class="row" style="gap:10px;margin-bottom:4px"><b class="mono">${esc(row.id)}</b><span class="mute">${esc(row.when)}</span></div>`;
       if (row.title || d.title) h += `<div class="row" style="gap:8px;margin:3px 0"><label class="mute" style="width:60px">Title</label><input class="grow${dirty("title")}" data-path="tutorial.${i}.title" data-kind="str" value="${esc(row.title)}"></div>`;
       if (row.btn || d.btn) h += `<div class="row" style="gap:8px;margin:3px 0"><label class="mute" style="width:60px">Button</label><input class="grow${dirty("btn")}" data-path="tutorial.${i}.btn" data-kind="str" value="${esc(row.btn)}"></div>`;
       h += `<div class="row" style="gap:8px;margin:3px 0;align-items:flex-start"><label class="mute" style="width:60px">Text</label><textarea class="grow${dirty("text")}" rows="${Math.min(10, Math.max(2, Math.ceil((row.text || "").length / 90) + (row.text || "").split("\n").length - 1))}" data-path="tutorial.${i}.text" data-kind="str" style="width:100%">${esc(row.text)}</textarea></div></div>`;
@@ -130,4 +136,5 @@ SI.studioChange = function (st, el) {
   }
   return false;
 };
+SI.studioCols = COLS; SI.studioGroups = CFG_GROUPS; SI.cellVal = cellVal; SI.renderSim = renderSim;
 })(typeof window !== "undefined" ? window : globalThis);

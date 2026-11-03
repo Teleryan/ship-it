@@ -332,3 +332,11 @@ table.dt input.n{width:62px}
 #root.tut-hard .tutmode [data-act=rules],#root.tut-hard .tutmode [data-act=menu],#root.tut-hard .tutmode [data-act=log],#root.tut-hard .tutmode [data-act=save],#root.tut-soft .tutmode [data-act=rules],#root.tut-soft .tutmode [data-act=menu],#root.tut-soft .tutmode [data-act=log],#root.tut-soft .tutmode [data-act=save]{pointer-events:auto}
 #root.tut-hard .overlay.rulesov,#root.tut-hard .overlay.rulesov *,#root.tut-soft .overlay.rulesov,#root.tut-soft .overlay.rulesov *{pointer-events:auto}
 .tutmode [data-act=gamemenu]{position:relative;z-index:200}#root.tut-hard .tutmode [data-act=gamemenu],#root.tut-soft .tutmode [data-act=gamemenu]{pointer-events:auto}
+
+/* Data Studio tools */
+.chip{font-style:normal;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:1px 5px;border-radius:8px;margin-left:4px;vertical-align:middle}
+.chip.live{background:#12351f;color:#7ee2a0;border:1px solid #2c7a4b}.chip.display{background:#222a40;color:#9db0d8;border:1px solid #3a4a76}.chip.patch{background:#3b2a12;color:#f0b35a;border:1px solid #8a5a1c}
+.stu-bar{gap:8px;margin:0 0 8px;align-items:center}.stu-bar .seg{display:inline-flex;gap:4px}.stu-drawer{margin:0 0 8px;padding:10px}.stu-status{font-size:12px;margin:0 0 8px}
+.stu-split{display:flex;gap:12px;align-items:flex-start}.stu-tbl{flex:1 1 auto;min-width:0}.stu-prev{flex:0 0 280px;position:sticky;top:0;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--panel2)}
+.stu-prev .pv2{display:grid;grid-template-columns:1fr;gap:8px}.dt tr.sel td{background:rgba(255,255,255,.04)}[hidden]{display:none!important}
+@media (max-width:900px){.stu-split{flex-direction:column}.stu-prev{flex:none;width:100%;position:static}}

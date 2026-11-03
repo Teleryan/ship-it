@@ -42,4 +42,12 @@ SI.applyDiff = function (o) {
   if (o.data) Object.keys(o.data).forEach(k => putData(d, k, o.data[k]));
   return d;
 };
+
+/* ---- draft (what the Data Studio is editing) vs active (what new games use); hash stamps each game with the data it started from ---- */
+const KEYD = "shipit.studio.draft";
+SI.hash = function (o) { const t = typeof o === "string" ? o : JSON.stringify(o || {}); let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(16).padStart(8, "0"); };
+SI.hashOf = st => { const d = SI.diffOf(st); return Object.keys(d.config).length + Object.keys(d.data).length ? SI.hash(d) : "base"; };
+SI.saveDraft = function (st) { try { root.localStorage.setItem(KEYD, JSON.stringify(SI.diffOf(st))); } catch (e) {} };
+SI.loadDraft = function () { try { const raw = root.localStorage.getItem(KEYD); if (raw) return SI.applyDiff(JSON.parse(raw)); } catch (e) {} return null; };
+SI.clearDraft = function () { try { root.localStorage.removeItem(KEYD); } catch (e) {} };
 })(typeof window !== "undefined" ? window : globalThis);

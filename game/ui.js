@@ -113,10 +113,10 @@ function scheduleBots() {
 }
 function newGame() {
   const seats = U.seats.map((s, i) => ({ name: s.name || ("Player " + (i + 1)), bot: s.bot }));
-  const st = U.studio; U.tutDone = false;
+  const st = U.active || U.studio; U.tutDone = false;
   U.S = E.newGame(seats, { config: E.clone(st.config), data: E.clone(st.data) });
   SI.an.abandon(U.prev); U.prev = null;
-  SI.an.begin(U.S, { mode: "hotseat", site: SI.net.site(), tuned: U.tuned, test: U.testEnv, seats: [] }); U.prev = U.S;
+  SI.an.begin(U.S, { mode: "hotseat", site: SI.net.site(), hash: SI.hashOf(st), tuned: U.tuned, test: U.testEnv, seats: [] }); U.prev = U.S;
   U.tut = null; U.detail = null; U.screen = "game"; U.undo = []; U.sel = null; U.pop = null; U.cover = null; U.modal = null; U.view = null; U.seenCrisis = null;
   render(); scheduleBots();
 }
@@ -687,6 +687,7 @@ function render() {
   if (keepFocus) { const el = document.getElementById(keepFocus); if (el && val != null) { try { el.value = val; el.focus(); } catch (e) {} } }
 }
 SI.render = render;
+SI.sysPreview = d => sysTile(d, true).replace('data-act="detail"', "");
 
 /* ---------- online play (rooms, lobby, synced actions) ---------- */
 const N = SI.net, PERSONAS = [["", "Standard"], ["crunch", "Crunch Studio"], ["hype", "Hype Machine"], ["systems", "Systems Builder"], ["clean", "Clean Code"]];
@@ -794,7 +795,7 @@ function lobbySend() { // host pushes the seat layout
   const M = U.net.meta; N.send({ t: "cfg", seats: M.seats.map(s => ({ name: s.name, kind: s.kind, persona: s.persona })) });
 }
 function lobbyStart() {
-  const ovr = JSON.stringify(SI.diffOf(U.studio));
+  const ovr = JSON.stringify(SI.diffOf(U.active || U.studio));
   if (ovr.length > 85000) { U.lobbyErr = "Your tuning changes are too large to share with the room"; render(); return; }
   U.lobbyErr = null; N.send({ t: "start", seed: (Math.random() * 2 ** 31) | 0, ovr: ovr === '{"config":{},"data":{}}' ? "" : ovr });
 }
@@ -830,7 +831,7 @@ $root.addEventListener("click", e => {
     case "tut-free": U.tut = null; U.tutDone = true; render(); scheduleBots(); return;
     case "tut-exit": U.tut = null; U.screen = "menu"; U.modal = null; clearTimeout(U.botT); clearAuto(); render(); return;
     case "resume": if (loadSave()) { render(); scheduleBots(); } return;
-    case "studio": U.modal = "studio"; render(); return;
+    case "studio": U.modal = "studio"; render(); if (SI.stu2) SI.stu2.loadPub(); return;
     case "endgame": U.modal = "endgame"; render(); return;
     case "endgame-yes": {
       U.modal = null;
@@ -844,7 +845,7 @@ $root.addEventListener("click", e => {
       const w = v, rm = k => { try { root.localStorage.removeItem(k); } catch (e) {} };
       if (w === "save" || w === "all") { rm("shipit.save.v1"); clearAuto(); }
       if (w === "room" || w === "all") rm("shipit.room");
-      if ((w === "studio" || w === "all") && U.owner) { U.studio = SI.resetStudio(); }
+      if ((w === "studio" || w === "all") && U.owner) { U.studio = SI.resetStudio(); SI.clearDraft(); U.active = SI.defaults(); }
       if (w === "all") { rm("shipit.name"); U.name = ""; }
       U.modal = null; toast("Cleared"); return; }
     case "variant": root.location.href = v === "b" ? "/b/" : v === "a" ? "/a/" : "/"; return;
@@ -855,7 +856,7 @@ $root.addEventListener("click", e => {
       root.location.href = "/__logout"; return; }
     case "close": case "overlay": {
       if (U.detail) { U.detail = null; render(); return; }
-      if (U.modal === "studio") { SI.saveStudio(U.studio); }
+      if (U.modal === "studio") { SI.saveDraft(U.studio); }
       if (S && S.crisisCard && U.seenCrisis !== (S.phase + S.crisisCard)) U.seenCrisis = S.phase + S.crisisCard;
       if (S && S.over && !U.modal && !U.pop) U.modal = "noresults"; else U.modal = null;
       U.pop = null; render(); return; }
@@ -869,7 +870,7 @@ $root.addEventListener("click", e => {
     case "undo": if (U.undo.length) { restore(U.undo.pop()); U.sel = null; render(); scheduleBots(); } return;
     case "view": U.view = +v; render(); return;
     case "results": U.modal = null; render(); return;
-    case "restart": SI.saveStudio(U.studio); U.modal = null; newGame(); return;
+    case "restart": if (SI.stu2) SI.stu2.apply(U); else SI.saveStudio(U.studio); U.modal = null; newGame(); return;
     case "uncover": U.cover = S.dq[0].p; render(); return;
     /* studio */
     case "studio-tab": U.tab = v; render(); return;
@@ -923,7 +924,7 @@ $root.addEventListener("click", e => {
     case "swapp": act({ type: "swapObjPick", p: pi, pick: +t.dataset.id }); return;
     case "patchfix": act({ type: "patchFix", p: pi, idx: +t.dataset.i }); return;
     case "patchdone": act({ type: "patchDone", p: pi }); return;
-    default: if (String(t.dataset.act).indexOf("m-") === 0 && U.owner && SI.adminAct) SI.adminAct(t.dataset.act, t, masterCtx()); return;
+    default: if (String(t.dataset.act).indexOf("st-") === 0 && U.owner && SI.studioAct) { SI.studioAct(t.dataset.act, t, masterCtx()); return; } if (String(t.dataset.act).indexOf("m-") === 0 && U.owner && SI.adminAct) SI.adminAct(t.dataset.act, t, masterCtx()); return;
   }
 });
 $root.addEventListener("change", e => {
@@ -936,7 +937,7 @@ $root.addEventListener("change", e => {
   if (t.dataset.pname != null) { setName(t.value); return; }
   if (t.dataset.seatname != null) { U.seats[+t.dataset.seatname].name = t.value; return; }
   if (t.dataset.seatbot != null) { U.seats[+t.dataset.seatbot].bot = t.value === "1"; return; }
-  if (t.dataset.cfg || t.dataset.cfgjson || t.dataset.path) { const r = SI.studioChange(U.studio, t); if (r !== true) { toast(r || "Invalid value"); } SI.saveStudio(U.studio); t.classList.add("dirty"); return; }
+  if (t.dataset.cfg || t.dataset.cfgjson || t.dataset.path) { if (SI.stu2) SI.stu2.snap(U.studio); const r = SI.studioChange(U.studio, t); if (r !== true) { toast(r || "Invalid value"); } SI.saveDraft(U.studio); t.classList.add("dirty"); return; }
 });
 $root.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "pw") tryGate(); if (e.key === "Enter" && e.target.dataset && e.target.dataset.jcode != null) { const b = $root.querySelector('[data-act="online-join"]'); if (b) b.click(); } if (e.key === "Escape" && (U.modal || U.pop || U.detail)) { const xs = $root.querySelectorAll(".modal .x"); if (xs.length) xs[xs.length - 1].click(); } });
 
@@ -952,12 +953,12 @@ async function liveConfig() {
   if (w) {
     U.hosted = true; U.role = w.role; U.owner = !!w.owner;
     const base = await liveConfig();
-    if (U.owner) { await loadScript("studio.js"); await loadScript("admin.js"); }
-    U.studio = U.owner && root.localStorage.getItem("shipit.studio.v2") ? SI.loadStudio() : (base || SI.defaults());
+    if (U.owner) { await loadScript("studio.js"); await loadScript("studio2.js"); await loadScript("admin.js"); }
+    U.active = U.owner && root.localStorage.getItem("shipit.studio.v2") ? SI.loadStudio() : (base || SI.defaults()); U.studio = (U.owner && SI.loadDraft()) || SI.applyDiff(SI.diffOf(U.active));
     U.screen = "menu"; U.baseCfg = base;
     if (resumeRoom()) return;
   } else { // standalone: local passphrase gate, local Data Studio
-    await loadScript("studio.js"); U.owner = !!SI.renderStudio; U.studio = SI.loadStudio(); U.tuned = "default";
+    await loadScript("studio.js"); await loadScript("studio2.js"); U.owner = !!SI.renderStudio; U.active = SI.loadStudio(); U.studio = SI.loadDraft() || SI.applyDiff(SI.diffOf(U.active)); U.tuned = "default";
     let ok = false; try { ok = sessionStorage.getItem("shipit.ok") === "1"; } catch (e) {} U.screen = ok ? "menu" : "gate";
     if (ok && loadAuto()) { render(); scheduleBots(); return; }
   }
