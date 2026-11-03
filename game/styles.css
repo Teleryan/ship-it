@@ -356,3 +356,7 @@ table.dt input.n{width:62px}
 @media print{body.printing #root,body.printing .chtip,body.printing .zoomov{display:none!important}body.printing #printarea{display:block}body.printing{background:#fff!important}#printarea .pp{page-break-after:always;border-radius:0;padding:0}#printarea .pp:last-child{page-break-after:auto}}
 
 #tutspot{position:fixed;inset:0;z-index:150;pointer-events:none}
+
+.mchk{display:flex;flex-wrap:wrap;gap:2px 8px;min-width:120px;padding:3px 5px;border:1px solid var(--line);border-radius:6px}.mchk label,.chk{display:inline-flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap;cursor:pointer}
+.chk{padding:4px 8px;border:1px solid var(--line);border-radius:6px}.stu-tbl select{max-width:150px}
+.stu-tbl select{min-width:115px;max-width:170px}.mchk{max-width:250px;gap:1px 6px}.mchk label{font-size:11px}

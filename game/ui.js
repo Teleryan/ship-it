@@ -944,7 +944,7 @@ $root.addEventListener("change", e => {
   if (t.dataset.pname != null) { setName(t.value); return; }
   if (t.dataset.seatname != null) { U.seats[+t.dataset.seatname].name = t.value; return; }
   if (t.dataset.seatbot != null) { U.seats[+t.dataset.seatbot].bot = t.value === "1"; return; }
-  if (t.dataset.cfg || t.dataset.cfgjson || t.dataset.path) { if (SI.stu2) SI.stu2.snap(U.studio); const r = SI.studioChange(U.studio, t); if (r !== true) { toast(r || "Invalid value"); } SI.saveDraft(U.studio); t.classList.add("dirty"); return; }
+  if (t.dataset.cfg || t.dataset.cfgjson || t.dataset.path || t.dataset.mpath) { if (SI.stu2) SI.stu2.snap(U.studio); const r = SI.studioChange(U.studio, t); if (r !== true) { toast(r || "Invalid value"); } SI.saveDraft(U.studio); (t.dataset.mpath ? t.closest(".mchk") || t : t.type === "checkbox" ? t.closest("label") || t : t).classList.add("dirty"); if (t.type === "checkbox" && t.dataset.cfg) { const lb = t.closest("label"); if (lb) lb.lastChild.textContent = t.checked ? " On" : " Off"; } if (SI.stu2) SI.stu2.refresh(); return; }
 });
 $root.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "pw") tryGate(); if (e.key === "Enter" && e.target.dataset && e.target.dataset.jcode != null) { const b = $root.querySelector('[data-act="online-join"]'); if (b) b.click(); } if (e.key === "Escape" && (U.modal || U.pop || U.detail)) { const xs = $root.querySelectorAll(".modal .x"); if (xs.length) xs[xs.length - 1].click(); } });
 

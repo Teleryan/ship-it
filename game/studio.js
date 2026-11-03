@@ -16,17 +16,17 @@ const CFG_GROUPS = [
   ["Workers & fatigue", ["resJr","resSr","resOver","resCap","crewPartnerCap","sysCostMult","objVPMult","resSubGold","resSubMax","srBonus","srAllowedPreProd","qaAllowedPreProd","lossThreshBase"]],
   ["Systems & cards", ["buildsPerRound","rdDiscount","gatesRandom","slotsPerCategory","handSize","objDraw","objKeep","teamEventCulture","launchMult","crisisEnabled"]],
   ["Tracks", ["culMin","culMax","cultureDecay","hypeDecay","hypeCap","prodCap","debtMode"]],
-  ["Variant C: phase-shaped economy", ["varC","noSwaps","spotResOr","srSystems","srPromoteOnly","promoFree","promoNeedsRest","overworkCulture","recruitCost","recruitPerRound","recruitSize2","recruitSize34","recruitSize56","recruitInLaunch","buildDelay","crunchDelay","crunchGold","rdCrunch","convertRate","gateProgMult","gateHypeMult","sysGoldMult"]],
+  ["Variant C: phase-shaped economy", ["varC","noSwaps","spotResOr","srSystems","srPromoteOnly","promoFree","promoNeedsRest","overworkCulture","recruitCost","recruitPerRound","recruitSize2","recruitSize34","recruitSize56","recruitInLaunch","bidEveryRound","buildDelay","crunchDelay","crunchGold","rdCrunch","convertRate","gateProgMult","gateHypeMult","sysGoldMult"]],
   ["Pool scoring (B)", ["poolScoring","poolPot","poolSysMult","poolObjMult","poolDebtMult"]],
   ["Race scoring", ["raceScoring","mktgToHype","raceCurve","racePot","debtLossMax","cultLossMax","trackScoring"]],
   ["Scoring (older)", ["scoreShareScale","scoreShareNormalize","debtPenaltyMult","debtPenaltyCap","cleanThresh","stdThresh","roughThresh","cleanBonus","blockedPenalty","roughHypeMult","goldPerVP","synergyOn"]]
 ];
 const TUT_TOKENS = "{income} {salaryJr} {salarySr} {jrCost} {resJr} {resSr} {hypeDecay} {draftPool} {picks} {recruitCost} {recruitN} {buildDelay} {crunchGold} {buildsPerRound} {bank} {convertRate} {refreshGold} {gateName} {gate2Name} {gateReqs} {gateEnd} {gateFund} {gatePenalty} {gateResult} {crisisLine} {freeBuild} {hint} {n} {total}";
 const COLS = {
-  spots: [["id","ID","ro"],["row","Row","str"],["discs","Disciplines","csv"],["fx","Effect","str"],["r","Skills ×","num"],["debt","Debt","num"],["mode","Mode","str"],["phases","Phases","csvn"],["note","Note","str"]],
-  systems: [["name","Name","str"],["cat","Category","str"],["build","Build","str"],["trig","Trigger","str"],["fx","Effect","str"],["once","Once (on build)","str"],["each","Each","str"],["debt","Debt","num"],["vp","VP","num"],["syn","Syn","num"],["bt","Build rounds (crew committed)","num"],["res","Skill (ideas, code, process, buzz)","str"],["sym","Symbols (Environments A and B)","csv"]],
+  spots: [["id","ID","ro"],["row","Row","sel:rows"],["discs","Disciplines","multi:discs"],["fx","Effect","str"],["r","Skills ×","num"],["debt","Debt","num"],["mode","Mode","sel:modes"],["phases","Phases","multi:phases"],["note","Note","str"]],
+  systems: [["name","Name","str"],["cat","Category","sel:cats"],["build","Build","str"],["trig","Trigger","str"],["fx","Effect","str"],["once","Once (on build)","str"],["each","Each","str"],["debt","Debt","num"],["vp","VP","num"],["syn","Syn","num"],["bt","Build rounds (crew committed)","num"],["res","Skill","sel:res"],["sym","Symbols (Environments A and B)","multi:syms"]],
   milestones: [["name","Name","ro"],["cat","Category","ro"],["gold","Gold","num"],["text","Requirement (rule is coded)","str"]],
-  objectives: [["name","Name","str"],["type","Type","ro"],["vp","VP","num"],["reqs","Requirements (; separated)","semi"],["res","Skill (ideas, code, process, buzz)","str"],["sym","Symbols (Environments A and B)","csv"]],
+  objectives: [["name","Name","str"],["type","Type","ro"],["vp","VP","num"],["reqs","Requirements (; separated)","semi"],["res","Skill","sel:res"],["sym","Symbols (Environments A and B)","multi:syms"]],
   publisherGates: [["name","Name","str"],["phase","Phase (0 to 3)","ro"],["pts","Points scale","num"],["reqs","Requirements (; separated)","semi"],["fund","Funding (Gold)","num"],["vp","VP if passed","num"],["penalty","Penalty","num"],["flavor","Flavor","str"]],
   gatePool: [["name","Name","str"],["phase","Phase (0 to 3)","ro"],["pts","Points scale","num"],["reqs","Requirements (; separated)","semi"],["fund","Funding (Gold)","num"],["vp","VP if passed","num"],["penalty","Penalty","num"],["flavor","Flavor","str"]],
   text: [["id","ID","ro"],["group","Group","ro"],["label","Item","ro"],["text","Wording","str"]],
@@ -35,8 +35,29 @@ const COLS = {
 
 const DEFCFG = () => E.defaultConfig();
 function dirtyCfg(st, k) { return JSON.stringify(st.config[k]) !== JSON.stringify(DEFCFG()[k]); }
-function cellVal(v, kind) { return kind === "csv" || kind === "csvn" ? (v || []).join(",") : kind === "semi" ? (v || []).join("; ") : (v == null ? "" : v); }
+function cellVal(v, kind) { return kind === "csv" || kind === "csvn" || /^multi:/.test(kind) ? (v || []).join(",") : kind === "semi" ? (v || []).join("; ") : (v == null ? "" : v); }
 
+
+/* ---------- field widgets: drop-downs, check boxes and radios instead of free text ---------- */
+const BOOLS = new Set(["varC","noSwaps","spotResOr","srSystems","srPromoteOnly","promoFree","promoNeedsRest","recruitInLaunch","rdCrunch","bidEveryRound","poolScoring","raceScoring","gatesRandom","gatesEnabled","crisisEnabled","synergyOn","headhuntCatchUp","srAllowedPreProd","qaAllowedPreProd","trackScoring","scoreShareNormalize"]);
+const CFG_SELECTS = { debtMode: [[1, "Debt as a percent of Progress"], [0, "Raw Debt points"]] };
+function optsFor(list, st) {
+  const lab = x => ({ ideas: "Ideas", code: "Code", process: "Process", buzz: "Buzz" }[x] || x);
+  if (list === "rows") { const r = []; (E.defaultData(E.defaultConfig()).spots.concat(st.data.spots)).forEach(s => { if (!r.includes(s.row)) r.push(s.row); }); return r.map(x => [x, x]); }
+  if (list === "modes") return [["", "Default (one per player)"], ["single", "Single worker"], ["shared", "Shared (one each)"], ["multi", "Many workers"], ["open", "Open"]];
+  if (list === "cats") return Object.keys(D.categoriesSys || { Innovation: 1, Stability: 1, Reach: 1, Revenue: 1 }).map(x => [x, x]);
+  if (list === "res") return [["", "None"]].concat(["ideas", "code", "process", "buzz"].map(x => [x, lab(x)]));
+  if (list === "discs") return [["ANY", "Any"]].concat(Object.keys(D.disciplines).map(k => [k, k]));
+  if (list === "syms") return Object.keys(D.symbols).map(k => [k, k]);
+  if (list === "phases") return D.phases.map((p, i) => [i, p.name.replace("Pre-Production", "Pre").replace("Production", "Prod")]);
+  return [];
+}
+function widget(kind, tab, i, f, v, dirty, st) {
+  const k = kind.split(":"), path = `${tab}.${i}.${f}`;
+  if (k[0] === "sel") { const o = optsFor(k[1], st); if (v != null && v !== "" && !o.some(x => String(x[0]) === String(v))) o.push([v, v]); return `<select class="${dirty ? "dirty" : ""}" data-path="${path}" data-kind="str">${o.map(x => `<option value="${esc(x[0])}" ${String(x[0]) === String(v == null ? "" : v) ? "selected" : ""}>${esc(x[1])}</option>`).join("")}</select>`; }
+  if (k[0] === "multi") { const o = optsFor(k[1], st), cur = (v || []).map(String), num = k[1] === "phases" ? 'data-mnum="1"' : ""; return `<div class="mchk ${dirty ? "dirty" : ""}">${o.map(x => `<label><input type="checkbox" data-mpath="${path}" data-mval="${esc(x[0])}" ${num} ${cur.includes(String(x[0])) ? "checked" : ""}> ${esc(x[1])}</label>`).join("")}</div>`; }
+  return null;
+}
 SI.renderStudio = function (st, tab, sim) {
   const tabs = [["rules","Rules"],["spots","Board spots"],["systems","Systems"],["milestones","Milestones"],["objectives","Objectives"],["crisis","Crisis cards"],["publisherGates","Publisher gates"],["gatePool","Gate pool"],["tutorial","Text"],["sim","Simulator"]];
   const X = SI.stu2 || {}, V = X.state ? X.state() : { q: "", ed: false, view: "table", sel: {} };
@@ -46,7 +67,7 @@ SI.renderStudio = function (st, tab, sim) {
     h += '<p class="mute" style="margin:0 0 8px">Every value below is a live knob. Yellow = changed from the v47 default. Changes apply to the <b>next new game</b>.</p><div class="scroll-y">';
     CFG_GROUPS.forEach(g => {
       h += `<h4 style="margin:12px 0 6px">${g[0]}</h4><div class="cfg-grid">`;
-      g[1].forEach(k => { const m = D.config._meta[k] || [k, ""]; const ed = dirtyCfg(st, k); if (V.ed && !ed) return; h += `<div class="cfg" data-hay="${esc((m[0] + " " + m[1] + " " + k).toLowerCase())}" data-ed="${ed ? 1 : 0}" ${V.q && !(m[0] + " " + m[1] + " " + k).toLowerCase().includes(V.q) ? "hidden" : ""}><label>${esc(m[0])} <i class="chip live" title="The engine reads this value when a new game starts.">live</i></label><small>${esc(m[1])}</small><input type="number" step="any" data-cfg="${k}" value="${esc(st.config[k])}" class="${ed ? "dirty" : ""}"></div>`; });
+      g[1].forEach(k => { const m = D.config._meta[k] || [k, ""]; const ed = dirtyCfg(st, k); if (V.ed && !ed) return; h += `<div class="cfg" data-hay="${esc((m[0] + " " + m[1] + " " + k).toLowerCase())}" data-ed="${ed ? 1 : 0}" ${V.q && !(m[0] + " " + m[1] + " " + k).toLowerCase().includes(V.q) ? "hidden" : ""}><label>${esc(m[0])} <i class="chip live" title="The engine reads this value when a new game starts.">live</i></label><small>${esc(m[1])}</small>${BOOLS.has(k) ? `<label class="chk ${ed ? "dirty" : ""}"><input type="checkbox" data-cfg="${k}" ${st.config[k] ? "checked" : ""}> ${st.config[k] ? "On" : "Off"}</label>` : CFG_SELECTS[k] ? `<select data-cfg="${k}" class="${ed ? "dirty" : ""}">${CFG_SELECTS[k].map(o => `<option value="${o[0]}" ${+st.config[k] === o[0] ? "selected" : ""}>${esc(o[1])}</option>`).join("")}</select>` : `<input type="number" step="any" data-cfg="${k}" value="${esc(st.config[k])}" class="${ed ? "dirty" : ""}">`}</div>`; });
       h += "</div>";
     });
     h += `<h4 style="margin:14px 0 6px">Table values (JSON)</h4><div class="cfg-grid">`;
@@ -62,6 +83,7 @@ SI.renderStudio = function (st, tab, sim) {
       h += `<tr data-hay="${esc(hay)}" data-ed="${rowEd ? 1 : 0}" class="${i === sel ? "sel" : ""}" ${V.q && !hay.includes(V.q) ? "hidden" : ""}><td><button class="btn sm" data-act="st-sel" data-v="${i}" title="Show this row as a card on the right">View</button></td>` + cols.map(c => {
         const v = row[c[0]], dv = def[i] ? def[i][c[0]] : undefined; const dirty = JSON.stringify(v) !== JSON.stringify(dv);
         if (c[2] === "ro") return `<td class="mute" style="padding:4px 6px">${esc(c[0] === "deck" ? ["Blue","Orange","Pink"][v] : v)}</td>`;
+        const wd = widget(c[2], tab, i, c[0], v, dirty, st); if (wd) return `<td>${wd}</td>`;
         return `<td><input ${c[2] === "num" ? 'type="number" class="n' + (dirty ? " dirty" : "") + '"' : 'class="' + (dirty ? "dirty" : "") + '"'} data-path="${tab}.${i}.${c[0]}" data-kind="${c[2]}" value="${esc(cellVal(v, c[2]))}"></td>`;
       }).join("") + "</tr>";
     });
@@ -137,7 +159,8 @@ SI.simRun = function (st, n, games, onProgress, onDone) {
 
 // apply an input change to the studio state; returns true if handled
 SI.studioChange = function (st, el) {
-  if (el.dataset.cfg) { const v = parseFloat(el.value); if (!Number.isNaN(v)) st.config[el.dataset.cfg] = v; return true; }
+  if (el.dataset.mpath) { const [list, i, f] = el.dataset.mpath.split("."); const boxes = Array.from(document.querySelectorAll('input[data-mpath="' + el.dataset.mpath + '"]')); st.data[list][+i][f] = boxes.filter(b => b.checked).map(b => b.dataset.mnum ? +b.dataset.mval : b.dataset.mval); return true; }
+  if (el.dataset.cfg) { const v = el.type === "checkbox" ? (el.checked ? 1 : 0) : parseFloat(el.value); if (!Number.isNaN(v)) st.config[el.dataset.cfg] = v; return true; }
   if (el.dataset.cfgjson) { try { st.config[el.dataset.cfgjson] = JSON.parse(el.value); } catch (e) { return "Invalid JSON"; } return true; }
   if (el.dataset.path) {
     const [list, i, f] = el.dataset.path.split("."); const row = st.data[list][+i]; const kind = el.dataset.kind; let v = el.value;

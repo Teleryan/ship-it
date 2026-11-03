@@ -57,6 +57,11 @@ X.validate = function (st) {
 X.snap = function (st) { const v = V(); v.hist.push(JSON.stringify({ config: st.config, data: st.data })); if (v.hist.length > 80) v.hist.shift(); v.fut = []; };
 function restore(U, json) { const o = JSON.parse(json); U.studio = { config: o.config, data: o.data }; SI.saveDraft(U.studio); }
 
+X.status = function (st) {
+  const U = SI.U, v = V(), n = X.diffList(st).length, val = X.validate(st), host = U.hosted, pub = v.pub || {}, pl = e => pub[e] && pub[e].version ? `v${pub[e].version}` : "defaults";
+  return `${n} edited value${n === 1 ? "" : "s"} · <span style="color:${val.errors.length ? "var(--bad)" : "inherit"}">${val.errors.length} error${val.errors.length === 1 ? "" : "s"}</span> · ${val.warnings.length} warning${val.warnings.length === 1 ? "" : "s"} · draft <span class="mono">${SI.hashOf(st)}</span>${U.active ? ` · in use for new games <span class="mono">${SI.hashOf(U.active)}</span>` : ""}${host ? ` · Live ${pl("live")} · Test ${pl("test")}` : ""}${v.msg ? ` · <b style="color:var(--gold)">${esc(v.msg)}</b>` : ""}`;
+};
+X.refresh = function () { const el = document.querySelector(".stu-status"), U = SI.U; if (el && U.studio) el.innerHTML = X.status(U.studio); };
 /* ---------- the frame above every Studio tab ---------- */
 X.frame = function (st, tab, tabs) {
   const U = SI.U, v = V(), n = X.diffList(st).length, val = X.validate(st), host = U.hosted;
@@ -78,7 +83,7 @@ X.frame = function (st, tab, tabs) {
     <label class="row" style="gap:5px"><input type="checkbox" data-stf="zip" ${v.zip ? "checked" : ""}> one zip file</label><button class="btn sm" data-act="st-csv-all">Export all CSVs</button></div>
     <div class="row wrap" style="margin-top:8px"><button class="btn sm" data-act="st-json-export">Export overrides JSON</button><label class="btn sm">Load JSON into draft<input type="file" accept=".json,application/json" data-stufile="json" hidden></label>
     <span class="mute">CSV files open in Excel or Google Sheets. Change a cell, then import: only changed values are applied. The overrides JSON holds just your edits.</span></div></div>`;
-  h += `<div class="stu-status mute">${n} edited value${n === 1 ? "" : "s"} · <span style="color:${val.errors.length ? "var(--bad)" : "inherit"}">${val.errors.length} error${val.errors.length === 1 ? "" : "s"}</span> · ${val.warnings.length} warning${val.warnings.length === 1 ? "" : "s"} · draft <span class="mono">${SI.hashOf(st)}</span>${U.active ? ` · in use for new games <span class="mono">${SI.hashOf(U.active)}</span>` : ""}${host ? ` · Live ${pl("live")} · Test ${pl("test")}` : ""}${v.msg ? ` · <b style="color:var(--gold)">${esc(v.msg)}</b>` : ""}</div>`;
+  h += `<div class="stu-status mute">${X.status(st)}</div>`;
   if (val.errors.length || val.warnings.length) h += `<div class="mute" style="font-size:12px;margin:0 0 6px">${val.errors.map(m => `<div style="color:var(--bad)">Error: ${esc(m)}</div>`).join("")}${val.warnings.slice(0, 4).map(m => `<div>Warning: ${esc(m)}</div>`).join("")}</div>`;
   return h;
 };
@@ -112,7 +117,7 @@ function parseCsv(t) {
   if (f !== "" || row.length) { row.push(f); rows.push(row); }
   return rows.filter(r => r.some(x => x !== ""));
 }
-const parseCell = (kind, v) => kind === "num" ? (parseFloat(v) || 0) : kind === "csv" ? v.split(",").map(s => s.trim()).filter(Boolean) : kind === "csvn" ? v.split(",").map(s => parseInt(s.trim(), 10)).filter(x => !Number.isNaN(x)) : kind === "semi" ? v.split(";").map(s => s.trim()).filter(Boolean) : v;
+const parseCell = (kind, v) => kind === "multi:phases" ? v.split(",").map(x => parseInt(x.trim(), 10)).filter(x => !Number.isNaN(x)) : /^multi:/.test(kind) ? v.split(",").map(x => x.trim()).filter(Boolean) : kind === "num" ? (parseFloat(v) || 0) : kind === "csv" ? v.split(",").map(s => s.trim()).filter(Boolean) : kind === "csvn" ? v.split(",").map(s => parseInt(s.trim(), 10)).filter(x => !Number.isNaN(x)) : kind === "semi" ? v.split(";").map(s => s.trim()).filter(Boolean) : v;
 X.csvOf = function (st, tpl) {
   const rows = [];
   if (tpl === "rules") { rows.push(["key", "value", "meaning"]); Object.keys(st.config).forEach(k => { if (k === "_meta") return; const m = D.config._meta && D.config._meta[k]; const v = st.config[k]; rows.push([k, typeof v === "object" ? JSON.stringify(v) : v, m ? m[0] : ""]); }); }
