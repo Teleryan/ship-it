@@ -77,7 +77,7 @@ const STEPS_A = [
     done: S => after(S, "bid", 1),
     allow: a => a.type !== "bid" ? "Place your bid first" : (a.amount > 3 ? "Keep it small for now: bid 0 to 3G" : null) },
 
-  { id: "draft", kind: "do", title: "Draft: take a card", hl: () => ".draftbtn",
+  { id: "draft", kind: "do", title: "Draft: take a card", hl: () => "[data-tut=draftpanel]",
     text: S => `Now the ${b("Draft")}. Players take turns picking one face-up card: press ${b("Draft")} on a card to take it, or tap the card first to read more about it. Each time a card is taken, a new one is revealed, so the pool stays full (${b(S.cfg.draftPool || S.draft.cards.length)} cards). You get ${b(S.draft.per)} picks.<br><br>Each card is a discipline (ENG, ART, DES and so on) and says what that worker is good at. Cards you pick go to your hand. ${b("Drafting costs no gold")}: you pay only later, when you hire a card in the Hire step. Pick a mix: different disciplines unlock more systems later.`,
     done: S => after(S, "draft", 1),
     allow: a => a.type === "pick" ? null : "Pick a card from the draft" },
@@ -241,7 +241,7 @@ const STEPS_C = [
   info("board_perks", { hl: () => ".shared" }),
   info("board_rd", { hl: () => "[data-spot=rd]" }),
   doing("bid", { hl: () => ".modal", done: S => after(S, "bid", 1), allow: a => a.type !== "bid" ? MSG("msg_bid") : (a.amount > 3 ? MSG("msg_bid_small") : null) }),
-  doing("draft", { hl: () => ".draftbtn", done: S => after(S, "draft", 1), allow: a => a.type === "pick" ? null : MSG("msg_draft") }),
+  doing("draft", { hl: () => "[data-tut=draftpanel]", done: S => after(S, "draft", 1), allow: a => a.type === "pick" ? null : MSG("msg_draft") }),
   doing("hire", { hl: () => "[data-tut=hand]", done: S => after(S, "hire", 1),
     allow: (a, S) => a.type === "hire" ? (a.lvl === "Jr" ? null : MSG("msg_hire_sr")) : a.type === "discard" ? null :
       a.type === "done" ? (me(S).workers.length < Math.min(2, hireable(S) + me(S).workers.length) ? MSG("msg_hire_min") : null) : MSG("msg_hire_do") }),
