@@ -87,7 +87,7 @@ X.frame = function (st, tab, tabs) {
   if (val.errors.length || val.warnings.length) h += `<div class="mute" style="font-size:12px;margin:0 0 6px">${val.errors.map(m => `<div style="color:var(--bad)">Error: ${esc(m)}</div>`).join("")}${val.warnings.slice(0, 4).map(m => `<div>Warning: ${esc(m)}</div>`).join("")}</div>`;
   return h;
 };
-X.testUrl = () => { const s = SI.net && SI.net.site ? SI.net.site() : "c"; return (s === "b" ? "/b/" : s === "a" ? "/a/" : "/") + "?env=test"; };
+X.testUrl = () => { const s = SI.net && SI.net.site ? SI.net.site() : "d"; return (s === "b" ? "/b/" : s === "a" ? "/a/" : s === "c" ? "/c/" : "/") + "?env=test"; };
 
 /* ---------- preview pane ---------- */
 function cardOf(tab, r) {

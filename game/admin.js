@@ -90,7 +90,7 @@ function renderTuning(ctx) {
   <tr><td><b>Test</b> (<a href="${site === "b" ? "/b/" : site === "a" ? "/a/" : "/"}?env=test" target="_blank" style="color:var(--gold)">open test page</a>)</td><td>${line("test")}</td><td><button class="btn sm" data-act="m-revert" data-v="test">Back to defaults</button></td></tr></tbody></table>
   <div style="margin:14px 0;padding:12px;border:1px solid var(--line,#2b3350);border-radius:10px"><div class="mute">Your current Data Studio edits: <b>${nCfg}</b> rule values and <b>${nData}</b> card/data tables changed from the shipped defaults.</div>
   <div class="row wrap" style="margin-top:8px"><input id="m-note" placeholder="Note (what changed)" maxlength="200" style="min-width:260px" class="grow"><button class="btn" data-act="m-publish" data-v="test">Publish to test</button><button class="btn primary" data-act="m-publish" data-v="live">Publish to live</button></div></div>
-  <p class="dim" style="font-size:12px">Environments A, B and C keep separate published tuning (this is Environment ${site === "b" ? "B" : site === "c" ? "C" : "A"}). Each published version is also kept on the server.</p>`;
+  <p class="dim" style="font-size:12px">Environments A, B, C and D keep separate published tuning (this is Environment ${site === "b" ? "B" : site === "c" ? "C" : site === "d" ? "D" : "A"}). Each published version is also kept on the server.</p>`;
 }
 function renderGames() {
   const m = M(), n = (m.rooms || []).length;

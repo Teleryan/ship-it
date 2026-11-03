@@ -12,7 +12,7 @@ const UPLOAD_PAGE = `<!doctype html><meta charset="utf-8"><meta name="viewport" 
 <div class="b"><h2>Upload game files</h2><p>Master account only. Choose the <b>shipit-site.json</b> bundle you were sent. It replaces the game files for all environments (A, B, C and D).</p>
 <input type="file" id="f" accept=".json"><br><button id="go">Upload</button><p id="m"></p></div>
 <script>document.getElementById("go").onclick=async()=>{const m=document.getElementById("m"),f=document.getElementById("f").files[0];if(!f){m.textContent="Choose the file first.";return}
-try{const o=JSON.parse(await f.text());let out=[];for(const s of ["a","b","c"]){if(!o[s])continue;const r=await fetch("/__site?site="+s,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(o[s])});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||r.status);out.push("Environment "+s.toUpperCase()+": "+j.files+" files");}
+try{const o=JSON.parse(await f.text());let out=[];for(const s of ["a","b","c","d"]){if(!o[s])continue;const r=await fetch("/__site?site="+s,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(o[s])});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||r.status);out.push("Environment "+s.toUpperCase()+": "+j.files+" files");}
 m.textContent="Done. "+out.join(" · ")+". Open the game: /";}catch(e){m.textContent="Failed: "+e.message}}</script>`;
 const COOKIE = "shipit_auth", MAX_AGE = 60 * 60 * 24 * 7, enc = new TextEncoder();
 const OWNER_FILES = new Set(["studio.js", "studio2.js", "admin.js", "stats.js", "simui.js"]); // the master account only: Data Studio, analytics dashboard, tuning
@@ -43,8 +43,8 @@ const TYPES = { html: "text/html; charset=utf-8", js: "text/javascript; charset=
 const CODE_CH = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const newCode = () => { let s = ""; const b = crypto.getRandomValues(new Uint8Array(4)); for (const x of b) s += CODE_CH[x % CODE_CH.length]; return s; };
 const SITE = (x) => (x === "b" || x === "c" || x === "d") ? x : "a";
-// Variant C is the default at "/", the classic scoring version is at /a/, pool scoring at /b/ (KV keys site:a, site:b, site:c)
-const siteOf = (p) => (p === "/b" || p.startsWith("/b/")) ? "b" : (p === "/a" || p.startsWith("/a/")) ? "a" : (p === "/d" || p.startsWith("/d/")) ? "d" : "c";
+// Variant D (Burnout) is the default at "/", C (phases) is at /c/, the classic scoring version at /a/, pool scoring at /b/ (KV keys site:a to site:d)
+const siteOf = (p) => (p === "/b" || p.startsWith("/b/")) ? "b" : (p === "/a" || p.startsWith("/a/")) ? "a" : (p === "/c" || p.startsWith("/c/")) ? "c" : "d";
 
 export default {
   async fetch(request, env) {
@@ -159,9 +159,9 @@ export default {
 
     // ---- the game itself: Environment A at /, Environment B at /b/ ----
     if (request.method !== "GET" && request.method !== "HEAD") return secure(new Response("Method not allowed", { status: 405 }));
-    const site = siteOf(P); if (P === "/a" || P === "/b" || P === "/d") return new Response(null, { status: 302, headers: { location: P + "/" } });
-    if (P === "/c" || P.startsWith("/c/")) return new Response(null, { status: 302, headers: { location: "/" + P.slice(3) } });
-    let rel = site !== "c" ? P.slice(3) : P.slice(1); if (!rel) rel = "index.html";
+    const site = siteOf(P); if (P === "/a" || P === "/b" || P === "/c") return new Response(null, { status: 302, headers: { location: P + "/" } });
+    if (P === "/d" || P.startsWith("/d/")) return new Response(null, { status: 302, headers: { location: "/" + P.slice(3) } });
+    let rel = site !== "d" ? P.slice(3) : P.slice(1); if (!rel) rel = "index.html";
     if (OWNER_FILES.has(rel) && !owner) return secure(new Response("Master account only.", { status: 403 }));
     const body = (await siteFiles(env, site))[rel]; if (body == null) return secure(new Response("Not found", { status: 404 }));
     return secure(new Response(body, { headers: { "content-type": TYPES[rel.split(".").pop()] || "text/plain", "cache-control": "no-cache" } }));

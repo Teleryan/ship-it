@@ -147,7 +147,7 @@ function gateView() {
 
 /* ---------- menu ---------- */
 function menuView() {
-  const n = U.seats.length; const ver = /^\/a(\/|$)/.test(root.location.pathname) ? "a" : /^\/b(\/|$)/.test(root.location.pathname) ? "b" : /^\/d(\/|$)/.test(root.location.pathname) ? "d" : "c";
+  const n = U.seats.length; const ver = /^\/a(\/|$)/.test(root.location.pathname) ? "a" : /^\/b(\/|$)/.test(root.location.pathname) ? "b" : /^\/c(\/|$)/.test(root.location.pathname) ? "c" : "d";
   return `<div class="center-screen"><div class="card-box">
   <div class="logo">SHIP <b>IT!</b>${D.config && D.config.envLabel ? ` <span style="font-size:.4em;color:var(--gold);letter-spacing:.08em">${D.config.envLabel}</span>` : ""}</div><p class="mute" style="margin:6px 0 16px">12 rounds · 4 phases · ${D.version}</p>
   <div class="row"><label class="mute">Bot skill</label><select data-botskill>${(root.ShipItBot ? root.ShipItBot.profileNames : [["", "Standard"]]).map(o => `<option value="${o[0]}" ${(U.botSkill || "") === o[0] ? "selected" : ""}>${o[1]}</option>`).join("")}</select> <label class="mute" style="margin-left:10px">Players</label><select data-seatn>${[2,3,4,5,6].map(k => `<option ${k === n ? "selected" : ""}>${k}</option>`).join("")}</select></div>
@@ -156,7 +156,7 @@ function menuView() {
   ${U.hosted ? `<div style="margin:16px 0 0;padding:12px;border:1px solid var(--line,#2b3350);border-radius:10px"><div class="mute" style="margin-bottom:8px">Play online with friends on their own devices</div>
   <div class="row wrap"><input data-pname value="${esc(myName() === "Player" ? "" : myName())}" placeholder="Your name" maxlength="20" style="width:140px"><button class="btn primary" data-act="online-create">Create online game</button><input data-jcode placeholder="CODE" maxlength="4" style="width:80px;text-transform:uppercase;letter-spacing:.2em"><button class="btn" data-act="online-join">Join</button></div>
   ${U.joinErr ? `<p style="color:var(--bad);margin:8px 0 0">${esc(U.joinErr)}</p>` : ""}</div>` : ""}
-  ${U.hosted ? `<div class="row wrap" style="margin:14px 0 0;align-items:center"><span class="mute">Version</span><button class="btn sm ${ver === "c" ? "primary" : ""}" data-act="variant" data-v="c">C · Phases (default)</button><button class="btn sm ${ver === "a" ? "primary" : ""}" data-act="variant" data-v="a">A · Classic scoring</button><button class="btn sm ${ver === "b" ? "primary" : ""}" data-act="variant" data-v="b">B · Pool scoring</button><button class="btn sm ${ver === "d" ? "primary" : ""}" data-act="variant" data-v="d">D · Burnout</button></div>` : ""}
+  ${U.hosted ? `<div class="row wrap" style="margin:14px 0 0;align-items:center"><span class="mute">Version</span><button class="btn sm ${ver === "c" ? "primary" : ""}" data-act="variant" data-v="c">C · Phases</button><button class="btn sm ${ver === "a" ? "primary" : ""}" data-act="variant" data-v="a">A · Classic scoring</button><button class="btn sm ${ver === "b" ? "primary" : ""}" data-act="variant" data-v="b">B · Pool scoring</button><button class="btn sm ${ver === "d" ? "primary" : ""}" data-act="variant" data-v="d">D · Burnout (default)</button></div>` : ""}
   <div class="row wrap" style="margin:14px 0 0"><button class="btn sm" data-act="cleardata">Clear saved data</button>${U.hosted ? '<button class="btn sm" data-act="logout">Log out</button>' : ""}</div>
   <p class="dim" style="margin:14px 0 0;font-size:12px">Hot-seat: pass the device between humans. Bots play the rest. Online: each player uses their own device, and hot-seat seats can share one device.${U.tuned && U.tuned !== "default" ? ` Tuning in use: ${esc(U.tuned)}.` : ""}</p>
   </div></div>`;
@@ -881,7 +881,7 @@ $root.addEventListener("click", e => {
       if ((w === "studio" || w === "all") && U.owner) { U.studio = SI.resetStudio(); SI.clearDraft(); U.active = SI.defaults(); }
       if (w === "all") { rm("shipit.name"); U.name = ""; }
       U.modal = null; toast("Cleared"); return; }
-    case "variant": root.location.href = v === "b" ? "/b/" : v === "a" ? "/a/" : v === "d" ? "/d/" : "/"; return;
+    case "variant": root.location.href = v === "b" ? "/b/" : v === "a" ? "/a/" : v === "c" ? "/c/" : "/"; return;
     case "logout": {
       ["shipit.room", "shipit.save.v1", "shipit.auto.v1", "shipit.name"].forEach(k => { try { root.localStorage.removeItem(k); } catch (e) {} });
       try { root.sessionStorage.removeItem("shipit.ok"); } catch (e) {}
