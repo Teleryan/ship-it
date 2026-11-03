@@ -362,3 +362,6 @@ table.dt input.n{width:62px}
 .stu-tbl select{min-width:115px;max-width:170px}.mchk{max-width:250px;gap:1px 6px}.mchk label{font-size:11px}
 
 .dtag{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);border:1px solid rgba(240,200,80,.45);border-radius:999px;padding:1px 8px}
+.spot{gap:7px}
+.spot .dc{margin-bottom:3px}
+.spot .fx,.spot .fx1{padding-top:6px}
