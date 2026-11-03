@@ -244,7 +244,7 @@ function boardView(S) {
   return `<div class="panel"><h3><span style="color:${ph.color}">Main board: ${ph.name}</span><span class="mute" style="text-transform:none;letter-spacing:0">${S.cfg.spotResOr ? "" : `Each placement earns 1 resource of the role: Jr +${S.cfg.resJr} · Sr +${S.cfg.resSr} (+${S.cfg.srBonus} Progress or Marketing) · Over-Tired +${S.cfg.resOver}`}</span></h3>
   <div class="board" data-tut="board"><div class="rows">${launch ? `<div class="spots">${main.map(s => spotTile(S, s)).join("")}</div>` : rows.map(r => `<div class="brow" data-row="${esc(r.name)}"><div class="lab" style="color:${ph.color}">${esc(rowTitle(S, r.name))}</div><div class="spots">${r.items.map(s => spotTile(S, s)).join("")}</div></div>`).join("")}
   ${launch ? launchThresholds(S) : ""}</div>
-  <div class="shared col"><div class="mute" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase">${S.cfg.varC ? esc(rowTitle(S, "UTILITY")) : "Utility spots"}</div>${shared.map(s => spotTile(S, s)).join("")}</div></div>${S.cfg.spotResOr ? `<div class="boardrefs"><div class="boardref"><div>Earn spots pay the resource of the worker's role.</div><div>Junior +${S.cfg.resJr} · Senior +${S.cfg.resSr}, times the spot's ×.</div><div>Progress and Hype spots pay no resources.</div></div><div class="boardref r"><div class="key">${iconKey()}</div></div></div>` : ""}</div>`;
+  <div class="shared col"><div class="mute" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase">${S.cfg.varC ? esc(rowTitle(S, "UTILITY")) : "Utility spots"}</div>${shared.map(s => spotTile(S, s)).join("")}</div></div>${S.cfg.spotResOr ? `<div class="boardrefs"><div class="boardref wcost"><div class="wt">Worker cost</div><div><b>Junior</b> hire ${ic("gold")}<b>${S.cfg.jrCost}</b> · salary ${ic("gold")}<b>${S.cfg.salaryJr}</b> per round · earns <b>+${S.cfg.resJr}</b></div><div><b>Senior</b> promoted free · salary ${ic("gold")}<b>${S.cfg.salarySr}</b> per round · earns <b>+${S.cfg.resSr}</b></div></div><div class="boardref r"><div class="key">${iconKey()}</div></div></div>` : ""}</div>`;
 }
 function raceRules(S) {
   const c = S.cfg, N = S.players.length, tab = E.rankTable(c, N), ord = ["1st", "2nd", "3rd", "4th", "5th", "6th"];
@@ -412,7 +412,7 @@ function crisisCardHtml(c) {
 function gameView() {
   const S = U.S;
   const crisis = S.crisisCard ? S.data.crisis.find(c => c.id === S.crisisCard) : null;
-  return `<div class="app">${topbar(S)}<div class="main"><div class="left">${banner(S)}${actionArea(S)}${recruitPanel(S)}${boardView(S)}${marketStrip(S)}${playerPanel(S)}</div>
+  return `<div class="app ${U.tut ? "tutmode" : ""}">${topbar(S)}<div class="main"><div class="left">${banner(S)}${actionArea(S)}${recruitPanel(S)}${boardView(S)}${marketStrip(S)}${playerPanel(S)}</div>
   <div class="right"><div class="panel"><h3>Studios</h3><div class="col">${playersPanel(S)}</div></div>${racePanel(S)}${gatesPanel(S)}${crisis ? `<div class="panel" data-tut="crisis" data-act="detail" data-k="crisis" style="cursor:pointer"><h3>Active crisis</h3>${crisisCardHtml(crisis)}</div>` : ""}
   <div class="panel"><h3>Game log <button class="btn sm" data-act="log">${U.logOpen ? "Hide" : "Show all"}</button></h3><div class="log" style="${U.logOpen ? "max-height:60vh" : ""}">${S.log.slice(U.logOpen ? -300 : -14).reverse().map(l => `<div><span class="r">R${l.r}</span> ${esc(l.m)}</div>`).join("")}</div></div></div></div></div>`;
 }
@@ -607,7 +607,7 @@ function marketStrip(S) {
 function rulesModal() {
   const R = root.SHIPIT_RULES || []; const id = U.rulesTab || "start"; const cur = R.find(r => r.id === id) || R[0];
   if (!cur) return modalShell("<h2>Rules</h2><p class=\"mute\">Rules are not loaded.</p>");
-  return modalShell(`<h2>Rules <span class="mute" style="font-size:13px;font-weight:400">· guides, icons and card lists</span></h2><style>${root.SHIPIT_RULES_CSS || ""}.paper{background:#fff;color:#1b2430;border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.4}.paper .rh{font-size:20px;margin:0 0 8px;border-bottom:3px solid #1b2430;padding-bottom:4px}.paper .rh small{font-size:12px;color:#5b6775;font-weight:400;margin-left:10px}.paper hr{border:0;border-top:2px dashed #c9d1da;margin:16px 0}.paper .cards{margin-top:10px}.paper .card{min-height:0}.rtabs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 10px}</style><div class="rtabs">${R.map(r => `<button class="tab ${r.id === cur.id ? "on" : ""}" data-act="rtab" data-v="${r.id}">${r.title}</button>`).join("")}</div><div class="scroll-y" style="max-height:68vh"><div class="paper">${cur.html}</div></div>`, { wide: true });
+  return modalShell(`<h2>Rules <span class="mute" style="font-size:13px;font-weight:400">· guides, icons and card lists</span></h2><style>${root.SHIPIT_RULES_CSS || ""}.paper{background:#fff;color:#1b2430;border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.4}.paper .rh{font-size:20px;margin:0 0 8px;border-bottom:3px solid #1b2430;padding-bottom:4px}.paper .rh small{font-size:12px;color:#5b6775;font-weight:400;margin-left:10px}.paper hr{border:0;border-top:2px dashed #c9d1da;margin:16px 0}.paper .cards{margin-top:10px}.paper .card{min-height:0}.rtabs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 10px}</style><div class="rtabs">${R.map(r => `<button class="tab ${r.id === cur.id ? "on" : ""}" data-act="rtab" data-v="${r.id}">${r.title}</button>`).join("")}</div><div class="scroll-y" style="max-height:68vh"><div class="paper">${cur.html}</div></div>`, { wide: true }).replace('<div class="overlay"', '<div class="overlay rulesov" style="z-index:300"');
 }
 function marketModal() {
   const S = U.S; const a = P(E.currentActor(S)); const cat = U.marketCat || "All"; const free = a.freeBuilds > 0;
@@ -804,7 +804,7 @@ $root.addEventListener("click", e => {
   const t = e.target.closest("[data-act]"); if (!t) return;
   if (t.classList.contains("overlay") && e.target !== t) return;
   if (U.tut && (t.dataset.act === "detail") && !t.closest(".coach") && !SI.tutAllowsDetail()) { toast("We will cover that in a moment"); return; }
-  const rulesAct = t.dataset.act === "rules" || t.dataset.act === "rtab" || (U.modal === "rules" && (t.dataset.act === "close" || t.dataset.act === "overlay"));
+  const rulesAct = ["rules", "rtab", "menu", "log", "save"].includes(t.dataset.act) || (U.modal === "rules" && (t.dataset.act === "close" || t.dataset.act === "overlay"));
   if (U.tut && !rulesAct) { const lm = SI.tutLockMode(); if (lm && !t.closest(".coach") && !(lm === "soft" && t.closest(".overlay"))) return; }
   const v = t.dataset.v; const S = U.S; const a = S ? E.currentActor(S) : -1;
   switch (t.dataset.act) {
