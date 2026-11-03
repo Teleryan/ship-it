@@ -16,7 +16,7 @@ async function jget(url) { const r = await fetch(url, { cache: "no-store" }); if
 async function jsend(url, method, body) { const r = await fetch(url, { method, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined }); const o = await r.json().catch(() => ({})); if (!r.ok) throw new Error(o.error || r.status); return o; }
 async function loadAll(ctx) {
   const m = M(); m.loading = true; ctx.render();
-  try { const g = await jget("/__games"); m.games = g.games || []; } catch (e) { m.games = m.games || []; m.msg = "Could not load games: " + e.message; }
+  try { const g = await jget("/__games"); m.games = g.games || []; try { m.sims = (await jget("/__games?kind=sims")).games || []; } catch (e2) { m.sims = []; } } catch (e) { m.games = m.games || []; m.msg = "Could not load games: " + e.message; }
   const site = SI.net.site();
   try { m.cfg = { live: await jget("/__config?env=live&site=" + site), test: await jget("/__config?env=test&site=" + site) }; } catch (e) {}
   try { m.rooms = (await jget("/__rooms")).rooms; } catch (e) {}
@@ -104,15 +104,16 @@ SI.adminRender = function (ctx) {
   return `<h2>Master <span class="mute" style="font-size:13px;font-weight:400">· ${m.loading ? "loading…" : "signed in as the master account"}</span></h2>
   <div class="row wrap" style="margin-bottom:10px">${tabs.map(t => `<button class="btn sm ${m.tab === t[0] ? "primary" : ""}" data-act="m-tab" data-v="${t[0]}">${t[1]}</button>`).join("")}</div>
   ${m.msg ? `<p style="color:var(--gold)">${esc(m.msg)}</p>` : ""}
-  <div class="scroll-y">${m.tab === "analytics" ? renderAnalytics() : m.tab === "tuning" ? renderTuning(ctx) : renderGames()}</div>`;
+  <div class="scroll-y">${m.tab === "analytics" ? (SI.statsRender ? SI.statsRender(ctx) : renderAnalytics()) : m.tab === "tuning" ? renderTuning(ctx) : renderGames()}</div>`;
 };
 SI.adminAct = async function (act, t, ctx) {
   const m = M(), v = t.dataset.v;
+  if (String(act).indexOf("m-an-") === 0 && SI.statsAct) { SI.statsAct(act, t, ctx); return; }
   try {
     if (act === "m-tab") { m.tab = v; m.msg = ""; m.confirm = null; ctx.render(); return; }
     if (act === "m-refresh") { m.msg = ""; loadAll(ctx); return; }
     if (act === "m-export") { const b = new Blob([JSON.stringify(m.games || [], null, 1)], { type: "application/json" }), a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "shipit-games.json"; a.click(); return; }
-    if (act === "m-clearlog") { if (m.confirm !== "clearlog") { m.confirm = "clearlog"; ctx.render(); return; } const ids = (m.games || []).map(g => g.id); for (let i = 0; i < ids.length; i += 400) await jsend("/__clear", "POST", { ids: ids.slice(i, i + 400) }); m.confirm = null; m.msg = "Deleted " + ids.length + " records"; loadAll(ctx); return; }
+    if (act === "m-clearlog") { if (m.confirm !== "clearlog") { m.confirm = "clearlog"; ctx.render(); return; } const ids = (m.games || []).concat(m.sims || []).map(g => g.id); for (let i = 0; i < ids.length; i += 400) await jsend("/__clear", "POST", { ids: ids.slice(i, i + 400) }); m.confirm = null; m.msg = "Deleted " + ids.length + " records"; loadAll(ctx); return; }
     if (act === "m-publish") {
       const d = SI.diffOf(ctx.U.studio), note = (document.getElementById("m-note") || {}).value || "";
       const r = await jsend("/__config", "PUT", { env: v, site: SI.net.site(), ovr: JSON.stringify(d), note }); m.msg = "Published to " + v + " as version " + r.version; loadAll(ctx); return;

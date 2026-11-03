@@ -953,7 +953,7 @@ async function liveConfig() {
   if (w) {
     U.hosted = true; U.role = w.role; U.owner = !!w.owner;
     const base = await liveConfig();
-    if (U.owner) { await loadScript("studio.js"); await loadScript("studio2.js"); await loadScript("admin.js"); }
+    if (U.owner) { await loadScript("studio.js"); await loadScript("studio2.js"); await loadScript("admin.js"); await loadScript("stats.js"); }
     U.active = U.owner && root.localStorage.getItem("shipit.studio.v2") ? SI.loadStudio() : (base || SI.defaults()); U.studio = (U.owner && SI.loadDraft()) || SI.applyDiff(SI.diffOf(U.active));
     U.screen = "menu"; U.baseCfg = base;
     if (resumeRoom()) return;

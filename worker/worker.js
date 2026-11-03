@@ -97,26 +97,28 @@ export default {
     }
     // ---- analytics: any signed-in browser posts a record per game; only the owner reads them ----
     if (P === "/__log" && request.method === "POST") {
-      const raw = await request.text(); if (raw.length > 120000) return json({ error: "Too large." }, 413);
+      const raw = await request.text(); if (raw.length > (owner ? 900000 : 120000)) return json({ error: "Too large." }, 413);
       let g; try { g = JSON.parse(raw); } catch { return json({ error: "Bad request." }, 400); }
+      if (g && g.mode === "simbatch" && !owner) return json({ error: "Owner only." }, 403);
+      if (g && g.mode !== "simbatch" && raw.length > 120000) return json({ error: "Too large." }, 413);
       if (!g || typeof g.id !== "string" || !/^[A-Za-z0-9]{6,32}$/.test(g.id)) return json({ error: "Bad id." }, 400);
       g.role = role; g.recv = Date.now();
-      await env.UPD.put("g:" + g.id, JSON.stringify(g), { expirationTtl: 60 * 60 * 24 * 400 });
+      await env.UPD.put((g.mode === "simbatch" ? "s:" : "g:") + g.id, JSON.stringify(g), { expirationTtl: 60 * 60 * 24 * 400 });
       return json({ ok: true });
     }
     if (P === "/__games" && request.method === "GET") {
       if (!owner) return json({ error: "Owner only." }, 403);
-      const keys = []; let cursor;
-      for (let i = 0; i < 5; i++) { const l = await env.UPD.list({ prefix: "g:", cursor, limit: 1000 }); keys.push(...l.keys.map((k) => k.name)); if (l.list_complete) break; cursor = l.cursor; }
+      const keys = []; let cursor; const pre = url.searchParams.get("kind") === "sims" ? "s:" : "g:";
+      for (let i = 0; i < 5; i++) { const l = await env.UPD.list({ prefix: pre, cursor, limit: 1000 }); keys.push(...l.keys.map((k) => k.name)); if (l.list_complete) break; cursor = l.cursor; }
       const games = [];
-      for (let i = 0; i < keys.length && i < 1500; i += 50) (await Promise.all(keys.slice(i, i + 50).map((k) => env.UPD.get(k)))).forEach((v) => { try { if (v) games.push(JSON.parse(v)); } catch {} });
+      for (let i = 0; i < keys.length && i < (pre === "s:" ? 400 : 1500); i += 50) (await Promise.all(keys.slice(i, i + 50).map((k) => env.UPD.get(k)))).forEach((v) => { try { if (v) games.push(JSON.parse(v)); } catch {} });
       return secure(new Response(JSON.stringify({ games, n: games.length }), { headers: { "content-type": "application/json", "cache-control": "no-store" } }));
     }
     if (P === "/__clear" && request.method === "POST") {
       if (!owner) return json({ error: "Owner only." }, 403);
       let b; try { b = await request.json(); } catch { return json({ error: "Bad request." }, 400); }
       const ids = Array.isArray(b && b.ids) ? b.ids.filter((x) => typeof x === "string" && /^[A-Za-z0-9]{6,32}$/.test(x)).slice(0, 500) : [];
-      await Promise.all(ids.map((id) => env.UPD.delete("g:" + id)));
+      await Promise.all(ids.flatMap((id) => [env.UPD.delete("g:" + id), env.UPD.delete("s:" + id)]));
       return json({ ok: true, deleted: ids.length });
     }
     // ---- online rooms ----
