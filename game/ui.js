@@ -610,7 +610,7 @@ function gameMenuModal() {
 function rulesModal() {
   const R = root.SHIPIT_RULES || []; const id = U.rulesTab || "start"; const cur = R.find(r => r.id === id) || R[0];
   if (!cur) return modalShell("<h2>Rules</h2><p class=\"mute\">Rules are not loaded.</p>");
-  return modalShell(`<h2>Rules <span class="mute" style="font-size:13px;font-weight:400">· guides, icons and card lists</span></h2><style>${root.SHIPIT_RULES_CSS || ""}.paper{background:#fff;color:#1b2430;border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.4}.paper .rh{font-size:20px;margin:0 0 8px;border-bottom:3px solid #1b2430;padding-bottom:4px}.paper .rh small{font-size:12px;color:#5b6775;font-weight:400;margin-left:10px}.paper hr{border:0;border-top:2px dashed #c9d1da;margin:16px 0}.paper .cards{margin-top:10px}.paper .card{min-height:0}.rtabs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 10px}</style><div class="rtabs">${R.map(r => `<button class="tab ${r.id === cur.id ? "on" : ""}" data-act="rtab" data-v="${r.id}">${r.title}</button>`).join("")}</div><div class="scroll-y" style="max-height:68vh"><div class="paper">${cur.html}</div></div>`, { wide: true }).replace('<div class="overlay"', '<div class="overlay rulesov" style="z-index:300"');
+  return modalShell(`<h2>Rules <span class="mute" style="font-size:13px;font-weight:400">· guides, icons and card lists</span></h2><style>${root.SHIPIT_RULES_CSS || ""}.paper{background:#fff;color:#1b2430;border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.4}.paper .rh{font-size:20px;margin:0 0 8px;border-bottom:3px solid #1b2430;padding-bottom:4px}.paper .rh small{font-size:12px;color:#5b6775;font-weight:400;margin-left:10px}.paper hr{border:0;border-top:2px dashed #c9d1da;margin:16px 0}.paper .cards{margin-top:10px}.paper .card{min-height:0}.rtabs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 10px}</style><div class="rtabs">${R.map(r => `<button class="tab ${r.id === cur.id ? "on" : ""}" data-act="rtab" data-v="${r.id}">${r.title}</button>`).join("")}</div><div class="row wrap" style="gap:8px;margin:0 0 8px"><button class="btn sm" data-act="rprint" data-v="one">Print or save this page as PDF</button><button class="btn sm" data-act="rprint" data-v="all">Print or save all pages as PDF</button><span class="mute" style="font-size:12px">In the print window choose Save as PDF.</span></div><div class="scroll-y" style="max-height:68vh"><div class="paper">${cur.html}</div></div>`, { wide: true }).replace('<div class="overlay"', '<div class="overlay rulesov" style="z-index:300"');
 }
 function marketModal() {
   const S = U.S; const a = P(E.currentActor(S)); const cat = U.marketCat || "All"; const free = a.freeBuilds > 0;
@@ -809,7 +809,7 @@ $root.addEventListener("click", e => {
   const t = e.target.closest("[data-act]"); if (!t) return;
   if (t.classList.contains("overlay") && e.target !== t) return;
   if (U.tut && (t.dataset.act === "detail") && !t.closest(".coach") && !SI.tutAllowsDetail()) { toast("We will cover that in a moment"); return; }
-  const rulesAct = ["rules", "rtab", "gamemenu", "menu", "log", "save"].includes(t.dataset.act) || (U.modal === "gamemenu" && ["studio", "master"].includes(t.dataset.act)) || ((U.modal === "rules" || U.modal === "gamemenu") && (t.dataset.act === "close" || t.dataset.act === "overlay"));
+  const rulesAct = ["rules", "rtab", "rprint", "gamemenu", "menu", "log", "save"].includes(t.dataset.act) || (U.modal === "gamemenu" && ["studio", "master"].includes(t.dataset.act)) || ((U.modal === "rules" || U.modal === "gamemenu") && (t.dataset.act === "close" || t.dataset.act === "overlay"));
   if (U.tut && !rulesAct) { const lm = SI.tutLockMode(); if (lm && !t.closest(".coach") && !(lm === "soft" && t.closest(".overlay"))) return; }
   const v = t.dataset.v; const S = U.S; const a = S ? E.currentActor(S) : -1;
   switch (t.dataset.act) {
@@ -866,6 +866,12 @@ $root.addEventListener("click", e => {
     case "rules": U.modal = "rules"; render(); return;
     case "gamemenu": U.modal = "gamemenu"; render(); return;
     case "rtab": U.rulesTab = v; render(); return;
+    case "rprint": {
+      const R = root.SHIPIT_RULES || [], pages = v === "all" ? R : R.filter(r => r.id === (U.rulesTab || "start")); const old = document.getElementById("printarea"); if (old) old.remove();
+      const pa = document.createElement("div"); pa.id = "printarea"; pa.innerHTML = `<style>${root.SHIPIT_RULES_CSS || ""}</style>` + pages.map(r => `<div class="paper pp">${r.html}</div>`).join("");
+      document.body.appendChild(pa); document.body.classList.add("printing");
+      const done = () => { document.body.classList.remove("printing"); pa.remove(); root.removeEventListener("afterprint", done); }; root.addEventListener("afterprint", done);
+      setTimeout(() => { try { root.print(); } catch (e) { done(); } }, 60); return; }
     case "save": save(); return;
     case "undo": if (U.undo.length) { restore(U.undo.pop()); U.sel = null; render(); scheduleBots(); } return;
     case "view": U.view = +v; render(); return;
@@ -953,7 +959,7 @@ async function liveConfig() {
   if (w) {
     U.hosted = true; U.role = w.role; U.owner = !!w.owner;
     const base = await liveConfig();
-    if (U.owner) { await loadScript("studio.js"); await loadScript("studio2.js"); await loadScript("admin.js"); await loadScript("stats.js"); }
+    if (U.owner) { await loadScript("studio.js"); await loadScript("studio2.js"); await loadScript("admin.js"); await loadScript("stats.js"); await loadScript("simui.js"); }
     U.active = U.owner && root.localStorage.getItem("shipit.studio.v2") ? SI.loadStudio() : (base || SI.defaults()); U.studio = (U.owner && SI.loadDraft()) || SI.applyDiff(SI.diffOf(U.active));
     U.screen = "menu"; U.baseCfg = base;
     if (resumeRoom()) return;

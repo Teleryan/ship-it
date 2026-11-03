@@ -109,6 +109,7 @@ SI.adminRender = function (ctx) {
 SI.adminAct = async function (act, t, ctx) {
   const m = M(), v = t.dataset.v;
   if (String(act).indexOf("m-an-") === 0 && SI.statsAct) { SI.statsAct(act, t, ctx); return; }
+  if (String(act).indexOf("m-sim-") === 0 && SI.simAct) { SI.simAct(act, t, ctx); return; }
   try {
     if (act === "m-tab") { m.tab = v; m.msg = ""; m.confirm = null; ctx.render(); return; }
     if (act === "m-refresh") { m.msg = ""; loadAll(ctx); return; }

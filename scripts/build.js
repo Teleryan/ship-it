@@ -1,7 +1,7 @@
 // Builds the three environments (A at /, B at /b/, C at /c/) into dist/shipit-site.json (minified)
 const fs=require("fs"),path=require("path"),cp=require("child_process");
 const G=path.join(__dirname,"..","game"), OUT=path.join(__dirname,"..","dist");
-const FILES=["index.html","styles.css","data.js","core.js","engine.js","bot.js","studio.js","studio2.js","tutorial.js","net.js","analytics.js","admin.js","rules.js","ui.js"];
+const FILES=["index.html","styles.css","data.js","core.js","engine.js","bot.js","studio.js","studio2.js","tutorial.js","net.js","analytics.js","admin.js","stats.js","simui.js","rules.js","ui.js"];
 const T=path.join(__dirname,"..","node_modules",".bin","terser");
 function env(sub){
   const o={};

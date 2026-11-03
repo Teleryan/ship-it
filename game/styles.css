@@ -351,3 +351,6 @@ table.dt input.n{width:62px}
 .chtip{position:fixed;z-index:9999;display:none;pointer-events:none;background:#0b1118;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12px;box-shadow:0 4px 18px rgba(0,0,0,.5)}
 .zoomov{position:fixed;inset:0;z-index:9000;background:rgba(5,9,14,.86);display:flex;align-items:center;justify-content:center;padding:20px}.zbox{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;width:min(1180px,100%);max-height:100%;overflow:auto}
 .scroll-x{overflow-x:auto}
+
+#printarea{display:none}
+@media print{body.printing #root,body.printing .chtip,body.printing .zoomov{display:none!important}body.printing #printarea{display:block}body.printing{background:#fff!important}#printarea .pp{page-break-after:always;border-radius:0;padding:0}#printarea .pp:last-child{page-break-after:auto}}
