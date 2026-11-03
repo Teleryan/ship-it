@@ -40,7 +40,7 @@ const STEPS_A = [
     allow: () => "Press “Let's go” to begin" },
 
   { id: "loop", kind: "info", title: "How the game is structured", btn: "Next", hl: () => "[data-tut=steps]",
-    text: () => `The bar at the top shows where you are.<br><br>${b("Phase start")} happens 4 times in the game: Crisis, Reveal, Bid, Draft. It sets up who goes first and who gets which cards.<br><br>${b("Round")} happens 12 times: Income, Hire, Place, Build, Rest, Milestones, Upkeep. This is where your studio grows.<br><br>We will walk through each one the first time it comes up.`,
+    text: () => `The bar at the top shows where you are.<br><br>${b("Phase start")} happens 4 times in the game: Crisis, Reveal, Bid, Draft. It sets up the Crisis and the draft.<br><br>${b("Round")} happens 12 times: a blind Bid for turn order, then Income, Hire, Place, Build, Rest, Milestones, Upkeep. This is where your studio grows.<br><br>We will walk through each one the first time it comes up.`,
     allow: blk },
 
   { id: "objectives", kind: "do", title: "Secret objectives", hl: () => ".modal",
@@ -49,7 +49,7 @@ const STEPS_A = [
     allow: a => a.type === "keepObj" ? null : "Choose your objectives first" },
 
   { id: "phasestart", kind: "info", title: "Phase start: Reveal and Bid", btn: "Next", hl: () => "[data-tut=steps]",
-    text: S => `Phase 1 (Pre-Production) has no Crisis card, so we start at ${b("Reveal")}: ${b(S.cfg.draftPool || 8)} discipline cards are dealt face up. They are the people you can hire, and you see them before you bid so you know what you are bidding for. The pool is refilled after every pick, so there are always ${S.cfg.draftPool || 8} to choose from.<br><br>Next is ${b("Bid")}. Before anyone picks a card, everyone secretly bids gold. The highest bid picks first and goes first in every round of this phase.`,
+    text: S => `Phase 1 (Pre-Production) has no Crisis card, so we start at ${b("Reveal")}: ${b(S.cfg.draftPool || 8)} discipline cards are dealt face up. They are the people you can hire, and you see them before you bid so you know what you are bidding for. The pool is refilled after every pick, so there are always ${S.cfg.draftPool || 8} to choose from.<br><br>Next is ${b("Bid")}. Before anyone picks a card, everyone secretly bids gold. The highest bid picks first in the draft and goes first in that round. Every round starts with a bid.`,
     allow: blk },
 
   { id: "boardintro", kind: "info", title: "The board: who works where", btn: "Next", hl: () => "[data-tut=board]",
@@ -57,7 +57,7 @@ const STEPS_A = [
     allow: blk },
 
   { id: "rows1", kind: "info", title: "Concept and Prototype: build the game", btn: "Next", hl: () => "[data-row=CONCEPT],[data-row=PROTOTYPE]",
-    text: () => `${b("Concept")} is the design work. It takes a ${b("Designer")} or an ${b("Analytics")} worker, and gives Progress, sometimes Marketing too.<br><br>${b("Prototype")} is the making of the game. It takes an ${b("Engineer")} or an ${b("Artist")}, and gives Progress.<br><br>${b("Progress")} is how finished and polished your game is, and it scores VP at the end. These two rows are your main Progress engine, and every tile adds some Tech Debt. (Progress is a score track. It has nothing to do with the Producer worker.)`,
+    text: () => `${b("Concept")} is the design work. It takes a ${b("Designer")} or an ${b("Analytics")} worker, and gives Progress, sometimes Marketing too.<br><br>${b("Prototype")} is the making of the game. It takes an ${b("Engineer")} or an ${b("Artist")}, and gives Progress.<br><br>${b("Progress")} is how finished and polished your game is, and it scores VP at the end. These two rows are your main Progress engine, and every tile adds some Tech Debt.`,
     allow: blk },
 
   { id: "rows2", kind: "info", title: "Pitch and Talent: buzz and people", btn: "Next", hl: () => "[data-row=PITCH],[data-row=TALENT]",
@@ -162,7 +162,7 @@ const STEPS_A = [
     done: S => S.round > 3 || (S.round === 3 && RANK[S.step] >= 3), allow: () => null },
 
   { id: "wrap", kind: "info", center: true, title: "That is the whole loop", wrap: true,
-    text: S => `Every round: ${b("Income, Hire, Place, Build, Rest, Milestones, Upkeep")}. Every phase starts with ${b("Crisis, Reveal, Bid, Draft")}.<br><br>Still ahead: Production runs to round 8, Polish to round 11, and ${b("Launch in round 12")}. ${S.cfg.poolScoring ? "Scoring is two zero-sum pools: " + b("Progress") + " and " + b("Hype") + ". Your systems, objectives and gate results all feed one of them, " + b("Debt") + " subtracts from Progress, and your VP is your share of each pool." : "The game is scored as four races: " + b("Progress") + " and " + b("Hype") + " (your Marketing is added to Hype at the end) earn VP by rank, while " + b("Debt") + " (most loses most) and " + b("Culture") + " (lowest loses most) cost VP."}<br><br>How do you want to continue?`,
+    text: S => `Every round: ${b("Bid, Income, Hire, Place, Build, Rest, Milestones, Upkeep")}. Every phase starts with ${b("Crisis, Reveal, Bid, Draft")}.<br><br>Still ahead: Production runs to round 8, Polish to round 11, and ${b("Launch in round 12")}. ${S.cfg.poolScoring ? "Scoring is two zero-sum pools: " + b("Progress") + " and " + b("Hype") + ". Your systems, objectives and gate results all feed one of them, " + b("Debt") + " subtracts from Progress, and your VP is your share of each pool." : "The game is scored as four races: " + b("Progress") + " and " + b("Hype") + " (your Marketing is added to Hype at the end) earn VP by rank, while " + b("Debt") + " (most loses most) and " + b("Culture") + " (lowest loses most) cost VP."}<br><br>How do you want to continue?`,
     allow: () => null },
   { id: "full1", kind: "free", title: "Production", hl: () => null, text: S => FREE_HINT(S), done: S => S.round >= 9, allow: () => null },
   { id: "polish", kind: "info", soft: true, title: "Polish begins", btn: "Got it", hl: () => "[data-tut=gates]",
