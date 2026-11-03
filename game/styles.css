@@ -367,3 +367,4 @@ table.dt input.n{width:62px}
 .spot .fx,.spot .fx1{padding-top:6px}
 
 .st.bo b{color:var(--bad)} .st.bo.hot{outline:1px solid var(--bad);border-radius:8px}
+.fx1.t{white-space:normal;display:block;line-height:1.2}

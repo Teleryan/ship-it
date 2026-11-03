@@ -256,6 +256,7 @@ const STEPS_C = [
   doing("place2", { hl: () => "[data-tut=workers]", done: S => after(S, "place", 1), allow: a => (a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
   doing("build", { hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"), done: S => after(S, "build", 1),
     allow: (a, S) => a.type === "build" ? null : a.type === "done" ? ((me(S).builds >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : MSG("msg_build_first")) : MSG("msg_build") }),
+  info("build_rd", { hl: () => "[data-spot=rd]" }),
   doing("rest1", { hl: () => "[data-tut=workers]", done: S => after(S, "rest", 1), allow: a => (a.type === "done" || a.type === "fire" || a.type === "swapObj" || a.type === "swapMile") ? null : MSG("msg_rest") }),
   doing("miles", { hl: () => "[data-tut=miles]", done: S => after(S, "milestones", 1), allow: a => (a.type === "claim" || a.type === "done") ? null : MSG("msg_miles") }),
   info("upkeep", { hl: () => "[data-tut=steps]" }),
