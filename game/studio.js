@@ -16,7 +16,7 @@ const CFG_GROUPS = [
   ["Workers & fatigue", ["resJr","resSr","resOver","resCap","crewPartnerCap","sysCostMult","objVPMult","resSubGold","resSubMax","srBonus","srAllowedPreProd","qaAllowedPreProd","lossThreshBase"]],
   ["Systems & cards", ["buildsPerRound","rdDiscount","gatesRandom","slotsPerCategory","handSize","objDraw","objKeep","teamEventCulture","launchMult","crisisEnabled"]],
   ["Tracks", ["culMin","culMax","cultureDecay","hypeDecay","hypeCap","prodCap","debtMode"]],
-  ["Variant C: phase-shaped economy", ["varC","noSwaps","spotResOr","srSystems","srPromoteOnly","promoFree","promoNeedsRest","overworkCulture","recruitCost","recruitPerRound","recruitSize2","recruitSize34","recruitSize56","recruitInLaunch","bidEveryRound","buildDelay","crunchDelay","crunchGold","rdCrunch","convertRate","gateProgMult","gateHypeMult","sysGoldMult"]],
+  ["Variant C: phase-shaped economy", ["varC","noSwaps","spotResOr","srSystems","srPromoteOnly","promoFree","promoNeedsRest","overworkCulture","recruitCost","recruitPerRound","recruitSize2","recruitSize34","recruitSize56","recruitInLaunch","bidEveryRound","bidWinnerOnly","bidWinnerOnly","buildDelay","crunchDelay","crunchGold","rdCrunch","convertRate","gateProgMult","gateHypeMult","sysGoldMult"]],
   ["Pool scoring (B)", ["poolScoring","poolPot","poolSysMult","poolObjMult","poolDebtMult"]],
   ["Race scoring", ["raceScoring","mktgToHype","raceCurve","racePot","debtLossMax","cultLossMax","trackScoring"]],
   ["Scoring (older)", ["scoreShareScale","scoreShareNormalize","debtPenaltyMult","debtPenaltyCap","cleanThresh","stdThresh","roughThresh","cleanBonus","blockedPenalty","roughHypeMult","goldPerVP","synergyOn"]]
@@ -39,7 +39,7 @@ function cellVal(v, kind) { return kind === "csv" || kind === "csvn" || /^multi:
 
 
 /* ---------- field widgets: drop-downs, check boxes and radios instead of free text ---------- */
-const BOOLS = new Set(["varC","noSwaps","spotResOr","srSystems","srPromoteOnly","promoFree","promoNeedsRest","recruitInLaunch","rdCrunch","bidEveryRound","poolScoring","raceScoring","gatesRandom","gatesEnabled","crisisEnabled","synergyOn","headhuntCatchUp","srAllowedPreProd","qaAllowedPreProd","trackScoring","scoreShareNormalize"]);
+const BOOLS = new Set(["varC","noSwaps","spotResOr","srSystems","srPromoteOnly","promoFree","promoNeedsRest","recruitInLaunch","rdCrunch","bidEveryRound","bidWinnerOnly","poolScoring","raceScoring","gatesRandom","gatesEnabled","crisisEnabled","synergyOn","headhuntCatchUp","srAllowedPreProd","qaAllowedPreProd","trackScoring","scoreShareNormalize"]);
 const CFG_SELECTS = { debtMode: [[1, "Debt as a percent of Progress"], [0, "Raw Debt points"]] };
 function optsFor(list, st) {
   const lab = x => ({ ideas: "Ideas", code: "Code", process: "Process", buzz: "Buzz" }[x] || x);

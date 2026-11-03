@@ -966,7 +966,7 @@ const AUTO = {
     const key = i => [-(bids[i] || 0), P(S, i).workers.length, rnd(S)];
     const keys = {}; ids.forEach(i => keys[i] = key(i));
     ids.sort((a, b) => { for (let k = 0; k < 3; k++) if (keys[a][k] !== keys[b][k]) return keys[a][k] - keys[b][k]; return 0; });
-    ids.forEach(i => { const b = bids[i] || 0; if (b) gain(S, i, "gold", -b); });
+    ids.forEach((i, k) => { const b = bids[i] || 0; if (b && (!S.cfg.bidWinnerOnly || k === 0)) gain(S, i, "gold", -b); });
     S.order = ids; S.lastBids = Object.assign({}, bids);
     log(S, "BLIND BID: " + ids.map(i => P(S, i).name + " (" + (bids[i] || 0) + "G)").join(" > "));
     S.bids = {}; beginDraft(S);

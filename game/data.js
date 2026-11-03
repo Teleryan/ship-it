@@ -228,6 +228,7 @@ D.config = {
     buildDelay:["C: normal build time (rounds)","A system you buy is finished this many rounds later"],
     crunchDelay:["C: rushed build time (rounds)","Rounds until finished when you crunch (pay Gold or tire a worker)"],
     crunchGold:["C: crunch cost (Gold)","Alternative to tiring a worker"],
+    bidWinnerOnly:["C: only the winning bid pays","1 = only the highest bidder pays their bid; 0 = every player pays (default)"],
     bidEveryRound:["C: turn-order bid every round","1 = a blind bid for turn order every round (not only at phase start). Every player pays their bid"],
     rdCrunch:["C: R&D rushes your build for free","1 = R&D crew gives a free crunch this round"],
     convertRate:["C: final-round conversion rate","Skills of the worker's own category needed for 1 Hype or Progress"],
@@ -382,11 +383,11 @@ D.spotsC = [
 ];
 // Variant C settings, merged over the defaults when varC is on
 D.configC = {
-  varC:1, noSwaps:1, resSubMax:0, envLabel:"ENV C · PHASES", rowNames:{EARN:["Backlog","Backlog","Backlog","Backlog"],PROGRESS:["Prototype","Vertical Slice","Beta Build","Gold Master"],HYPE:["Pitch Deck","Trailer Drop","Press Tour","Launch Party"],CREW:["Game Jam","Game Jam","Game Jam","Game Jam"],UTILITY:["Studio Perks","Studio Perks","Studio Perks","Studio Perks"]}, raceCurveByN:{2:0.12,3:0.2,4:0.25,5:0.25,6:0.3}, racePotByN:{2:34,3:33,4:34,5:36,6:36}, debtLossByN:{2:4,3:6,4:8}, cultLossByN:{2:3,3:5,4:6}, phaseEnds:[3,8,11,12],
+  varC:1, noSwaps:1, resSubMax:0, envLabel:"ENV C · PHASES", rowNames:{EARN:["Backlog","Backlog","Backlog","Backlog"],PROGRESS:["Prototype","Vertical Slice","Beta Build","Gold Master"],HYPE:["Pitch Deck","Trailer Drop","Press Tour","Launch Party"],CREW:["Game Jam","Game Jam","Game Jam","Game Jam"],UTILITY:["Studio Perks","Studio Perks","Studio Perks","Studio Perks"]}, raceCurveByN:{2:0.12,3:0.2,4:0.25,5:0.25,6:0.3}, racePotByN:{2:38,3:38,4:40,5:42,6:42}, debtLossByN:{2:4,3:6,4:8}, cultLossByN:{2:3,3:5,4:6}, phaseEnds:[3,8,11,12],
   spotResOr:1, srSystems:1, srPromoteOnly:1, srAllowedPreProd:1,
   promoFree:1, promoNeedsRest:1, promotionsPerRest:1, headhuntsPerRest:0, overworkCulture:-1,
   recruitCost:3, recruitPerRound:1, recruitSize2:2, recruitSize34:3, recruitSize56:4, recruitInLaunch:0,
-  bidEveryRound:1, buildDelay:2, crunchDelay:1, crunchGold:2, rdCrunch:1, rdDiscount:0, convertRate:3,
+  bidEveryRound:1, bidWinnerOnly:0, buildDelay:2, crunchDelay:1, crunchGold:2, rdCrunch:1, rdDiscount:0, convertRate:3,
   income:6, sysGoldMult:0.5, sysCostMult:1, gateProgMult:0.6, gateHypeMult:0.6,
   draftPre:2, draftPre2:3, draftProd:3, draftProd2:4, draftPol:2, draftPol2:3
 };
