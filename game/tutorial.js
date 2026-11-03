@@ -78,7 +78,7 @@ const STEPS_A = [
     allow: a => a.type !== "bid" ? "Place your bid first" : (a.amount > 3 ? "Keep it small for now: bid 0 to 3G" : null) },
 
   { id: "draft", kind: "do", title: "Draft: take a card", hl: () => "[data-tut=draftpanel]",
-    text: S => `Now the ${b("Draft")}. Players take turns picking one face-up card: press ${b("Draft")} on a card to take it, or tap the card first to read more about it. Each time a card is taken, a new one is revealed, so the pool stays full (${b(S.cfg.draftPool || S.draft.cards.length)} cards). You get ${b(S.draft.per)} picks.<br><br>Each card is a discipline (ENG, ART, DES and so on) and says what that worker is good at. Cards you pick go to your hand. ${b("Drafting costs no gold")}: you pay only later, when you hire a card in the Hire step. Pick a mix: different disciplines unlock more systems later.`,
+    text: S => `Now the ${b("Draft")}. Players take turns picking one face-up card: press ${b("Shortlist")} on a card to pick that candidate, or tap the card first to read more about it. Each time a card is taken, a new one is revealed, so the pool stays full (${b(S.cfg.draftPool || S.draft.cards.length)} cards). You get ${b(S.draft.per)} picks.<br><br>Each card is a discipline (Engineer, Artist, Designer and so on) and says what that worker is good at. Cards you pick go to your hand. ${b("Drafting costs no gold")}: you pay only later, when you hire a card in the Hire step. Pick a mix: different disciplines unlock more systems later.`,
     done: S => after(S, "draft", 1),
     allow: a => a.type === "pick" ? null : "Pick a card from the draft" },
 

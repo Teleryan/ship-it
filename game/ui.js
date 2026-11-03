@@ -338,7 +338,7 @@ function draftView(S) {
   if (S.step !== "draft") return "";
   const a = actorName(S); const human = a && !a.bot;
   const drafted = `<div class="drafted" data-tut="drafted"><h3>Drafted so far</h3>${S.players.map((p, i) => `<div class="drow${E.currentActor(S) === i ? " cur" : ""}"><span class="dn">${esc(p.name)}</span>${p.hand.length ? p.hand.map(c => discCardHtml(c.disc, "mini", `data-act="detail" data-k="hand" data-id="${c.id}" data-p="${i}"`, "")).join("") : '<span class="mute">Nothing yet</span>'}</div>`).join("")}</div>`;
-  return `<div class="panel" data-tut="draftpanel">${drafted}<h3 style="margin-top:14px">Discipline draft: face-up cards (${S.draft.cards.length}). Drafting is free, hiring costs gold later</h3>${human ? '<div class="mute" style="margin:-2px 0 10px">Press Draft to take a card, or tap a card to read more first.</div>' : ""}<div class="hand" data-tut="draft">${S.draft.cards.map(c => discCardHtml(c.disc, human ? "pick" : "", `data-act="detail" data-k="draft" data-id="${c.id}"`, "", human ? `<button class="btn sm primary draftbtn" data-act="draft-pick" data-id="${c.id}">Draft</button>` : "")).join("")}</div></div>`;
+  return `<div class="panel" data-tut="draftpanel">${drafted}<h3 style="margin-top:14px">Discipline draft: face-up cards (${S.draft.cards.length}). Drafting is free, hiring costs gold later</h3>${human ? '<div class="mute" style="margin:-2px 0 10px">Press Shortlist to pick a candidate, or tap a card to read more first.</div>' : ""}<div class="hand" data-tut="draft">${S.draft.cards.map(c => discCardHtml(c.disc, human ? "pick" : "", `data-act="detail" data-k="draft" data-id="${c.id}"`, "", human ? `<button class="btn sm primary draftbtn" data-act="draft-pick" data-id="${c.id}">Shortlist</button>` : "")).join("")}</div></div>`;
 }
 function restView(S, a) {
   const cost = E.promoCost(S), hc = cost * S.cfg.headhuntMult;
@@ -489,7 +489,7 @@ function utilLines(disc) {
 }
 function discInfo(disc) {
   const d = D.disciplines[disc];
-  return `<div class="dtitle">${esc(d.name)}</div>${sec("What they do", utilLines(disc))}${sec("Good to know", ["Board spots list this role as <b>" + disc + "</b>", "Placing them earns the skill of their role (" + ({ Creative: "Ideas", Development: "Code", Operations: "Process", Marketing: "Buzz" })[d.cat] + "). Junior: +" + U.S.cfg.resJr + ". Senior: +" + U.S.cfg.resSr + " and +" + U.S.cfg.srBonus + " Progress or Marketing"])}`;
+  return `<div class="dtitle">${esc(d.name)}</div>${sec("What they do", utilLines(disc))}${sec("Good to know", ["Board spots list this role as <b>" + d.name + "</b>", "Placing them earns the skill of their role (" + ({ Creative: "Ideas", Development: "Code", Operations: "Process", Marketing: "Buzz" })[d.cat] + "). Junior: +" + U.S.cfg.resJr + ". Senior: +" + U.S.cfg.resSr + " and +" + U.S.cfg.srBonus + " Progress or Marketing"])}`;
 }
 function placeForm(S, pi, w, target) {
   const o = E.placementOptions(S, pi, w).find(x => x.target === target);
@@ -521,7 +521,7 @@ function detailModal() {
       if (d.k === "hand") S.players.forEach(p => { const f = p.hand.find(x => x.id === d.id); if (f && !c) c = f; });
       if (!c) return closeOnly();
       h += discHead(c.disc) + discInfo(c.disc);
-      if (d.k === "draft") h += `<p class="mute" style="margin-top:10px">Drafting costs nothing. The card goes to your hand, and hiring it later costs ${S.cfg.jrCost}G for a Junior${S.cfg.srPromoteOnly ? ". Seniors cannot be hired: a Junior who has worked and rested is promoted for free." : " or " + S.cfg.srCost + "G for a Senior."}</p><div class="row" style="margin-top:12px">${actBtn("Draft this card", 'data-act="draft-pick" data-id="' + c.id + '"', !(S.step === "draft" && mineTurn && !S.dq.length), S.step === "bid" ? "The draft starts after the bid" : S.step !== "draft" ? "The draft is over" : !mineTurn ? "Not your turn" : "")}</div>`;
+      if (d.k === "draft") h += `<p class="mute" style="margin-top:10px">Drafting costs nothing. The card goes to your hand, and hiring it later costs ${S.cfg.jrCost}G for a Junior${S.cfg.srPromoteOnly ? ". Seniors cannot be hired: a Junior who has worked and rested is promoted for free." : " or " + S.cfg.srCost + "G for a Senior."}</p><div class="row" style="margin-top:12px">${actBtn("Shortlist this candidate", 'data-act="draft-pick" data-id="' + c.id + '"', !(S.step === "draft" && mineTurn && !S.dq.length), S.step === "bid" ? "The draft starts after the bid" : S.step !== "draft" ? "The draft is over" : !mineTurn ? "Not your turn" : "")}</div>`;
       else if (mineTurn && S.step === "hire" && !S.dq.length && P(a).hand.some(x => x.id === c.id)) {
         const p = P(a), jc = E.hireCost(S, a, "Jr"), sc = E.hireCost(S, a, "Sr");
         const noSr = S.cfg.srPromoteOnly ? "Seniors are promoted, not hired" : !E.srAllowed(S) ? "Seniors unlock in Production" : "", noQA = (S.phase === 0 && c.disc === "QA" && !S.cfg.qaAllowedPreProd) ? "No QA in Pre-Production" : "", launch = S.phase === 3 ? "No hiring in Launch" : "";
@@ -655,12 +655,27 @@ function studioModal() {
 }
 function crisisIntroModal(c) { return modalShell(`<div style="display:flex;justify-content:center">${crisisCardHtml(c)}</div><div class="row" style="margin-top:14px;justify-content:center"><button class="btn primary" data-act="close">Continue</button></div>`); }
 
+/* ---------- copy overrides (Data Studio > Text): swap edited default wording in rendered HTML ---------- */
+SI.copyFix = function (html) {
+  const m = D.copyMap || {}, keys = Object.keys(m);
+  if (!keys.length && html.indexOf("\u0001") < 0) return html;
+  keys.sort((a, b) => b.length - a.length);
+  return html.split("\u0001").map((seg, i) => {
+    if (i === 0) return fixSeg(seg, keys, m);
+    const j = seg.indexOf("\u0002"); if (j < 0) return seg;
+    return seg.slice(0, j) + fixSeg(seg.slice(j + 1), keys, m);
+  }).join("");
+};
+function fixSeg(s, keys, m) {
+  keys.forEach(k => { const v = SI.esc(m[k]), e = SI.esc(k); if (s.indexOf(k) >= 0) s = s.split(k).join(v); if (e !== k && s.indexOf(e) >= 0) s = s.split(e).join(v); });
+  return s;
+}
 /* ---------- main render ---------- */
 function render() {
   const keepFocus = document.activeElement && document.activeElement.id; const val = keepFocus ? document.activeElement.value : null;
-  if (U.screen === "gate") $root.innerHTML = gateView();
-  else if (U.screen === "menu") $root.innerHTML = menuView() + (U.modal === "studio" && U.owner ? studioModal() : U.modal === "master" && U.owner ? masterModal() : U.modal === "cleardata" ? clearDataModal() : "");
-  else if (U.screen === "lobby") $root.innerHTML = lobbyView() + (U.modal === "studio" && U.owner ? studioModal() : "");
+  if (U.screen === "gate") $root.innerHTML = SI.copyFix(gateView());
+  else if (U.screen === "menu") $root.innerHTML = SI.copyFix(menuView() + (U.modal === "studio" && U.owner ? "\u0001" + studioModal() + "\u0002" : U.modal === "master" && U.owner ? "\u0001" + masterModal() + "\u0002" : U.modal === "cleardata" ? clearDataModal() : ""));
+  else if (U.screen === "lobby") $root.innerHTML = SI.copyFix(lobbyView() + (U.modal === "studio" && U.owner ? "\u0001" + studioModal() + "\u0002" : ""));
   else {
     if (U.tut) SI.tutTick();
     const S = U.S; let h = gameView();
@@ -669,8 +684,8 @@ function render() {
     const hasHuman = S.players.some(p => !p.bot);
     if (humanDecision && U.cover !== a && ["bid","keepObj"].includes(S.dq[0].t) && (U.net ? U.net.mine.length : S.players.filter(p => !p.bot).length) > 1) h += coverView(S);
     else if (humanDecision && !(U.tut && SI.tutHold())) { if (S.crisisCard) U.seenCrisis = S.phase + S.crisisCard; h += decisionModal(S); }
-    if (U.modal === "studio" && U.owner) h += studioModal();
-    else if (U.modal === "master" && U.owner) h += masterModal();
+    if (U.modal === "studio" && U.owner) h += "\u0001" + studioModal() + "\u0002";
+    else if (U.modal === "master" && U.owner) h += "\u0001" + masterModal() + "\u0002";
     else if (U.modal === "endgame") h += endGameModal();
     else if (U.modal === "milesref") h += milesModal(S);
     else if (U.modal === "rules") h += rulesModal();
@@ -680,13 +695,13 @@ function render() {
     else if (hasHuman && !U.tut && S.crisisCard && U.seenCrisis !== (S.phase + S.crisisCard) && !S.over && !humanDecision) h += crisisIntroModal(S.data.crisis.find(c => c.id === S.crisisCard));
     if (U.detail) h += detailModal() || (U.detail = null, "");
     if (U.tut) h += SI.tutCoach();
-    $root.innerHTML = h;
+    $root.innerHTML = SI.copyFix(h);
     $root.className = U.tut ? ("tut-" + (SI.tutLockMode() || "free")) : "";
     if (U.tut) SI.tutHighlight($root); else if (SI.tutSpotClear) SI.tutSpotClear();
   }
   if (U.S && U.screen === "game" && !U.tut) SI.an.track(U.S);
   autosave();
-  if (U.toast) $root.insertAdjacentHTML("beforeend", `<div class="toast">${esc(U.toast)}</div>`);
+  if (U.toast) $root.insertAdjacentHTML("beforeend", `<div class="toast">${SI.copyFix(esc(U.toast))}</div>`);
   if (keepFocus) { const el = document.getElementById(keepFocus); if (el && val != null) { try { el.value = val; el.focus(); } catch (e) {} } }
 }
 SI.render = render;

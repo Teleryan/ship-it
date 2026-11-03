@@ -9,7 +9,7 @@ SI.esc = esc;
 
 // array data normally has to match the default length; the tutorial list is matched by row id so rows can be added later without losing edits
 const mergeRows = (def, over) => { const m = {}; (over || []).forEach(r => { if (r && r.id) m[r.id] = r; }); return def.map(r => m[r.id] ? Object.assign({}, r, { title: m[r.id].title, btn: m[r.id].btn, text: m[r.id].text }) : r); };
-const putData = (d, k, v) => { if (!Array.isArray(v)) return; if (k === "tutorial") d.data[k] = mergeRows(d.data[k], v); else if (v.length === d.data[k].length) d.data[k] = v; };
+const putData = (d, k, v) => { if (!Array.isArray(v)) return; if (k === "tutorial" || k === "text") d.data[k] = mergeRows(d.data[k], v); else if (v.length === d.data[k].length) d.data[k] = v; };
 SI.defaults = () => { const config = E.defaultConfig(); return { config, data: E.defaultData(config) }; };
 SI.loadStudio = function () {
   const d = SI.defaults();
@@ -23,7 +23,7 @@ SI.saveStudio = function (st) {
   try {
     const d = SI.defaults(); const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     const config = {}; Object.keys(st.config).forEach(k => { if (k !== "_meta" && !same(st.config[k], d.config[k])) config[k] = st.config[k]; });
-    const data = {}; Object.keys(st.data).forEach(k => { if (!same(st.data[k], d.data[k])) data[k] = st.data[k]; });
+    const data = {}; Object.keys(st.data).forEach(k => { if (k === "text" && Array.isArray(st.data[k])) { const dm = {}; (d.data.text || []).forEach(r => { dm[r.id] = r.text; }); const ch = st.data.text.filter(r => r && dm[r.id] !== r.text); if (ch.length) data.text = ch; } else if (!same(st.data[k], d.data[k])) data[k] = st.data[k]; });
     root.localStorage.setItem(KEY, JSON.stringify({ config, data }));
   } catch (e) {}
 };
@@ -33,7 +33,7 @@ SI.resetStudio = function () { try { root.localStorage.removeItem(KEY); } catch 
 SI.diffOf = function (st) {
   const d = SI.defaults(); const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const config = {}; Object.keys(st.config).forEach(k => { if (k !== "_meta" && !same(st.config[k], d.config[k])) config[k] = st.config[k]; });
-  const data = {}; Object.keys(st.data).forEach(k => { if (!same(st.data[k], d.data[k])) data[k] = st.data[k]; });
+  const data = {}; Object.keys(st.data).forEach(k => { if (k === "text" && Array.isArray(st.data[k])) { const dm = {}; (d.data.text || []).forEach(r => { dm[r.id] = r.text; }); const ch = st.data.text.filter(r => r && dm[r.id] !== r.text); if (ch.length) data.text = ch; } else if (!same(st.data[k], d.data[k])) data[k] = st.data[k]; });
   return { config, data };
 };
 SI.applyDiff = function (o) {

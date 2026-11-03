@@ -7,6 +7,7 @@
 "use strict";
 const D0 = root.SHIPIT_DATA || (typeof require !== "undefined" ? require("./data.js") : null);
 const E = {};
+const dn = d => ((D0 && D0.disciplines && D0.disciplines[d]) || {}).name || d;
 const DISCS = ["ENG","ART","DES","QA","PX","DATA","ADV","PM","PROD"];
 const CATS = ["Innovation","Stability","Reach","Revenue"];
 let PHASE_ENDS = [2, 8, 11, 12];
@@ -317,7 +318,7 @@ E.recruitSize = function (S) { const n = S.players.length, c = S.cfg; return n <
 function rollRecruit(S) {
   const cats = shuffle(S, Object.keys(D0.categories)).slice(0, E.recruitSize(S));
   S.recruit = cats.map(cat => { const ds = D0.categories[cat].discs.filter(d => !(S.phase === 0 && d === "QA" && !S.cfg.qaAllowedPreProd)); return { cat, disc: ds[rint(S, ds.length)], by: null }; });
-  log(S, "RECRUITMENT: " + S.recruit.map(o => o.disc).join(", ") + " available");
+  log(S, "RECRUITMENT: " + S.recruit.map(o => dn(o.disc)).join(", ") + " available");
 }
 E.recruitCost = function (S, pi) { const p = P(S, pi); return Math.max(0, (S.cfg.recruitCost == null ? 3 : S.cfg.recruitCost) - Math.min(p.hireDiscount || 0, 1)); };
 E.canRecruit = function (S, pi, idx) {
@@ -399,7 +400,7 @@ function upkeep(S) {
       }
       w.overWhenPlaced = false;
     });
-    lost.forEach(w => { log(S, p.name + " loses an Over-Tired " + w.lvl + " " + w.disc); removeWorker(S, p.id, w.id); });
+    lost.forEach(w => { log(S, p.name + " loses an Over-Tired " + w.lvl + " " + dn(w.disc)); removeWorker(S, p.id, w.id); });
     p.workers.forEach(w => { if (!w.placed && w.fat > 0) w.fat--; });
     p.flags.freeBuildUsed = false;
   });
@@ -497,7 +498,7 @@ function spotUsableBy(S, pi, w, spot) {
   else as = actsAs(w).filter(d => spot.discs.includes(d));
   if (!as.length) return { ok: false, reason: "Needs " + spot.discs.join("/") };
   if (S.phase === 0 && !S.cfg.qaAllowedPreProd) as = as.filter(d => d !== "QA");
-  if (!as.length) return { ok: false, reason: "No QA in Pre-Production" };
+  if (!as.length) return { ok: false, reason: "No Quality workers in Pre-Production" };
   if (spot.crew) {
     const plans = crewPlans(S, p, w, spot);
     if (!plans.length) return { ok: false, reason: "Needs a rested crew: " + E.crewText(spot) };
@@ -575,7 +576,7 @@ function doPlace(S, pi, wid, target, o) {
     const want = Array.isArray(o.crew) ? o.crew.map(Number).sort((x, y) => x - y).join(",") : "";
     plan = opt.plans.find(pl => pl.ids.join(",") === want) || opt.plans[0];
     const names = plan.ids.map(id => { const pw = p.workers.find(x => x.id === id); pw.placed = true; pw.worked = true; pw.fat = Math.min(2, pw.fat + 1); p.rs.placed++; if (!(S.cfg.spotResOr && !opt.spot.r)) gain(S, pi, RES_OF[plan.cats[id]], Math.min(pw.lvl === "Sr" ? S.cfg.resSr : S.cfg.resJr, S.cfg.crewPartnerCap == null ? 9 : S.cfg.crewPartnerCap)); return pw.lvl + " " + pw.disc; });
-    log(S, p.name + " forms a crew for " + opt.spot.id + ": " + w.lvl + " " + w.disc + " + " + names.join(" + "));
+    log(S, p.name + " forms a crew for " + opt.spot.id + ": " + w.lvl + " " + dn(w.disc) + " + " + names.join(" + "));
   }
   p.rs.placed++;
   if (opt.kind === "sys") {
@@ -639,7 +640,7 @@ function doPlace(S, pi, wid, target, o) {
     }
     case "mentor": {
       const jr = p.workers.find(x => x.id === o.jr && x.lvl === "Jr" && x.disc === w.disc) || p.workers.find(x => x.lvl === "Jr" && x.id !== w.id && x.disc === w.disc);
-      if (jr) { jr.lvl = "Sr"; p.cs.promotions++; log(S, p.name + " mentors a Jr " + jr.disc + " to Sr"); }
+      if (jr) { jr.lvl = "Sr"; p.cs.promotions++; log(S, p.name + " mentors a Jr " + dn(jr.disc) + " to Sr"); }
       break;
     }
   }
@@ -736,7 +737,7 @@ function doBuild(S, pi, name, useFree, crunchIn) {
     const rush = !!crunch || (p.rd && S.cfg.rdCrunch), d = E.buildDelay(S, p, crunch, def), crewIds = E.buildRounds(S, p, crunch, def) > 0 ? (crewFor(p, b.reqs) || []) : [];
     crewIds.forEach(id => { p.workers.find(q => q.id === id).build = name; });
     if (crunch === "gold" && !(p.rd && S.cfg.rdCrunch)) { const cg = S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold; gain(S, pi, "gold", -cg); p.rs.spent += cg; }
-    else if (crunch === "fat" && !(p.rd && S.cfg.rdCrunch)) { const cw = E.crunchWorker(p); cw.fat = Math.min(2, cw.fat + 1); log(S, p.name + " crunches: " + cw.lvl + " " + cw.disc + " is more tired"); }
+    else if (crunch === "fat" && !(p.rd && S.cfg.rdCrunch)) { const cw = E.crunchWorker(p); cw.fat = Math.min(2, cw.fat + 1); log(S, p.name + " crunches: " + cw.lvl + " " + dn(cw.disc) + " is more tired"); }
     p.building.push({ name, cat: def.cat, rdy: S.round + d, rush, crew: crewIds }); p.rs.crunched = (p.rs.crunched || 0) + (rush ? 1 : 0); if (rush) p.cs.crunched = (p.cs.crunched || 0) + 1;
     log(S, p.name + " starts building " + name + " (" + def.cat + "), ready in round " + (S.round + d) + (crewIds.length ? " (crew: " + crewIds.map(id => { const q = p.workers.find(z => z.id === id); return q.lvl + " " + q.disc; }).join(", ") + ")" : "") + (rush ? " (crunched)" : "") + (free ? " FREE" : ""));
     return { ok: true };
@@ -768,7 +769,7 @@ function stepAction(S, a, actor) {
     case "draft": {
       if (a.type !== "pick") return err("Pick a card");
       const i = a.idx; if (i == null || i < 0 || i >= S.draft.cards.length) return err("Bad card");
-      const c = S.draft.cards.splice(i, 1)[0]; p.hand.push(c); log(S, p.name + " drafts " + c.disc);
+      const c = S.draft.cards.splice(i, 1)[0]; p.hand.push(c); log(S, p.name + " shortlists " + dn(c.disc));
       if (S.draft.left != null) {
         S.draft.left--;
         if (S.draft.left > 0) S.draft.cards.push.apply(S.draft.cards, drawDisc(S, 1));
@@ -788,7 +789,7 @@ function stepAction(S, a, actor) {
         const lvl = a.lvl === "Sr" ? "Sr" : "Jr"; const disc = p.hand[i].disc;
         if (lvl === "Sr" && S.cfg.srPromoteOnly) return err("Senior workers are promoted, not hired");
         if (lvl === "Sr" && !srAllowed(S)) return err("No Sr workers in Pre-Production");
-        if (S.phase === 0 && disc === "QA" && !S.cfg.qaAllowedPreProd) return err("No QA in Pre-Production");
+        if (S.phase === 0 && disc === "QA" && !S.cfg.qaAllowedPreProd) return err("No Quality workers in Pre-Production");
         const cost = hireCost(S, pi, lvl); if (p.gold < cost) return err("Not enough gold");
         gain(S, pi, "gold", -cost); if (lvl === "Jr" && p.contract > 0) { p.contract--; log(S, p.name + " uses the Contract Team: free Junior"); } else if (p.hireDiscount > 0) p.hireDiscount--;
         p.workers.push({ id: S.wid++, disc, lvl, fat: 0, placed: false, as: null }); S.discard.push(p.hand.splice(i, 1)[0]); p.rs.hires++;
@@ -802,7 +803,7 @@ function stepAction(S, a, actor) {
         const c = E.canRecruit(S, pi, a.idx); if (!c.ok) return err(c.reason);
         const o = S.recruit[a.idx]; gain(S, pi, "gold", -c.cost); if (p.hireDiscount > 0) p.hireDiscount--;
         o.by = pi; p.workers.push({ id: S.wid++, disc: o.disc, lvl: "Jr", fat: 0, placed: false, as: null, worked: false }); p.recruited = (p.recruited || 0) + 1; p.rs.hires++; p.cs.recruits = (p.cs.recruits || 0) + 1;
-        log(S, p.name + " recruits a Junior " + o.disc + " (" + c.cost + "G)"); bumpPlace(S); return { ok: true };
+        log(S, p.name + " recruits a Junior " + dn(o.disc) + " (" + c.cost + "G)"); bumpPlace(S); return { ok: true };
       }
       if (a.type !== "place") return err("Place a worker or pass");
       const r = doPlace(S, pi, a.worker, a.target, a); if (r.ok) bumpPlace(S); return r;
@@ -846,7 +847,7 @@ function restAction(S, a, p) {
       if (p.promos >= c.promotionsPerRest) return err("Promotion limit reached");
       if (c.promoNeedsRest && (w.placed || !w.worked)) return err("Needs a worker that has worked and is resting this round");
       const cost = c.promoFree ? 0 : promoCost(S); if (p.gold < cost) return err("Needs " + cost + "G");
-      gain(S, pi, "gold", -cost); w.lvl = "Sr"; p.promos++; p.cs.promotions++; log(S, p.name + " promotes " + w.disc + " to Sr"); return { ok: true };
+      gain(S, pi, "gold", -cost); w.lvl = "Sr"; p.promos++; p.cs.promotions++; log(S, p.name + " promotes " + dn(w.disc) + " to Sr"); return { ok: true };
     }
     case "headhunt": {
       if (p.hunts >= c.headhuntsPerRest) return err("Headhunt limit reached");
@@ -857,21 +858,21 @@ function restAction(S, a, p) {
       const cost = promoCost(S) * c.headhuntMult; if (p.gold < cost) return err("Needs " + cost + "G");
       gain(S, pi, "gold", -cost); gain(S, t.id, "gold", Math.floor(cost * c.headhuntComp));
       t.workers.splice(t.workers.indexOf(w), 1); w.fat = 0; w.placed = false; w.overWhenPlaced = false; p.workers.push(w); p.hunts++;
-      log(S, p.name + " headhunts " + t.name + "'s " + w.lvl + " " + w.disc + " for " + cost + "G"); return { ok: true };
+      log(S, p.name + " headhunts " + t.name + "'s " + w.lvl + " " + dn(w.disc) + " for " + cost + "G"); return { ok: true };
     }
     case "fire": {
       const w = p.workers.find(x => x.id === a.worker); if (!w) return err("Pick a worker");
-      removeWorker(S, pi, w.id); p.cs.fired++; log(S, p.name + " releases a " + w.lvl + " " + w.disc); return { ok: true };
+      removeWorker(S, pi, w.id); p.cs.fired++; log(S, p.name + " releases a " + w.lvl + " " + dn(w.disc)); return { ok: true };
     }
     case "swapObj": {
-      if (p.swapObj <= 0) return err("Needs a Sr PX placed or a rested Jr PX");
+      if (p.swapObj <= 0) return err("Needs a Senior Community worker placed or a rested Junior Community worker");
       const o = S.data.objectives[a.obj]; if (!o || !p.objectives.includes(a.obj)) return err("Pick one of your objectives");
       const opts = []; for (let i = 0; i < 2; i++) { const x = S.decks.obj[o.type].pop(); if (x != null) opts.push(x); }
       if (!opts.length) return err("Deck empty");
       p.swapObj--; S.dq.unshift({ t: "swapObjPick", p: pi, old: a.obj, opts }); return { ok: true };
     }
     case "swapMile": {
-      if (p.swapMile <= 0) return err("Needs a Sr DATA placed or a rested Jr DATA");
+      if (p.swapMile <= 0) return err("Needs a Senior Analytics worker placed or a rested Junior Analytics worker");
       const idx = p.miles.indexOf(a.mile); if (idx < 0) return err("Pick a hand milestone");
       const opts = []; for (let i = 0; i < 2; i++) { const x = S.decks.mile.pop(); if (x != null) opts.push(x); }
       if (!opts.length) return err("Deck empty");
@@ -909,7 +910,7 @@ function resolveDecision(S, a) {
       if (a.type !== "pickWorker") return err("Pick a worker");
       const w = P(S, p).workers.find(x => x.id === a.worker); if (!w) return err("Pick a worker");
       if (d.srOnly && w.lvl !== "Sr") return err("Pick a Sr worker");
-      S.dq.shift(); removeWorker(S, p, w.id); log(S, P(S, p).name + " loses " + w.lvl + " " + w.disc + " (" + d.reason + ")"); return { ok: true };
+      S.dq.shift(); removeWorker(S, p, w.id); log(S, P(S, p).name + " loses " + w.lvl + " " + dn(w.disc) + " (" + d.reason + ")"); return { ok: true };
     }
     case "raidHire": {
       if (a.type === "skip") { S.dq.shift(); return { ok: true }; }
@@ -919,7 +920,7 @@ function resolveDecision(S, a) {
       const pi = S.pool.findIndex(x => x.disc === a.disc && x.lvl === lvl);
       if (pi < 0 && S.pool.length) return err("Not in released pile"); if (pi >= 0) S.pool.splice(pi, 1);
       gain(S, p, "gold", -cost); pl.workers.push({ id: S.wid++, disc: a.disc, lvl, fat: 0, placed: false, as: null });
-      log(S, pl.name + " hires " + lvl + " " + a.disc + " from the raid for " + cost + "G"); S.dq.shift(); return { ok: true };
+      log(S, pl.name + " hires " + lvl + " " + dn(a.disc) + " from the raid for " + cost + "G"); S.dq.shift(); return { ok: true };
     }
     case "pivot": {
       if (a.type !== "pivot") return err("Choose"); const pl = P(S, p);
@@ -1142,7 +1143,7 @@ E.milestoneMet = (S, pi, idx) => { const m = S.data.milestones[idx]; const f = M
 /* ============================================================
    OBJECTIVE REQUIREMENTS (parsed from card text)
    ============================================================ */
-const WNAME = { Engineer:"ENG", Art:"ART", Design:"DES", Analytics:"DATA", DATA:"DATA", PX:"PX", Community:"PX", Adv:"ADV", QA:"QA" };
+const WNAME = { Engineer:"ENG", Artist:"ART", Art:"ART", Design:"DES", Designer:"DES", Analytics:"DATA", DATA:"DATA", PX:"PX", Community:"PX", Adv:"ADV", Advertising:"ADV", QA:"QA", Quality:"QA" };
 function reqCheck(S, p, r) {
   let m;
   if ((m = r.match(/^(\d+)\+\s*(Progress|Product|Marketing|Mktg)(?: value)?$/))) return (/^Pro/.test(m[2]) ? p.prod : p.mktg) >= +m[1];
