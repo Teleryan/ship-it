@@ -131,7 +131,7 @@ function statChange(S, pi, stat, d) {
   else if (RES.includes(stat)) v = clamp(v, 0, cfg.resCap || 99);
   else v = Math.max(0, v);
   if (stat === "gold") {
-    if (d > 0) p.rs.gained = (p.rs.gained || 0) + d; else p.rs.spent = (p.rs.spent || 0) - d;
+    if (!S._nt) { if (d > 0) p.rs.gained = (p.rs.gained || 0) + d; else p.rs.spent = (p.rs.spent || 0) - d; } // income, bids and milestone gold are not "gained" or "spent" for milestones
   }
   p[stat] = v; const real = v - before; if (S.cfg.mergeMktg) p.mktg = p.hype;
   if (stat === "debt") { if (v > 0) p.cs.debtEver = true; if (real < 0) p.rs.debtRemoved = (p.rs.debtRemoved || 0) - real; }
@@ -281,7 +281,7 @@ function beginDraft(S) {
 
 function beginRound(S) {
   S.players.forEach(p => {
-    p.rs = { spent: 0, gained: 0, spentRes: 0, hires: 0, placed: 0, triggers: 0, builds: 0, debtRemoved: 0, hypeGained: 0, discards: 0, cashed: 0 };
+    p.rs = { spent: 0, gained: 0, spentRes: 0, hires: 0, placed: 0, triggers: 0, builds: 0, debtRemoved: 0, hypeGained: 0, discards: 0, cashed: 0, debtStart: p.debt };
     p.workers.forEach(w => w.placed = false);
     p.rd = false; p.rdDisc = 0; p.refreshed = 0; p.builds = 0; p.promos = 0; p.hunts = 0; p.swapObj = 0; p.swapMile = 0; p.recruited = 0; p.recruitExtra = 0;
     p.systems.forEach(s => s.t = false);
@@ -290,8 +290,8 @@ function beginRound(S) {
   if (S.cfg.varC) { completeBuilds(S); rollRecruit(S); S.players.forEach(p => { p.cs.crewRounds = (p.cs.crewRounds || 0) + p.workers.filter(w => w.build).length; }); }
   log(S, "--- ROUND " + S.round + " (" + D0.phases[S.phase].name + ") ---");
   S.players.forEach(p => {
-    gain(S, p.id, "gold", S.cfg.income);
-    p.systems.forEach(sy => { const d = sysDef(S, sy.name); if (d && d.inc) { gain(S, p.id, "gold", d.inc); } });
+    S._nt = 1; gain(S, p.id, "gold", S.cfg.income);
+    p.systems.forEach(sy => { const d = sysDef(S, sy.name); if (d && d.inc) { gain(S, p.id, "gold", d.inc); } }); S._nt = 0;
   });
   log(S, "INCOME: everyone +" + S.cfg.income + "G");
   S.players.forEach(p => {
@@ -586,7 +586,7 @@ function doPlace(S, pi, wid, target, o) {
   }
   p.rs.placed++;
   if (opt.kind === "sys") {
-    const def = opt.def; opt.sys.t = true; p.rs.triggers++;
+    const def = opt.def; opt.sys.t = true; p.rs.triggers++; p.cs.trigTotal = (p.cs.trigTotal || 0) + 1;
     const fx = E.parseEffect(def.fx || def.each);
     if (def.fx || def.each) { const eff = def.fx ? fx : E.parseEffect(def.each); applyFx(S, pi, eff, 1, {}); }
     log(S, p.name + " triggers " + def.name + " with " + w.lvl + " " + as + " (" + (def.fx || def.each) + ")");
@@ -834,7 +834,7 @@ function stepAction(S, a, actor) {
       if (a.type === "claim") {
         const idx = p.miles.indexOf(a.mile); if (idx < 0) return err("Not in hand");
         const m = S.data.milestones[a.mile]; if (!MILE_CHECK[m.name] || !mileOpen(S, m) || !MILE_CHECK[m.name](S, p)) return err(!mileOpen(S, m) ? "Not in this milestone's phase" : "Requirement not met");
-        p.miles.splice(idx, 1); p.claimed.push(a.mile); gain(S, pi, "gold", m.gold); p.rs.cashed++; p.cs.cashedTotal++;
+        p.miles.splice(idx, 1); p.claimed.push(a.mile); S._nt = 1; gain(S, pi, "gold", m.gold); S._nt = 0; p.rs.cashed++; p.cs.cashedTotal++;
         drawMile(S, pi, true); log(S, p.name + " cashes in " + m.name + " (+" + m.gold + "G)"); return { ok: true };
       }
       return err("Invalid action");
@@ -972,7 +972,7 @@ const AUTO = {
     const key = i => [-(bids[i] || 0), P(S, i).workers.length, rnd(S)];
     const keys = {}; ids.forEach(i => keys[i] = key(i));
     ids.sort((a, b) => { for (let k = 0; k < 3; k++) if (keys[a][k] !== keys[b][k]) return keys[a][k] - keys[b][k]; return 0; });
-    ids.forEach((i, k) => { const b = bids[i] || 0; if (b && (!S.cfg.bidWinnerOnly || k === 0)) gain(S, i, "gold", -b); });
+    ids.forEach((i, k) => { const b = bids[i] || 0; if (b && (!S.cfg.bidWinnerOnly || k === 0)) { S._nt = 1; gain(S, i, "gold", -b); S._nt = 0; } });
     S.order = ids; S.lastBids = Object.assign({}, bids);
     log(S, "BLIND BID: " + ids.map(i => P(S, i).name + " (" + (bids[i] || 0) + "G)").join(" > "));
     S.bids = {}; beginDraft(S);
@@ -1104,41 +1104,41 @@ const jr = p => p.workers.filter(w => w.lvl === "Jr").length, sr = p => p.worker
 const MILE_CHECK = {
   "First Promotion": (S, p) => p.cs.promotions >= 1,
   "Specialist Team": (S, p) => DISCS.some(d => p.workers.filter(w => w.disc === d).length >= 3),
-  "Balanced Studio": (S, p) => p.workers.some(w => dev.includes(w.disc)) && p.workers.some(w => mkt.includes(w.disc)),
+  "Balanced Studio": (S, p) => ["Creative", "Development", "Operations", "Marketing"].filter(c => p.workers.filter(w => CAT_OF(w.disc) === c).length >= 2).length >= 3,
   "Exactly Five": (S, p) => p.workers.length === 5,
   "Lean Operation": (S, p) => p.rs.placed === 2 && p.workers.length >= 5,
   "All-Star Team": (S, p) => sr(p) >= 3,
-  "Hiring Spree": (S, p) => p.rs.hires >= 3,
-  "Diverse Perspectives": (S, p) => new Set(p.workers.map(w => w.disc)).size >= 4,
-  "Growing Pains": (S, p) => p.cs.fired >= 1,
-  "Mentor Program": (S, p) => jr(p) === 2 && sr(p) === 2,
-  "Budget Conscious": (S, p) => p.gold === 0 && p.rs.spent >= 6,
+  "Hiring Spree": (S, p) => p.rs.hires >= 4,
+  "Diverse Perspectives": (S, p) => new Set(p.workers.map(w => w.disc)).size >= 7,
+  "Talent Scout": (S, p) => (p.cs.recruits || 0) >= 5,
+  "Mentor Program": (S, p) => jr(p) >= 2 && sr(p) >= 2,
+  "Budget Conscious": (S, p) => p.gold <= 2 && p.rs.spent >= 6,
   "Savings Account": (S, p) => p.gold >= 20,
-  "Big Spender": (S, p) => p.rs.spent >= 10,
+  "Big Spender": (S, p) => p.rs.spent >= 12,
   "Gold Rush": (S, p) => p.rs.gained >= 8,
-  "Investment Return": (S, p) => p.rs.triggers >= 3,
+  "Investment Return": (S, p) => (p.cs.trigTotal || 0) >= 3,
   "Efficient Engine": (S, p) => p.cs.bigBuild,
-  "Production Surge": (S, p) => p.rs.spentRes >= 6,
+  "Production Surge": (S, p) => p.rs.spentRes >= 5,
   "Bootstrapped": (S, p) => p.cs.noGoldBuilds >= 3,
   "Liquidation": (S, p) => p.rs.discards >= 2,
-  "Perfect Timing": (S, p) => p.rs.cashed >= 2,
+  "Milestone Hunter": (S, p) => (p.cs.cashedTotal || 0) >= 3,
   "Foundation": (S, p) => nSys(p) >= 1,
   "Category Focus": (S, p) => CATS.some(c => sysCount(p, c) >= 3),
   "Balanced Build": (S, p) => catSet(p) >= 3,
-  "Quality First": (S, p) => p.debt === 0 && p.systems.length >= 2 && p.prod >= 8,
+  "Quality First": (S, p) => p.debt === 0 && p.systems.length >= 2 && p.prod >= 5,
   "Tech Debt Accepted": (S, p) => p.debt === 5,
   "Rapid Prototype": (S, p) => nSys(p) >= 2,
-  "Progress Push": (S, p) => p.prod >= 20,
+  "Progress Push": (S, p) => p.prod >= 38,
   "Feature Complete": (S, p) => nSys(p) >= 4,
   "System Architect": (S, p) => nSys(p) >= 5,
-  "Debt Recovery": (S, p) => p.rs.debtRemoved >= 3,
+  "Debt Recovery": (S, p) => p.rs.debtRemoved >= 3 && p.rs.debtStart >= 5,
   "Going Viral": (S, p) => p.hype >= 15,
-  "Hype Train": (S, p) => p.rs.hypeGained >= 5,
-  "Stealth Launch": (S, p) => p.hype === 0 && p.prod >= 6,
+  "Hype Train": (S, p) => p.rs.hypeGained >= 7,
+  "Stealth Launch": (S, p) => p.hype === 0 && p.prod >= 10,
   "Marketing Push": (S, p) => p.mktg >= 20,
   "Influencer Network": (S, p) => sysCount(p, "Reach") >= 2,
-  "Community Built": (S, p) => p.workers.filter(w => w.disc === "PX").length >= 3,
-  "Ad Blitz": (S, p) => p.cs.reachGold >= 8,
+  "Community Built": (S, p) => p.workers.filter(w => w.disc === "PX").length >= 2,
+  "Ad Blitz": (S, p) => p.rs.hypeGained >= 10,
   "Peak Hype": (S, p) => p.hype >= 30,
   "Sustained Buzz": (S, p) => p.cs.hypeStreak >= 3,
   "Market Leader": (S, p) => p.mktg >= 6 && S.players.every(q => q.id === p.id || q.mktg < p.mktg)
