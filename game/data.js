@@ -211,6 +211,12 @@ D.crisis = [
 /* ---------- DEFAULT CONFIG (every value is tunable in the Data Studio) ---------- */
 D.config = {
   _meta:{
+    deckBase:["Discipline deck: copies of each role","Copies of every role in the discipline deck (2+ players)"],
+    deckExtra:["Discipline deck: extra copies at 3+ players","Added to each role when 3 or more play"],
+    sysGoldAdd:["Systems: extra Gold on every build","Added to the Gold cost of every system (Gold paid on top of skills)"],
+    botW:["Bot: base weights","JSON: the standard bot's weights (what it values). Used for balance sims only"],
+    botPersonas:["Bot: strategy personas","JSON: crunch, hype, systems, clean. Each persona changes some base weights"],
+    botProfiles:["Bot: skill profiles","JSON: novice, casual, expert. How often a bot slips, bids, remembers to promote and so on"],
     burnout:["D: Burnout track on","1 = Variant D: each studio has a Burnout token (0 to max). Overwork and unpaid salaries raise it, calm rounds and Team Events lower it"],
     burnMax:["D: Burnout max","Top of the Burnout track"],
     burnOverStep:["D: Over-Tired workers per +1 Burnout","At upkeep, Burnout rises 1 for every this many Over-Tired workers you placed this round"],
@@ -359,7 +365,7 @@ D.config = {
   draftPool:7, draftPre2:4, draftPre:3, draftProd2:6, draftProd:5, draftPol2:4, draftPol:3, draftLaunch:0,
   scoreShareScale:0.9, scoreShareNormalize:1, debtPenaltyMult:0.75, debtPenaltyCap:15, trackScoring:0, envLabel:"", varC:0, poolScoring:0, poolPot:42, poolPotN:{2:48,3:45,4:42,5:39,6:37}, poolSysMult:2.6, poolObjMult:1.2, poolDebtMult:1, poolGateCap:4, poolGateMult:0.6, poolPassPts:0, poolFavPts:0, raceScoring:1, mergeMktg:0, mktgToHype:1, raceEnd:0, progTarget:40, hypeTarget:30, raceCurve:0.5, racePot:33, debtLossMax:10, cultLossMax:8, raceTriggerVP:6, trackLeaderVP:5, progTrack:{"2":{start:20,step:5,vp:5,max:40},"3":{start:15,step:5,vp:5,max:40},"5":{start:15,step:5,vp:5,max:40}}, mktTrack:{"2":{start:15,step:5,vp:5,max:40},"3":{start:8,step:5,vp:5,max:40},"5":{start:3,step:5,vp:5,max:40}},
   cleanThresh:10, stdThresh:20, roughThresh:30, cleanBonus:5, blockedPenalty:10, roughHypeMult:0.5,
-  goldPerVP:3, deliveredBonus:10, synergyOn:1,
+  goldPerVP:3, deliveredBonus:10, deckBase:4, deckExtra:2, sysGoldAdd:0, botW:{"res":1,"crewCost":3,"prod":1,"mktg":1,"hype":1,"gold":1,"debt":1,"spotDebt":0.3,"buildBias":0,"cat":{},"workers":0,"bid":1,"gate":1,"gateSurplus":1.1,"gatePace":4,"resVal":1.5,"recBase":3.4,"recReserve":2,"recMax":0,"srCap":0.5,"promoGold":7,"crunchGold":16,"crunchRound":8,"buildScale":1,"srVal":1.2,"convHold":1,"thr":0.3}, botPersonas:{"crunch":{"prod":1.8,"mktg":0.6,"hype":0.6,"spotDebt":0.4,"cat":{"Innovation":2},"workers":1},"hype":{"prod":0.7,"mktg":1.8,"hype":1.6,"cat":{"Reach":2.5}},"systems":{"gold":1.5,"buildBias":3,"cat":{"Innovation":1,"Reach":1,"Revenue":3,"Stability":1},"workers":-1},"clean":{"debt":1.8,"spotDebt":1.4,"cat":{"Stability":2},"gold":1.1,"resVal":1.1,"recMax":1}}, botProfiles:{"novice":{"slip":0.3,"noise":1.5,"quirk":0.4,"gate":0.25,"deny":0,"bidMode":"random","promoP":0.5,"buildSkip":0.3,"commit":0},"casual":{"slip":0.12,"noise":0.7,"quirk":0.25,"gate":0.7,"deny":0.5,"bidMode":"contest","bidScale":0.2,"bidNoise":0.5,"promoP":0.85,"buildSkip":0.08,"commit":0.8},"expert":{"slip":0,"noise":0.1,"quirk":0,"gate":1.2,"deny":1,"bidMode":"contest","bidScale":0.12,"bidNoise":0.1,"promoP":1,"buildSkip":0,"commit":0.3}}, synergyOn:1,
   hypeBands:[[0,0],[20,5],[40,10],[60,15],[80,20]],
   deliveryBands:{delivered:10, near:5, far:0, backlash:-10, nearMax:15, farMax:30},
   cultureVP:{"5":8,"4":8,"3":5,"2":5,"1":2,"0":0,"-1":-3,"-2":-3,"-3":-6,"-4":-6,"-5":-10}

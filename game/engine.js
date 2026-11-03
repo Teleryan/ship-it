@@ -65,21 +65,23 @@ E.parseEffect = function (str) {
 E.describeEffect = function (str) { return str || ""; };
 
 /* ---------- Config / data ---------- */
-const LOOK0 = D0 ? clone({ disciplines: D0.disciplines, phases: D0.phases.map(p => ({ id: p.id, name: p.name, color: p.color })), categories: D0.categories }) : null;
+const LOOK0 = D0 ? clone({ disciplines: D0.disciplines, phases: D0.phases.map(p => ({ id: p.id, name: p.name, color: p.color })), categories: D0.categories, symbols: D0.symbols }) : null;
 const lookRows = () => ({
   roles: Object.keys(LOOK0.disciplines).map(k => { const d = LOOK0.disciplines[k]; return { id: k, name: d.name || "", cat: d.cat || "", short: d.short || "", alt: d.alt || "", util: d.util || "", altUtil: d.altUtil || "", wild: (d.wild || []).slice() }; }),
   phases: LOOK0.phases.map(p => ({ id: p.id, name: p.name, color: p.color })),
-  teams: Object.keys(LOOK0.categories).map(k => ({ id: k, color: LOOK0.categories[k].color }))
+  teams: Object.keys(LOOK0.categories).map(k => ({ id: k, color: LOOK0.categories[k].color })),
+  symbols: Object.keys(LOOK0.symbols).map(k => ({ id: k, glyph: LOOK0.symbols[k].glyph, color: LOOK0.symbols[k].color, meaning: LOOK0.symbols[k].meaning }))
 });
 // writes the Studio's role, phase and team rows onto the shared data object (edited in place so the screens that hold references see it)
 let LOOK_SIG = "";
 E.applyLook = function (data) {
-  if (!D0 || !LOOK0) return; const sig = JSON.stringify([data && data.roles, data && data.phases, data && data.teams]); if (sig === LOOK_SIG) return; LOOK_SIG = sig;
+  if (!D0 || !LOOK0) return; const sig = JSON.stringify([data && data.roles, data && data.phases, data && data.teams, data && data.symbols]); if (sig === LOOK_SIG) return; LOOK_SIG = sig;
   const base = lookRows(), roles = (data && data.roles) || base.roles, phs = (data && data.phases) || base.phases, teams = (data && data.teams) || base.teams;
   roles.forEach(r => { const d = D0.disciplines[r.id], b = LOOK0.disciplines[r.id]; if (!d) return;
     ["name", "cat", "short", "alt", "util", "altUtil"].forEach(f => { const v = r[f]; if (v) d[f] = v; else if (f === "alt" || f === "altUtil") delete d[f]; else d[f] = b[f]; });
     const w = (r.wild || []).filter(x => D0.disciplines[x] && x !== r.id); if (w.length) d.wild = w; else delete d.wild; });
   Object.keys(D0.categories).forEach(c => { const cur = Object.keys(D0.disciplines).filter(k => D0.disciplines[k].cat === c), orig = LOOK0.categories[c].discs; D0.categories[c].discs = (cur.length === orig.length && cur.every(k => orig.includes(k))) ? orig.slice() : cur; });
+  ((data && data.symbols) || base.symbols).forEach(y => { const t = D0.symbols[y.id]; if (t) { if (y.glyph) t.glyph = y.glyph; if (y.color) t.color = y.color; if (y.meaning) t.meaning = y.meaning; } });
   teams.forEach(t => { if (D0.categories[t.id] && t.color) D0.categories[t.id].color = t.color; });
   phs.forEach(p => { const ph = D0.phases[p.id]; if (ph) { if (p.name) ph.name = p.name; if (p.color) ph.color = p.color; } });
 };
@@ -114,7 +116,7 @@ E.newGame = function (seats, opts) {
   }));
   // discipline deck
   const cards = []; let n = 1;
-  DISCS.forEach(d => { const cnt = D0.deck.base + (N >= 3 ? D0.deck.extra : 0); for (let i = 0; i < cnt; i++) cards.push({ id: "C" + n++, disc: d }); });
+  DISCS.forEach(d => { const cnt = (cfg.deckBase != null ? cfg.deckBase : D0.deck.base) + (N >= 3 ? (cfg.deckExtra != null ? cfg.deckExtra : D0.deck.extra) : 0); for (let i = 0; i < cnt; i++) cards.push({ id: "C" + n++, disc: d }); });
   S.decks.disc = shuffle(S, cards);
   S.decks.mile = shuffle(S, data.milestones.map((m, i) => i));
   S.decks.obj = {};
@@ -436,7 +438,7 @@ function upkeep(S) {
   });
   if (S.cfg.raceScoring && S.cfg.raceEnd && raceCheck(S)) return endGame(S);
   if (S.round === 1) drawGates(S);
-  if (S.round >= 12 || PHASE_OF_ROUND(S.round + 1) !== S.phase) resolveGate(S);
+  if (S.round >= PHASE_ENDS[3] || PHASE_OF_ROUND(S.round + 1) !== S.phase) resolveGate(S);
   S.players.forEach(p => {
     p.systems.forEach(sy => { const d = sysDef(S, sy.name); if (d && d.rule && d.rule.upk) { Object.keys(d.rule.upk).forEach(k => gain(S, p.id, k, d.rule.upk[k])); log(S, p.name + "'s " + d.name + ": " + d.pas); } });
     gainHypeDecay(S, p);
@@ -463,7 +465,7 @@ function upkeep(S) {
     p.flags.freeBuildUsed = false;
   });
   log(S, "UPKEEP: Hype -" + S.cfg.hypeDecay + ", Culture toward 0, workers recover");
-  if (S.round >= 12) return endGame(S);
+  if (S.round >= PHASE_ENDS[3]) return endGame(S);
   S.round++;
   if (PHASE_OF_ROUND(S.round) !== S.phase) beginPhase(S);
   else if (S.cfg.bidEveryRound) { S.draft = { cards: [], per: 0, left: null }; S.step = "bid"; S.bids = {}; S.order.forEach(pi => S.dq.push({ t: "bid", p: pi, purpose: "turn" })); S.dq.push({ t: "auto", fn: "turnOrder" }); }
@@ -745,7 +747,7 @@ E.buildCost = function (S, p, def, free) {
   const total = RES.reduce((t, k) => t + need[k], 0), short = {}, pay = {}; let shortN = 0;
   RES.forEach(k => { short[k] = Math.max(0, need[k] - ((p && p[k]) || 0)); pay[k] = need[k] - short[k]; shortN += short[k]; });
   const cover = Math.min(shortN, S.cfg.resSubMax || 0);
-  const gold = b.cur === "M" ? Math.max(0, Math.round(total * (S.cfg.sysGoldMult || 0)) - E.srDiscount(S, p)) : 0;
+  const gold = b.cur === "M" ? Math.max(0, Math.round(total * (S.cfg.sysGoldMult || 0)) - E.srDiscount(S, p)) + (S.cfg.sysGoldAdd || 0) : 0;
   return { b, need, total, orig, disc, short, shortN, pay, subGold: shortN * (S.cfg.resSubGold || 0), gold: gold + shortN * (S.cfg.resSubGold || 0), baseGold: gold, coverable: shortN <= (S.cfg.resSubMax || 0), cover };
 };
 E.buildGold = function (S, def, p) { return E.buildCost(S, p, def, false).gold; };
@@ -762,7 +764,7 @@ E.canBuild = function (S, pi, name, free, crunch) {
   const nb = S.cfg.varC ? (p.building || []) : [];
   if (S.cfg.varC) {
     const d = E.buildDelay(S, p, crunch, def);
-    if (S.round + d > 12) return { ok: false, reason: (crunch || (p.rd && S.cfg.rdCrunch)) ? "Would not finish before the game ends" : "Too late for a normal build" + (S.round + (S.cfg.crunchDelay || 1) <= 12 ? " (rush it with crunch)" : " (nothing finishes in time)") };
+    if (S.round + d > PHASE_ENDS[3]) return { ok: false, reason: (crunch || (p.rd && S.cfg.rdCrunch)) ? "Would not finish before the game ends" : "Too late for a normal build" + (S.round + (S.cfg.crunchDelay || 1) <= 12 ? " (rush it with crunch)" : " (nothing finishes in time)") };
     if (crunch === "gold" && !(p.rd && S.cfg.rdCrunch) && p.gold < (S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold) + E.buildCost(S, p, def, free).gold) return { ok: false, reason: "Crunch costs " + (S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold) + "G more" };
     if (crunch === "fat" && !(p.rd && S.cfg.rdCrunch) && !E.crunchWorker(p)) return { ok: false, reason: "Every worker is already worn out" };
   }

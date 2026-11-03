@@ -18,6 +18,7 @@ const CFG_GROUPS = [
   ["Tracks", ["culMin","culMax","cultureDecay","hypeDecay","hypeCap","prodCap","debtMode"]],
   ["Variant C: phase-shaped economy", ["varC","noSwaps","spotResOr","srSystems","srPromoteOnly","promoFree","promoNeedsRest","overworkCulture","recruitCost","recruitPerRound","recruitSize2","recruitSize34","recruitSize56","recruitInLaunch","bidEveryRound","bidWinnerOnly","bidWinnerOnly","buildDelay","crunchDelay","crunchGold","rdCrunch","convertRate","gateProgMult","gateHypeMult","sysGoldMult"]],
   ["Variant D: Burnout", ["burnout","burnMax","burnOverStep","burnOverMax","burnUnpaidMin","burnUnpaidPer","burnUnpaidMax","burnRelief","burnTeamRelief","burnStrainAt","burnStrainHype","burnBenchAt","burnQuitAt","burnQuitReset","energizedBurnMax","energizedCulture","energizedGold"]],
+  ["Systems, deck and bots", ["deckBase","deckExtra","sysGoldAdd"]],
   ["Pool scoring (B)", ["poolScoring","poolPot","poolSysMult","poolObjMult","poolDebtMult"]],
   ["Race scoring", ["raceScoring","mktgToHype","raceCurve","racePot","debtLossMax","cultLossMax","trackScoring"]],
   ["Market, scale and gates", ["salaryJr","salarySr","reachFade","maxSystems","marketSize","marketRefreshGold","marketRefreshesPerRound","headhuntCatchUp","gatesEnabled","gateBestVP","gateLossCap","gateContract","objPartial","reachMajorVP","srBuildDiscount","sysVPMult","synergyMult","draftPool","deliveredBonus"]],
@@ -35,6 +36,7 @@ const COLS = {
   roles: [["id","Code","ro"],["name","Name","str"],["cat","Team","sel:teams"],["short","Tag","str"],["alt","Tag when swaps are off","str"],["util","Ability (popup text)","str"],["altUtil","Ability when swaps are off","str"],["wild","Can act as (codes, comma separated)","csv"]],
   phases: [["id","Phase","ro"],["name","Name","str"],["color","Colour","str"]],
   teams: [["id","Team","ro"],["color","Colour","str"]],
+  symbols: [["id","Symbol","ro"],["glyph","Glyph","str"],["color","Colour","str"],["meaning","Meaning","str"]],
   text: [["id","ID","ro"],["group","Group","ro"],["label","Item","ro"],["text","Wording","str"]],
   crisis: [["name","Name","str"],["deck","Deck","ro"],["kind","Kind","ro"],["text","Rules text","str"],["flavor","Flavor","str"]]
 };
@@ -66,7 +68,7 @@ function widget(kind, tab, i, f, v, dirty, st) {
   return null;
 }
 SI.renderStudio = function (st, tab, sim) {
-  const tabs = [["rules","Rules"],["spots","Board spots"],["systems","Systems"],["milestones","Milestones"],["objectives","Objectives"],["crisis","Crisis cards"],["publisherGates","Publisher gates"],["gatePool","Gate pool"],["roles","Roles"],["phases","Phases"],["teams","Teams"],["tutorial","Text"],["sim","Simulator"]];
+  const tabs = [["rules","Rules"],["spots","Board spots"],["systems","Systems"],["milestones","Milestones"],["objectives","Objectives"],["crisis","Crisis cards"],["publisherGates","Publisher gates"],["gatePool","Gate pool"],["roles","Roles"],["phases","Phases"],["teams","Teams"],["symbols","Symbols"],["tutorial","Text"],["sim","Simulator"]];
   const X = SI.stu2 || {}, V = X.state ? X.state() : { q: "", ed: false, view: "table", sel: {} };
   let h = X.frame ? X.frame(st, tab, tabs) : "";
   if (V.view === "changes" && tab !== "sim" && X.changes) return h + X.changes(st);
@@ -78,9 +80,9 @@ SI.renderStudio = function (st, tab, sim) {
       h += "</div>";
     });
     h += `<h4 style="margin:14px 0 6px">Table values (JSON)</h4><div class="cfg-grid">`;
-    ["hypeBands","deliveryBands","cultureVP","phaseEnds","rowNames","raceCurveByN","racePotByN","debtLossByN","cultLossByN","poolPotN","progTrack","mktTrack","burnVP"].forEach(k => { h += `<div class="cfg" data-hay="${k.toLowerCase()}" data-ed="${dirtyCfg(st, k) ? 1 : 0}" ${V.q && !k.toLowerCase().includes(V.q) ? "hidden" : ""}><label>${(D.config._meta[k] || [k])[0]} <i class="chip live">live</i></label><small>${(D.config._meta[k] || ["", ""])[1] && !["hypeBands","cultureVP","phaseEnds"].includes(k) ? esc(D.config._meta[k][1]) : k === "hypeBands" ? "[[min Hype %, VP], ...]" : k === "cultureVP" ? "Culture value -> VP" : k === "phaseEnds" ? "Variant C: last round of Concept, Production, Polish, Launch, e.g. [3,8,11,12]" : "Delivery bonus bands"}</small><textarea rows="4" style="width:100%" data-cfgjson="${k}" class="${dirtyCfg(st, k) ? "dirty" : ""}">${esc(JSON.stringify(st.config[k]))}</textarea></div>`; });
+    ["hypeBands","deliveryBands","cultureVP","phaseEnds","rowNames","raceCurveByN","racePotByN","debtLossByN","cultLossByN","poolPotN","progTrack","mktTrack","burnVP","botW","botPersonas","botProfiles"].forEach(k => { h += `<div class="cfg" data-hay="${k.toLowerCase()}" data-ed="${dirtyCfg(st, k) ? 1 : 0}" ${V.q && !k.toLowerCase().includes(V.q) ? "hidden" : ""}><label>${(D.config._meta[k] || [k])[0]} <i class="chip live">live</i></label><small>${(D.config._meta[k] || ["", ""])[1] && !["hypeBands","cultureVP","phaseEnds"].includes(k) ? esc(D.config._meta[k][1]) : k === "hypeBands" ? "[[min Hype %, VP], ...]" : k === "cultureVP" ? "Culture value -> VP" : k === "phaseEnds" ? "Variant C: last round of Concept, Production, Polish, Launch, e.g. [3,8,11,12]" : "Delivery bonus bands"}</small><textarea rows="4" style="width:100%" data-cfgjson="${k}" class="${dirtyCfg(st, k) ? "dirty" : ""}">${esc(JSON.stringify(st.config[k]))}</textarea></div>`; });
     h += "</div></div>";
-  } else if (["spots","systems","milestones","objectives","crisis","publisherGates","gatePool","roles","phases","teams"].includes(tab)) {
+  } else if (["spots","systems","milestones","objectives","crisis","publisherGates","gatePool","roles","phases","teams","symbols"].includes(tab)) {
     const cols = COLS[tab]; const list = st.data[tab], def = E.defaultData(E.defaultConfig())[tab];
     const sel = (V.sel && V.sel[tab]) || 0;
     h += `<p class="mute" style="margin:0 0 6px">${list.length} rows. Effect strings use: <span class="mono">+2 Progress, -1 Debt, +3G, +1 Hype, +1 Marketing, +1 Culture, Draw 1 Milestone, +1G per Reach, +1 Prod OR +1 Mktg</span></p><div class="stu-split"><div class="scroll-y stu-tbl"><table class="dt"><thead><tr><th></th>` + cols.map(c => `<th>${c[1]} ${X.chip ? X.chip(tab, c[0]) : ""}</th>`).join("") + "</tr></thead><tbody>";

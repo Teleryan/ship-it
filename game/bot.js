@@ -52,7 +52,7 @@ B.cfg = { skill: 1 };
 B.decide = function (S) {
   const pi = E.currentActor(S); if (pi < 0) return null;
   const p = S.players[pi]; const d = S.dq[0];
-  W = Object.assign({}, NEUTRAL, B.personas[p.persona] || {}); PF = B.profiles[p.profile] || null;
+  W = Object.assign({}, NEUTRAL, S.cfg.botW || {}, ((S.cfg.botPersonas || B.personas)[p.persona]) || {}); PF = ((S.cfg.botProfiles || B.profiles)[p.profile]) || null;
   if (PF) { const q = quirk(S, p), k = PF.quirk; W.prod *= 1 + (q[0] - 0.5) * 2 * k; W.mktg *= 1 + (q[1] - 0.5) * 2 * k; W.hype *= 1 + (q[2] - 0.5) * 2 * k; W.gold *= 1 + (q[3] - 0.5) * 2 * k; W.debt *= 1 + (q[4] - 0.5) * 2 * k; W.gate *= PF.gate; }
   gateFactors(S, p);
   if (d) return decision(S, p, d);

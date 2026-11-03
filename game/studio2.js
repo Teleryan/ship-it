@@ -12,7 +12,7 @@ const X = SI.stu2 = {};
 const V = X.state = () => { const U = SI.U; return U.stu || (U.stu = { q: "", ed: false, view: "table", note: "", hist: [], fut: [], sel: {}, drawer: false, msg: "", confirm: null, pub: null, tpl: "systems", zip: true }); };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const clone = o => JSON.parse(JSON.stringify(o));
-const TABNAME = { spots: "Board spots", systems: "Systems", milestones: "Milestones", objectives: "Objectives", crisis: "Crisis cards", tutorial: "Text", text: "Text", publisherGates: "Publisher gates", gatePool: "Gate pool", roles: "Roles", phases: "Phases", teams: "Teams" };
+const TABNAME = { spots: "Board spots", systems: "Systems", milestones: "Milestones", objectives: "Objectives", crisis: "Crisis cards", tutorial: "Text", text: "Text", publisherGates: "Publisher gates", gatePool: "Gate pool", roles: "Roles", phases: "Phases", teams: "Teams", symbols: "Symbols" };
 const TPLS = [["rules", "Rules (every rule value)"], ["spots", "Board spots"], ["systems", "Systems"], ["milestones", "Milestones"], ["objectives", "Objectives"], ["crisis", "Crisis cards"], ["tutorial", "Text (tutorial steps)"], ["text", "Text (other wording)"], ["publisherGates", "Publisher gates"], ["gatePool", "Gate pool"]];
 
 /* ---------- live / display status of every field ---------- */
