@@ -49,7 +49,7 @@ const STEPS_A = [
     allow: a => a.type === "keepObj" ? null : "Choose your objectives first" },
 
   { id: "phasestart", kind: "info", title: "Phase start: Reveal and Bid", btn: "Next", hl: () => "[data-tut=steps]",
-    text: S => `Phase 1 (Pre-Production) has no Crisis card, so we start at ${b("Reveal")}: ${b(S.cfg.draftPool || 8)} discipline cards are dealt face up. They are the people you can hire, and you see them before you bid so you know what you are bidding for. The pool is refilled after every pick, so there are always ${S.cfg.draftPool || 8} to choose from.<br><br>Next is ${b("Bid")}. Before anyone picks a card, everyone secretly bids gold. The highest bid picks first in the draft and goes first in that round. Every round starts with a bid.`,
+    text: S => `Phase 1 (Concept) has no Crisis card, so we start at ${b("Reveal")}: ${b(S.cfg.draftPool || 8)} discipline cards are dealt face up. They are the people you can hire, and you see them before you bid so you know what you are bidding for. The pool is refilled after every pick, so there are always ${S.cfg.draftPool || 8} to choose from.<br><br>Next is ${b("Bid")}. Before anyone picks a card, everyone secretly bids gold. The highest bid picks first in the draft and goes first in that round. Every round starts with a bid.`,
     allow: blk },
 
   { id: "boardintro", kind: "info", title: "The board: who works where", btn: "Next", hl: () => "[data-tut=board]",
@@ -409,7 +409,7 @@ SI.tutAuto = function () { const u = U(), T = u.tut; T.auto = true; u.S.players[
 const PARTS = [
   ["prodShare", "Progress race", "VP for where your Progress ranks against the other studios: 1st place pays most, ties split the points."],
   ["hypeStrength", "Hype race", "Where your Hype ranks. At the end of the game your Marketing is added to your Hype, so Marketing is permanent buzz while Hype itself fades every round."],
-  ["debtPenalty", "Tech Debt", "The studio with the most Debt loses the most VP; the studio with the least loses none. Debt comes from rushed spots and some systems; Engineers and Stability systems clear it."],
+  ["debtPenalty", "Tech Debt", "The studio with the most Debt loses the most VP; the studio with the least loses none. Debt comes from crunched spots and some systems; Quality workers, Engineers and Stability systems clear it."],
   ["culture", "Culture", "The studio with the lowest Culture loses the most VP; the best loses none. Good culture also helps workers stay."],
   ["objectives", "Objectives", "Your secret goals. VP only for the ones you completed."],
   ["synergy", "Synergy", "Bonus when a built system shares a symbol with a completed objective."],

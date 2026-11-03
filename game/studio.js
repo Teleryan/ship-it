@@ -49,7 +49,7 @@ function optsFor(list, st) {
   if (list === "res") return [["", "None"]].concat(["ideas", "code", "process", "buzz"].map(x => [x, lab(x)]));
   if (list === "discs") return [["ANY", "Any"]].concat(Object.keys(D.disciplines).map(k => [k, k]));
   if (list === "syms") return Object.keys(D.symbols).map(k => [k, k]);
-  if (list === "phases") return D.phases.map((p, i) => [i, p.name.replace("Pre-Production", "Pre").replace("Production", "Prod")]);
+  if (list === "phases") return D.phases.map((p, i) => [i, p.name.replace("Concept", "Con").replace("Production", "Prod")]);
   return [];
 }
 function widget(kind, tab, i, f, v, dirty, st) {

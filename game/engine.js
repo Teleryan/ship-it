@@ -489,7 +489,7 @@ function spotModeOf(s) { return s.mode || (s.excl ? "single" : "single"); }
 function spotUsableBy(S, pi, w, spot) {
   // returns {ok, reason, as:[disciplines]}
   const p = P(S, pi);
-  if (spot.srOnly && w.lvl !== "Sr") return { ok: false, reason: "Sr workers only" };
+  if (spot.srOnly && w.lvl !== "Sr") return { ok: false, reason: "Senior workers only" };
   const mode = spotModeOf(spot); const occ = S.occ[spot.id] || [];
   if (mode === "single" && occ.length) return { ok: false, reason: "Occupied" };
   if (mode !== "single" && mode !== "open" && occ.includes(pi)) return { ok: false, reason: "You already used this spot" };
@@ -498,7 +498,7 @@ function spotUsableBy(S, pi, w, spot) {
   else as = actsAs(w).filter(d => spot.discs.includes(d));
   if (!as.length) return { ok: false, reason: "Needs " + spot.discs.join("/") };
   if (S.phase === 0 && !S.cfg.qaAllowedPreProd) as = as.filter(d => d !== "QA");
-  if (!as.length) return { ok: false, reason: "No Quality workers in Pre-Production" };
+  if (!as.length) return { ok: false, reason: "No Quality workers in Concept" };
   if (spot.crew) {
     const plans = crewPlans(S, p, w, spot);
     if (!plans.length) return { ok: false, reason: "Needs a rested crew: " + E.crewText(spot) };
@@ -510,8 +510,8 @@ function spotUsableBy(S, pi, w, spot) {
   if (spot.special === "mentor") {
     if (S.phase === 2 && p.flags.noMentor) return { ok: false, reason: "Locked (Feature Creep: Delay)" };
     const jr = p.workers.find(x => x.lvl === "Jr" && x.id !== w.id && x.disc === w.disc);
-    if (!jr) return { ok: false, reason: "No Jr of same discipline to promote" };
-    if (!srAllowed(S)) return { ok: false, reason: "No Sr in Pre-Production" };
+    if (!jr) return { ok: false, reason: "No Junior of the same discipline to promote" };
+    if (!srAllowed(S)) return { ok: false, reason: "No Senior workers in Concept" };
   }
   if (spot.special === "insight" || spot.id === "insight") { if (!S.decks.mile.length) return { ok: false, reason: "Milestone deck empty" }; }
   if (spot.special === "outsource" && false) return { ok: false };
@@ -788,8 +788,8 @@ function stepAction(S, a, actor) {
         const i = p.hand.findIndex(c => c.id === a.card); if (i < 0) return err("Not in hand");
         const lvl = a.lvl === "Sr" ? "Sr" : "Jr"; const disc = p.hand[i].disc;
         if (lvl === "Sr" && S.cfg.srPromoteOnly) return err("Senior workers are promoted, not hired");
-        if (lvl === "Sr" && !srAllowed(S)) return err("No Sr workers in Pre-Production");
-        if (S.phase === 0 && disc === "QA" && !S.cfg.qaAllowedPreProd) return err("No Quality workers in Pre-Production");
+        if (lvl === "Sr" && !srAllowed(S)) return err("No Senior workers in Concept");
+        if (S.phase === 0 && disc === "QA" && !S.cfg.qaAllowedPreProd) return err("No Quality workers in Concept");
         const cost = hireCost(S, pi, lvl); if (p.gold < cost) return err("Not enough gold");
         gain(S, pi, "gold", -cost); if (lvl === "Jr" && p.contract > 0) { p.contract--; log(S, p.name + " uses the Contract Team: free Junior"); } else if (p.hireDiscount > 0) p.hireDiscount--;
         p.workers.push({ id: S.wid++, disc, lvl, fat: 0, placed: false, as: null }); S.discard.push(p.hand.splice(i, 1)[0]); p.rs.hires++;
@@ -842,8 +842,8 @@ function restAction(S, a, p) {
   switch (a.type) {
     case "done": S.cur++; return { ok: true };
     case "promote": {
-      const w = p.workers.find(x => x.id === a.worker); if (!w || w.lvl !== "Jr") return err("Pick a Jr worker");
-      if (!srAllowed(S)) return err("No Sr in Pre-Production");
+      const w = p.workers.find(x => x.id === a.worker); if (!w || w.lvl !== "Jr") return err("Pick a Junior worker");
+      if (!srAllowed(S)) return err("No Senior workers in Concept");
       if (p.promos >= c.promotionsPerRest) return err("Promotion limit reached");
       if (c.promoNeedsRest && (w.placed || !w.worked)) return err("Needs a worker that has worked and is resting this round");
       const cost = c.promoFree ? 0 : promoCost(S); if (p.gold < cost) return err("Needs " + cost + "G");
@@ -854,7 +854,7 @@ function restAction(S, a, p) {
       const t = P(S, a.target); if (!t || t.id === pi) return err("Pick an opponent");
       if (c.headhuntCatchUp && t.workers.length <= p.workers.length) return err("You can only headhunt from a studio with more workers than yours");
       const w = t.workers.find(x => x.id === a.worker); if (!w) return err("Pick a worker");
-      if (w.lvl === "Sr" && !srAllowed(S)) return err("No Sr in Pre-Production");
+      if (w.lvl === "Sr" && !srAllowed(S)) return err("No Senior workers in Concept");
       const cost = promoCost(S) * c.headhuntMult; if (p.gold < cost) return err("Needs " + cost + "G");
       gain(S, pi, "gold", -cost); gain(S, t.id, "gold", Math.floor(cost * c.headhuntComp));
       t.workers.splice(t.workers.indexOf(w), 1); w.fat = 0; w.placed = false; w.overWhenPlaced = false; p.workers.push(w); p.hunts++;
@@ -909,7 +909,7 @@ function resolveDecision(S, a) {
     case "pickWorker": {
       if (a.type !== "pickWorker") return err("Pick a worker");
       const w = P(S, p).workers.find(x => x.id === a.worker); if (!w) return err("Pick a worker");
-      if (d.srOnly && w.lvl !== "Sr") return err("Pick a Sr worker");
+      if (d.srOnly && w.lvl !== "Sr") return err("Pick a Senior worker");
       S.dq.shift(); removeWorker(S, p, w.id); log(S, P(S, p).name + " loses " + w.lvl + " " + dn(w.disc) + " (" + d.reason + ")"); return { ok: true };
     }
     case "raidHire": {
