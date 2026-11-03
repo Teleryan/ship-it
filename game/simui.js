@@ -8,8 +8,9 @@
 const SI = root.SI = root.SI || {};
 const esc = SI.esc, E = root.ShipItEngine;
 const KEY = "shipit.sim.cfg";
+const SKILLS = [["", "Standard bot skill"], ["mix", "Mix of skill levels"], ["novice", "Novice"], ["casual", "Human-like"], ["expert", "Expert"]];
 const PERS = [["", "Standard bot"], ["crunch", "Crunch Studio"], ["hype", "Hype Machine"], ["systems", "Systems Studio"], ["clean", "Clean Ship"]];
-const dflt = () => ({ counts: [2, 3, 4, 5, 6], games: 40, seats: "rotate", data: "applied", label: "", threads: Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1)) });
+const dflt = () => ({ counts: [2, 3, 4, 5, 6], games: 40, seats: "rotate", data: "applied", skill: "", label: "", threads: Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1)) });
 const cfg = () => { try { return Object.assign(dflt(), JSON.parse(root.localStorage.getItem(KEY) || "{}")); } catch (e) { return dflt(); } };
 const SM = () => { const m = SI.U.master; return m.sim || (m.sim = { run: null, msg: "", last: null }); };
 const f1 = x => (Math.round(x * 10) / 10).toString();
@@ -18,12 +19,13 @@ const f1 = x => (Math.round(x * 10) / 10).toString();
 const RUNNER = `
 self.onmessage = function (ev) {
   const m = ev.data, E = self.ShipItEngine, B = self.ShipItBot, A = self.SI.an; A.quiet = true;
-  const PERS = ["", "crunch", "hype", "systems", "clean"], out = []; let err = 0;
+  const PERS = ["", "crunch", "hype", "systems", "clean"], SK = ["", "novice", "casual", "expert"], out = []; let err = 0;
   for (let k = 0; k < m.games; k++) {
     const gi = m.first + k, seats = []; for (let i = 0; i < m.n; i++) seats.push({ name: "Bot " + (i + 1), bot: true });
     try {
       const S = E.newGame(seats, { seed: m.seed0 + gi, config: m.config, data: m.data });
       S.players.forEach((p, i) => { const mode = m.seats; let q = ""; if (mode === "rotate") q = PERS[(i + gi) % PERS.length]; else if (mode === "random") q = PERS[Math.floor(((Math.sin((m.seed0 + gi) * 12.9898 + i * 78.233) * 43758.5453) % 1 + 1) % 1 * PERS.length)]; else if (mode !== "standard") q = mode; if (q) p.persona = q; });
+      if (m.skill) S.players.forEach((p, i) => { p.profile = m.skill === "mix" ? SK[(i + gi * 3) % SK.length] : m.skill; });
       A.begin(S, { mode: "sim", site: m.site, hash: m.hash, tuned: "sim", seats: [] });
       let g = 0; while (!S.over && g++ < 80000) { const r = B.step(S); if (!r.ok) break; A.track(S); }
       A.track(S); if (!S.over) { err++; continue; }
@@ -46,6 +48,7 @@ SI.simPanel = function () {
   <div class="row wrap" style="gap:12px;margin-top:8px"><span>Players: ${[2, 3, 4, 5, 6].map(n => `<label style="margin-right:6px"><input type="checkbox" data-simn="${n}" ${c.counts.includes(n) ? "checked" : ""}> ${n}</label>`).join("")}</span>
   <label>Games per count <input id="sim-games" type="number" min="1" max="400" value="${c.games}" style="width:70px"></label>
   <label>Seat styles <select id="sim-seats"><option value="rotate" ${c.seats === "rotate" ? "selected" : ""}>Rotate through the four styles</option><option value="random" ${c.seats === "random" ? "selected" : ""}>Random styles</option><option value="standard" ${c.seats === "standard" ? "selected" : ""}>All standard bots</option>${PERS.slice(1).map(p => `<option value="${p[0]}" ${c.seats === p[0] ? "selected" : ""}>All ${p[1]}</option>`).join("")}</select></label>
+  <label>Bot skill <select id="sim-skill">${SKILLS.map(o => `<option value="${o[0]}" ${c.skill === o[0] ? "selected" : ""}>${o[1]}</option>`).join("")}</select></label>
   <label>Data <select id="sim-data"><option value="applied" ${c.data === "applied" ? "selected" : ""}>Applied (new games)</option><option value="draft" ${c.data === "draft" ? "selected" : ""}>Studio draft</option><option value="base" ${c.data === "base" ? "selected" : ""}>Shipped baseline</option></select></label>
   <label>Label <input id="sim-label" placeholder="e.g. bt 3 test" value="${esc(c.label)}" maxlength="40" style="width:160px"></label>
   <label>Threads <input id="sim-threads" type="number" min="1" max="8" value="${c.threads}" style="width:55px"></label></div>
@@ -62,7 +65,7 @@ SI.simAct = async function (act, t, ctx) {
   if (act === "m-sim-stop") { if (s.run) { s.run.stop = true; s.run.workers.forEach(w => w.terminate()); s.run.finish(true); } return; }
   if (act !== "m-sim-run" || s.run) return;
   const counts = [2, 3, 4, 5, 6].filter(n => { const el = document.querySelector(`[data-simn="${n}"]`); return el && el.checked; });
-  const c = { counts, games: Math.max(1, Math.min(400, +document.getElementById("sim-games").value || 40)), seats: document.getElementById("sim-seats").value, data: document.getElementById("sim-data").value, label: document.getElementById("sim-label").value.trim(), threads: Math.max(1, Math.min(8, +document.getElementById("sim-threads").value || 2)) };
+  const c = { counts, games: Math.max(1, Math.min(400, +document.getElementById("sim-games").value || 40)), seats: document.getElementById("sim-seats").value, data: document.getElementById("sim-data").value, skill: document.getElementById("sim-skill").value, label: document.getElementById("sim-label").value.trim(), threads: Math.max(1, Math.min(8, +document.getElementById("sim-threads").value || 2)) };
   try { root.localStorage.setItem(KEY, JSON.stringify(c)); } catch (e) {}
   if (!counts.length) { s.msg = "Pick at least one player count."; slot(); return; }
   const U = ctx.U, st = c.data === "draft" ? U.studio : c.data === "base" ? SI.defaults() : (U.active || U.studio), hash = SI.hashOf(st);
@@ -86,7 +89,7 @@ SI.simAct = async function (act, t, ctx) {
   let next = 0, active = 0;
   const feed = w => {
     if (run.stop) return; if (next >= jobs.length) { w.terminate(); active--; if (!active) run.finish(false); return; }
-    const j = jobs[next++]; w.postMessage(Object.assign({ seats: c.seats, config: st.config, data: st.data, site: SI.net.site(), hash, label }, j));
+    const j = jobs[next++]; w.postMessage(Object.assign({ seats: c.seats, skill: c.skill, config: st.config, data: st.data, site: SI.net.site(), hash, label }, j));
   };
   for (let i = 0; i < c.threads; i++) {
     const w = new Worker(url); run.workers.push(w); active++;

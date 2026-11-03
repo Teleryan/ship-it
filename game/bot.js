@@ -20,6 +20,18 @@ B.personas = {
   // Clean Ship: low Debt, Stability systems, plays for a clean launch
   clean:   { debt: 1.8, spotDebt: 1.4, cat: { Stability: 2 }, gold: 1.1, resVal: 1.1, recMax: 1 }
 };
+/* Human-like profiles (separate from strategy personas). A player with no profile plays the standard bot.
+   skill: how often the bot "slips" to a near-best option; noise: score jitter; quirk: per-game bias on what it likes;
+   gate: how much it watches the publisher gate; deny: how much it takes a spot a rival wants; bidMode: contest-based bids;
+   promoP: chance it remembers to promote; buildSkip: chance it passes on a build it could afford; commit: bonus for finishing a started system. */
+B.profiles = {
+  novice: { slip: 0.3, noise: 1.5, quirk: 0.4, gate: 0.25, deny: 0, bidMode: "random", promoP: 0.5, buildSkip: 0.3, commit: 0 },
+  casual: { slip: 0.12, noise: 0.7, quirk: 0.25, gate: 0.7, deny: 0.5, bidMode: "contest", bidScale: 0.2, bidNoise: 0.5, promoP: 0.85, buildSkip: 0.08, commit: 0.8 },
+  expert: { slip: 0, noise: 0.1, quirk: 0, gate: 1.2, deny: 1, bidMode: "contest", bidScale: 0.12, bidNoise: 0.1, promoP: 1, buildSkip: 0, commit: 0.3 }
+};
+B.profileNames = [["", "Standard"], ["novice", "Novice"], ["casual", "Human-like"], ["expert", "Expert"]];
+let PF = null;
+const quirk = (S, p) => { if (!p.qk) p.qk = [E.rnd(S), E.rnd(S), E.rnd(S), E.rnd(S), E.rnd(S)]; return p.qk; };
 let W = NEUTRAL;
 // Variant C: Progress and Hype are worth more while the phase's publisher gate is out of reach, less once it is safe
 let GF = { prod: 1, hype: 1 };
@@ -40,7 +52,9 @@ B.cfg = { skill: 1 };
 B.decide = function (S) {
   const pi = E.currentActor(S); if (pi < 0) return null;
   const p = S.players[pi]; const d = S.dq[0];
-  W = Object.assign({}, NEUTRAL, B.personas[p.persona] || {}); gateFactors(S, p);
+  W = Object.assign({}, NEUTRAL, B.personas[p.persona] || {}); PF = B.profiles[p.profile] || null;
+  if (PF) { const q = quirk(S, p), k = PF.quirk; W.prod *= 1 + (q[0] - 0.5) * 2 * k; W.mktg *= 1 + (q[1] - 0.5) * 2 * k; W.hype *= 1 + (q[2] - 0.5) * 2 * k; W.gold *= 1 + (q[3] - 0.5) * 2 * k; W.debt *= 1 + (q[4] - 0.5) * 2 * k; W.gate *= PF.gate; }
+  gateFactors(S, p);
   if (d) return decision(S, p, d);
   switch (S.step) {
     case "draft": return draft(S, p);
@@ -53,6 +67,14 @@ B.decide = function (S) {
   return null;
 };
 
+// bid for turn order by what going first is worth: more free workers and richer rivals mean more contested spots
+function humanBid(S, p, room) {
+  if (PF.bidMode === "random") return Math.min(room, E.rint(S, 4));
+  const rivals = S.players.filter(q => q.id !== p.id), rich = rivals.filter(q => q.gold >= 6).length / Math.max(1, rivals.length);
+  const tempo = Math.min(5, p.workers.filter(w => !w.building).length), draftBonus = S.draft && S.draft.cards.length ? 1.3 : 1;
+  const base = (PF.bidScale == null ? 0.25 : PF.bidScale) * (0.4 + 0.4 * tempo) * (0.5 + rich) * draftBonus * W.bid * (p.gold >= 14 ? 1.2 : p.gold <= 8 ? 0.6 : 1);
+  return Math.min(room, Math.max(0, Math.round(base * (1 + (E.rnd(S) - 0.5) * 2 * PF.bidNoise))));
+}
 function decision(S, p, d) {
   const rint = n => E.rint(S, n);
   switch (d.t) {
@@ -65,6 +87,7 @@ function decision(S, p, d) {
     }
     case "bid": {
       const room = Math.max(0, p.gold - 4);
+      if (d.purpose === "turn" && PF && PF.bidMode) { const amt = humanBid(S, p, room); return { type: "bid", p: p.id, amount: Math.max(0, Math.min(p.gold, amt)) }; }
       const amt = d.purpose === "turn" ? Math.min(room, Math.round(rint(4) * W.bid * (S.draft && S.draft.cards.length ? 1 : 0.5))) : Math.min(p.gold, Math.min(room, 1 + rint(4)));
       return { type: "bid", p: p.id, amount: Math.max(0, Math.min(p.gold, amt)) };
     }
@@ -155,6 +178,12 @@ function fxScore(S, p, w, o) {
   if (o.plans) { const pl = bestPlan(S, p, o.plans); v += pl.ids.reduce((t, id) => t + (S.cfg.varC ? (S.cfg.spotResOr && !spot.r ? 0 : Math.min(p.workers.find(x => x.id === id).lvl === "Sr" ? S.cfg.resSr : S.cfg.resJr, S.cfg.crewPartnerCap == null ? 9 : S.cfg.crewPartnerCap)) * resVal : (p.workers.find(x => x.id === id).lvl === "Sr" ? S.cfg.resSr : S.cfg.resJr)) * W.res, 0) - pl.ids.length * W.crewCost; }
   if (spot.id === "crunch") v -= 1; return v + E.rnd(S) * 0.5;
 }
+// how much the best rival would value a spot that is still free: taking it away is worth part of that
+function rivalWant(S, p, target) {
+  let m = 0; const me = p.id;
+  S.players.forEach(q => { if (q.id === me) return; q.workers.forEach(w => { if (w.placed || w.building) return; const o = E.placementOptions(S, q.id, w).find(x => x.target === target); if (o && o.ok !== false) { const sc = fxScore(S, q, w, o); if (sc > m) m = sc; } }); });
+  return Math.max(0, m - 1);
+}
 function convGain(S, p, o) { const rk = E.RES_OF[E.CAT_OF(o.as[0])], rate = S.cfg.convertRate || 3; return Math.floor((p[rk] || 0) / rate); }
 function recruitPick(S, p, bs) {
   if (!S.cfg.varC || !S.recruit) return null;
@@ -170,8 +199,15 @@ function recruitPick(S, p, bs) {
   return pick != null && ps > Math.min(bs, 4.2) - 0.8 ? { type: "recruit", p: p.id, idx: pick } : null;
 }
 function place(S, p) {
-  let best = null, bs = W.thr;
-  p.workers.forEach(w => E.placementOptions(S, p.id, w).forEach(o => { const s = fxScore(S, p, w, o); if (s > bs) { bs = s; best = { w, o }; } }));
+  let best = null, bs = W.thr; const cands = [];
+  p.workers.forEach(w => E.placementOptions(S, p.id, w).forEach(o => { let s = fxScore(S, p, w, o); if (PF) { s += (E.rnd(S) - 0.5) * 2 * PF.noise; cands.push({ w, o, s }); } if (s > bs) { bs = s; best = { w, o }; } }));
+  if (PF && cands.length) {
+    cands.sort((a, b) => b.s - a.s);
+    if (PF.deny) cands.slice(0, 6).forEach(c => { if (c.o.spot && (c.o.spot.mode || "single") === "single") c.s += PF.deny * 0.5 * rivalWant(S, p, c.o.target); });
+    cands.sort((a, b) => b.s - a.s);
+    let pick = cands[0]; if (PF.slip && E.rnd(S) < PF.slip) pick = cands[Math.min(cands.length - 1, E.rint(S, 3))];
+    if (pick.s > W.thr) { best = { w: pick.w, o: pick.o }; bs = pick.s; } else { best = null; bs = 0; }
+  }
   const rc = recruitPick(S, p, best ? bs : 0); if (rc) return rc;
   if (!best) return { type: "pass", p: p.id };
   const a = { type: "place", p: p.id, worker: best.w.id, target: best.o.target };
@@ -210,8 +246,9 @@ function build(S, p) {
     const b = E.parseBuild(d.build);
     if (b.cur === "G" && p.gold - b.cost < 3) return;
     const bgd = free ? 0 : E.buildGold(S, d, p); if (bgd && p.gold - bgd < 2) return;
-    const s = buildScore(S, p, d) * (S.cfg.varC ? W.buildScale : 1); if (s > bs) { bs = s; best = d; }
+    let s = buildScore(S, p, d) * (S.cfg.varC ? W.buildScale : 1); if (PF && PF.commit && (p.systems.length + (p.building || []).length) > 0) s += PF.commit * Math.min(3, p.systems.length + (p.building || []).length); if (s > bs) { bs = s; best = d; }
   });
+  if (best && PF && PF.buildSkip && E.rnd(S) < PF.buildSkip) best = null;
   if (best) return { type: "build", p: p.id, name: best.name, free, crunch: bcrunch(S, p, best, free) };
   return { type: "done", p: p.id };
 }
@@ -221,7 +258,7 @@ function rest(S, p) {
   if (c.promoFree) {
     const srN = p.workers.filter(w => w.lvl === "Sr").length, cap = 1 + Math.floor(p.workers.length * W.srCap);
     const jr = p.workers.find(w => w.lvl === "Jr" && !w.placed && w.worked);
-    if (jr && p.promos < c.promotionsPerRest && srN < cap && p.gold >= W.promoGold && S.phase < 3) return { type: "promote", p: p.id, worker: jr.id };
+    if (jr && p.promos < c.promotionsPerRest && srN < cap && p.gold >= W.promoGold && S.phase < 3 && (!PF || E.rnd(S) < PF.promoP)) return { type: "promote", p: p.id, worker: jr.id };
     return { type: "done", p: p.id };
   }
   if (E.srAllowed(S) && p.promos < c.promotionsPerRest && p.gold >= cost + 4 && S.phase < 3) {
