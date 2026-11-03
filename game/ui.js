@@ -684,6 +684,7 @@ function fixSeg(s, keys, m) {
 }
 /* ---------- main render ---------- */
 function render() {
+  if (U.S && U.S.data && E.applyLook) E.applyLook(U.S.data);
   const keepFocus = document.activeElement && document.activeElement.id; const val = keepFocus ? document.activeElement.value : null;
   if (U.screen === "gate") $root.innerHTML = SI.copyFix(gateView());
   else if (U.screen === "menu") $root.innerHTML = SI.copyFix(menuView() + (U.modal === "studio" && U.owner ? "\u0001" + studioModal() + "\u0002" : U.modal === "master" && U.owner ? "\u0001" + masterModal() + "\u0002" : U.modal === "cleardata" ? clearDataModal() : ""));

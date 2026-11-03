@@ -31,6 +31,9 @@ const COLS = {
   objectives: [["name","Name","str"],["type","Type","ro"],["vp","VP","num"],["reqs","Requirements (; separated)","semi"],["res","Skill","sel:res"],["sym","Symbols (Environments A and B)","multi:syms"]],
   publisherGates: [["name","Name","str"],["phase","Phase (0 to 3)","ro"],["pts","Points scale","num"],["reqs","Requirements (; separated)","semi"],["fund","Funding (Gold)","num"],["vp","VP if passed","num"],["penalty","Penalty","num"],["flavor","Flavor","str"]],
   gatePool: [["name","Name","str"],["phase","Phase (0 to 3)","ro"],["pts","Points scale","num"],["reqs","Requirements (; separated)","semi"],["fund","Funding (Gold)","num"],["vp","VP if passed","num"],["penalty","Penalty","num"],["flavor","Flavor","str"]],
+  roles: [["id","Code","ro"],["name","Name","str"],["cat","Team","sel:teams"],["short","Tag","str"],["alt","Tag when swaps are off","str"],["util","Ability (popup text)","str"],["altUtil","Ability when swaps are off","str"],["wild","Can act as (codes, comma separated)","csv"]],
+  phases: [["id","Phase","ro"],["name","Name","str"],["color","Colour","str"]],
+  teams: [["id","Team","ro"],["color","Colour","str"]],
   text: [["id","ID","ro"],["group","Group","ro"],["label","Item","ro"],["text","Wording","str"]],
   crisis: [["name","Name","str"],["deck","Deck","ro"],["kind","Kind","ro"],["text","Rules text","str"],["flavor","Flavor","str"]]
 };
@@ -50,6 +53,7 @@ function optsFor(list, st) {
   if (list === "cats") return Object.keys(D.categoriesSys || { Innovation: 1, Stability: 1, Reach: 1, Revenue: 1 }).map(x => [x, x]);
   if (list === "res") return [["", "None"]].concat(["ideas", "code", "process", "buzz"].map(x => [x, lab(x)]));
   if (list === "discs") return [["ANY", "Any"]].concat(Object.keys(D.disciplines).map(k => [k, k]));
+  if (list === "teams") return Object.keys(D.categories).map(k => [k, k]);
   if (list === "syms") return Object.keys(D.symbols).map(k => [k, k]);
   if (list === "phases") return D.phases.map((p, i) => [i, p.name.replace("Concept", "Con").replace("Production", "Prod")]);
   return [];
@@ -61,7 +65,7 @@ function widget(kind, tab, i, f, v, dirty, st) {
   return null;
 }
 SI.renderStudio = function (st, tab, sim) {
-  const tabs = [["rules","Rules"],["spots","Board spots"],["systems","Systems"],["milestones","Milestones"],["objectives","Objectives"],["crisis","Crisis cards"],["publisherGates","Publisher gates"],["gatePool","Gate pool"],["tutorial","Text"],["sim","Simulator"]];
+  const tabs = [["rules","Rules"],["spots","Board spots"],["systems","Systems"],["milestones","Milestones"],["objectives","Objectives"],["crisis","Crisis cards"],["publisherGates","Publisher gates"],["gatePool","Gate pool"],["roles","Roles"],["phases","Phases"],["teams","Teams"],["tutorial","Text"],["sim","Simulator"]];
   const X = SI.stu2 || {}, V = X.state ? X.state() : { q: "", ed: false, view: "table", sel: {} };
   let h = X.frame ? X.frame(st, tab, tabs) : "";
   if (V.view === "changes" && tab !== "sim" && X.changes) return h + X.changes(st);
@@ -75,7 +79,7 @@ SI.renderStudio = function (st, tab, sim) {
     h += `<h4 style="margin:14px 0 6px">Table values (JSON)</h4><div class="cfg-grid">`;
     ["hypeBands","deliveryBands","cultureVP","phaseEnds","rowNames","raceCurveByN","racePotByN","debtLossByN","cultLossByN","poolPotN","progTrack","mktTrack"].forEach(k => { h += `<div class="cfg" data-hay="${k.toLowerCase()}" data-ed="${dirtyCfg(st, k) ? 1 : 0}" ${V.q && !k.toLowerCase().includes(V.q) ? "hidden" : ""}><label>${(D.config._meta[k] || [k])[0]} <i class="chip live">live</i></label><small>${(D.config._meta[k] || ["", ""])[1] && !["hypeBands","cultureVP","phaseEnds"].includes(k) ? esc(D.config._meta[k][1]) : k === "hypeBands" ? "[[min Hype %, VP], ...]" : k === "cultureVP" ? "Culture value -> VP" : k === "phaseEnds" ? "Variant C: last round of Concept, Production, Polish, Launch, e.g. [3,8,11,12]" : "Delivery bonus bands"}</small><textarea rows="4" style="width:100%" data-cfgjson="${k}" class="${dirtyCfg(st, k) ? "dirty" : ""}">${esc(JSON.stringify(st.config[k]))}</textarea></div>`; });
     h += "</div></div>";
-  } else if (["spots","systems","milestones","objectives","crisis","publisherGates","gatePool"].includes(tab)) {
+  } else if (["spots","systems","milestones","objectives","crisis","publisherGates","gatePool","roles","phases","teams"].includes(tab)) {
     const cols = COLS[tab]; const list = st.data[tab], def = E.defaultData(E.defaultConfig())[tab];
     const sel = (V.sel && V.sel[tab]) || 0;
     h += `<p class="mute" style="margin:0 0 6px">${list.length} rows. Effect strings use: <span class="mono">+2 Progress, -1 Debt, +3G, +1 Hype, +1 Marketing, +1 Culture, Draw 1 Milestone, +1G per Reach, +1 Prod OR +1 Mktg</span></p><div class="stu-split"><div class="scroll-y stu-tbl"><table class="dt"><thead><tr><th></th>` + cols.map(c => `<th>${c[1]} ${X.chip ? X.chip(tab, c[0]) : ""}</th>`).join("") + "</tr></thead><tbody>";

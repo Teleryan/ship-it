@@ -65,8 +65,26 @@ E.parseEffect = function (str) {
 E.describeEffect = function (str) { return str || ""; };
 
 /* ---------- Config / data ---------- */
+const LOOK0 = D0 ? clone({ disciplines: D0.disciplines, phases: D0.phases.map(p => ({ id: p.id, name: p.name, color: p.color })), categories: D0.categories }) : null;
+const lookRows = () => ({
+  roles: Object.keys(LOOK0.disciplines).map(k => { const d = LOOK0.disciplines[k]; return { id: k, name: d.name || "", cat: d.cat || "", short: d.short || "", alt: d.alt || "", util: d.util || "", altUtil: d.altUtil || "", wild: (d.wild || []).slice() }; }),
+  phases: LOOK0.phases.map(p => ({ id: p.id, name: p.name, color: p.color })),
+  teams: Object.keys(LOOK0.categories).map(k => ({ id: k, color: LOOK0.categories[k].color }))
+});
+// writes the Studio's role, phase and team rows onto the shared data object (edited in place so the screens that hold references see it)
+let LOOK_SIG = "";
+E.applyLook = function (data) {
+  if (!D0 || !LOOK0) return; const sig = JSON.stringify([data && data.roles, data && data.phases, data && data.teams]); if (sig === LOOK_SIG) return; LOOK_SIG = sig;
+  const base = lookRows(), roles = (data && data.roles) || base.roles, phs = (data && data.phases) || base.phases, teams = (data && data.teams) || base.teams;
+  roles.forEach(r => { const d = D0.disciplines[r.id], b = LOOK0.disciplines[r.id]; if (!d) return;
+    ["name", "cat", "short", "alt", "util", "altUtil"].forEach(f => { const v = r[f]; if (v) d[f] = v; else if (f === "alt" || f === "altUtil") delete d[f]; else d[f] = b[f]; });
+    const w = (r.wild || []).filter(x => D0.disciplines[x] && x !== r.id); if (w.length) d.wild = w; else delete d.wild; });
+  Object.keys(D0.categories).forEach(c => { const cur = Object.keys(D0.disciplines).filter(k => D0.disciplines[k].cat === c), orig = LOOK0.categories[c].discs; D0.categories[c].discs = (cur.length === orig.length && cur.every(k => orig.includes(k))) ? orig.slice() : cur; });
+  teams.forEach(t => { if (D0.categories[t.id] && t.color) D0.categories[t.id].color = t.color; });
+  phs.forEach(p => { const ph = D0.phases[p.id]; if (ph) { if (p.name) ph.name = p.name; if (p.color) ph.color = p.color; } });
+};
 E.defaultData = function (cfg) {
-  return clone({ spots:(cfg && cfg.varC && D0.spotsC) ? D0.spotsC : D0.spots, systems:D0.systems, milestones:D0.milestones, objectives:D0.objectives, crisis:D0.crisis, publisherGates:D0.publisherGates, gatePool:D0.gatePool, tutorial:D0.tutorial, text:D0.textRows ? D0.textRows() : [] });
+  return clone(Object.assign(lookRows(), { spots:(cfg && cfg.varC && D0.spotsC) ? D0.spotsC : D0.spots, systems:D0.systems, milestones:D0.milestones, objectives:D0.objectives, crisis:D0.crisis, publisherGates:D0.publisherGates, gatePool:D0.gatePool, tutorial:D0.tutorial, text:D0.textRows ? D0.textRows() : [] }));
 };
 E.rawConfig = function () { return clone(D0.config); };
 E.defaultConfig = function () { const c = clone(D0.config); if (c.varC && D0.configC) Object.assign(c, D0.configC, { varC: 1 }); return c; };
@@ -78,7 +96,7 @@ E.newGame = function (seats, opts) {
   if (wantC && D0.configC) Object.assign(base, D0.configC, { varC: 1 });
   const cfg = Object.assign(base, opts.config || {});
   const data = Object.assign(E.defaultData(cfg), opts.data || {});
-  E.useCfg(cfg);
+  E.useCfg(cfg); E.applyLook(data);
   if (cfg.varC && D0.cScaleGates) D0.cScaleGates(data, cfg);
   const S = {
     v: 1, seed: (opts.seed != null ? opts.seed : (Math.random() * 2 ** 31) | 0), cfg, data,
