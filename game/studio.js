@@ -27,6 +27,9 @@ const COLS = {
   systems: [["name","Name","str"],["cat","Category","str"],["build","Build","str"],["trig","Trigger","str"],["fx","Effect","str"],["once","Once (on build)","str"],["each","Each","str"],["debt","Debt","num"],["vp","VP","num"],["syn","Syn","num"],["bt","Build rounds (crew committed)","num"],["res","Resource (ideas, code, process, buzz)","str"],["sym","Symbols (Environments A and B)","csv"]],
   milestones: [["name","Name","ro"],["cat","Category","ro"],["gold","Gold","num"],["text","Requirement (rule is coded)","str"]],
   objectives: [["name","Name","str"],["type","Type","ro"],["vp","VP","num"],["reqs","Requirements (; separated)","semi"],["res","Resource (ideas, code, process, buzz)","str"],["sym","Symbols (Environments A and B)","csv"]],
+  publisherGates: [["name","Name","str"],["phase","Phase (0 to 3)","ro"],["pts","Points scale","num"],["reqs","Requirements (; separated)","semi"],["fund","Funding (Gold)","num"],["vp","VP if passed","num"],["penalty","Penalty","num"],["flavor","Flavor","str"]],
+  gatePool: [["name","Name","str"],["phase","Phase (0 to 3)","ro"],["pts","Points scale","num"],["reqs","Requirements (; separated)","semi"],["fund","Funding (Gold)","num"],["vp","VP if passed","num"],["penalty","Penalty","num"],["flavor","Flavor","str"]],
+  text: [["id","ID","ro"],["group","Group","ro"],["label","Item","ro"],["text","Wording","str"]],
   crisis: [["name","Name","str"],["deck","Deck","ro"],["kind","Kind","ro"],["text","Rules text","str"],["flavor","Flavor","str"]]
 };
 
@@ -35,7 +38,7 @@ function dirtyCfg(st, k) { return JSON.stringify(st.config[k]) !== JSON.stringif
 function cellVal(v, kind) { return kind === "csv" || kind === "csvn" ? (v || []).join(",") : kind === "semi" ? (v || []).join("; ") : (v == null ? "" : v); }
 
 SI.renderStudio = function (st, tab, sim) {
-  const tabs = [["rules","Rules"],["spots","Board spots"],["systems","Systems"],["milestones","Milestones"],["objectives","Objectives"],["crisis","Crisis cards"],["tutorial","Text"],["sim","Simulator"]];
+  const tabs = [["rules","Rules"],["spots","Board spots"],["systems","Systems"],["milestones","Milestones"],["objectives","Objectives"],["crisis","Crisis cards"],["publisherGates","Publisher gates"],["gatePool","Gate pool"],["tutorial","Text"],["sim","Simulator"]];
   const X = SI.stu2 || {}, V = X.state ? X.state() : { q: "", ed: false, view: "table", sel: {} };
   let h = X.frame ? X.frame(st, tab, tabs) : "";
   if (V.view === "changes" && tab !== "sim" && X.changes) return h + X.changes(st);
@@ -49,7 +52,7 @@ SI.renderStudio = function (st, tab, sim) {
     h += `<h4 style="margin:14px 0 6px">Table values (JSON)</h4><div class="cfg-grid">`;
     ["hypeBands","deliveryBands","cultureVP","phaseEnds","rowNames"].forEach(k => { h += `<div class="cfg" data-hay="${k.toLowerCase()}" data-ed="${dirtyCfg(st, k) ? 1 : 0}" ${V.q && !k.toLowerCase().includes(V.q) ? "hidden" : ""}><label>${k} <i class="chip live">live</i></label><small>${k === "hypeBands" ? "[[min Hype %, VP], ...]" : k === "cultureVP" ? "Culture value -> VP" : k === "phaseEnds" ? "Variant C: last round of Concept, Production, Polish, Launch, e.g. [3,8,11,12]" : "Delivery bonus bands"}</small><textarea rows="4" style="width:100%" data-cfgjson="${k}" class="${dirtyCfg(st, k) ? "dirty" : ""}">${esc(JSON.stringify(st.config[k]))}</textarea></div>`; });
     h += "</div></div>";
-  } else if (["spots","systems","milestones","objectives","crisis"].includes(tab)) {
+  } else if (["spots","systems","milestones","objectives","crisis","publisherGates","gatePool"].includes(tab)) {
     const cols = COLS[tab]; const list = st.data[tab], def = E.defaultData(E.defaultConfig())[tab];
     const sel = (V.sel && V.sel[tab]) || 0;
     h += `<p class="mute" style="margin:0 0 6px">${list.length} rows. Effect strings use: <span class="mono">+2 Progress, -1 Debt, +3G, +1 Hype, +1 Marketing, +1 Culture, Draw 1 Milestone, +1G per Reach, +1 Prod OR +1 Mktg</span></p><div class="stu-split"><div class="scroll-y stu-tbl"><table class="dt"><thead><tr><th></th>` + cols.map(c => `<th>${c[1]} ${X.chip ? X.chip(tab, c[0]) : ""}</th>`).join("") + "</tr></thead><tbody>";
@@ -63,6 +66,14 @@ SI.renderStudio = function (st, tab, sim) {
       }).join("") + "</tr>";
     });
     h += "</tbody></table></div>" + (X.preview ? X.preview(tab, st, def, sel) : "") + "</div>";
+  } else if (tab === "tutorial" && V.tg && V.tg !== "Tutorial steps") {
+    const list = st.data.text || [], def = E.defaultData(E.defaultConfig()).text || [];
+    h += `<p class="mute" style="margin:0 0 6px">Wording shown around the game. <i class="chip display">display</i> Changes show after <b>Apply to game</b> and a reload.</p><div class="scroll-y">`;
+    list.forEach((row, i) => {
+      if (row.group !== V.tg) return; const d = def.find(x => x.id === row.id) || {}, ed = (row.text || "") !== (d.text || ""), hay = (row.label + " " + row.text).toLowerCase(); if (V.ed && !ed) return;
+      h += `<div class="panel" data-hay="${esc(hay)}" data-ed="${ed ? 1 : 0}" ${V.q && !hay.includes(V.q) ? "hidden" : ""} style="margin:6px 0;padding:8px"><div class="mute" style="margin-bottom:3px">${esc(row.label)}</div><textarea class="grow${ed ? " dirty" : ""}" rows="2" style="width:100%" data-path="text.${i}.text" data-kind="str">${esc(row.text)}</textarea></div>`;
+    });
+    h += "</div>";
   } else if (tab === "tutorial") {
     const list = st.data.tutorial || [], def = E.defaultData(E.defaultConfig()).tutorial;
     h += `<p class="mute" style="margin:0 0 6px">${list.length} tutorial strings for the guided game (Variant C). Edits apply to the <b>next tutorial</b> you start. Markup: <span class="mono">**bold**</span>, a blank line starts a new paragraph, and <span class="mono">{token}</span> is replaced by a live value: <span class="mono">${esc(TUT_TOKENS)}</span>. Leave a token in place if the sentence needs the number. Step order follows the Step numbers.</p><div class="scroll-y">`;

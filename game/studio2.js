@@ -12,12 +12,12 @@ const X = SI.stu2 = {};
 const V = X.state = () => { const U = SI.U; return U.stu || (U.stu = { q: "", ed: false, view: "table", note: "", hist: [], fut: [], sel: {}, drawer: false, msg: "", confirm: null, pub: null, tpl: "systems", zip: true }); };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const clone = o => JSON.parse(JSON.stringify(o));
-const TABNAME = { spots: "Board spots", systems: "Systems", milestones: "Milestones", objectives: "Objectives", crisis: "Crisis cards", tutorial: "Text" };
-const TPLS = [["rules", "Rules (every rule value)"], ["spots", "Board spots"], ["systems", "Systems"], ["milestones", "Milestones"], ["objectives", "Objectives"], ["crisis", "Crisis cards"], ["tutorial", "Text (tutorial)"]];
+const TABNAME = { spots: "Board spots", systems: "Systems", milestones: "Milestones", objectives: "Objectives", crisis: "Crisis cards", tutorial: "Text", text: "Text", publisherGates: "Publisher gates", gatePool: "Gate pool" };
+const TPLS = [["rules", "Rules (every rule value)"], ["spots", "Board spots"], ["systems", "Systems"], ["milestones", "Milestones"], ["objectives", "Objectives"], ["crisis", "Crisis cards"], ["tutorial", "Text (tutorial steps)"], ["text", "Text (other wording)"], ["publisherGates", "Publisher gates"], ["gatePool", "Gate pool"]];
 
 /* ---------- live / display status of every field ---------- */
 // live = the engine reads it when a new game starts. display = wording or symbols only.
-const STAT = { spots: { note: "display" }, systems: { name: "display", sym: "display" }, milestones: { name: "display", text: "display" }, objectives: { name: "display", sym: "display" }, crisis: { name: "display", text: "display", flavor: "display" } };
+const STAT = { spots: { note: "display" }, systems: { name: "display", sym: "display" }, milestones: { name: "display", text: "display" }, objectives: { name: "display", sym: "display" }, crisis: { name: "display", text: "display", flavor: "display" }, publisherGates: { name: "display", flavor: "display" }, gatePool: { name: "display", flavor: "display" }, text: { text: "display" } };
 const TIP = { live: "The engine reads this when a new game starts, so changing it changes gameplay.", display: "Shown on cards and in text only. Gameplay does not change." };
 X.chip = (tab, f) => { const s = (STAT[tab] && STAT[tab][f]) || "live"; return `<i class="chip ${s}" title="${esc(TIP[s])}">${s}</i>`; };
 
@@ -47,6 +47,7 @@ X.validate = function (st) {
   const errors = [], warnings = [], RES = ["", "ideas", "code", "process", "buzz"];
   (st.data.systems || []).forEach(d => { if (!RES.includes(d.res || "")) errors.push(`System "${d.name}": resource "${d.res}" must be ideas, code, process or buzz`); if (d.bt < 1 || d.bt > 4) warnings.push(`System "${d.name}": ${d.bt} build rounds (the usual range is 1 to 4)`); if (d.vp < 0) errors.push(`System "${d.name}": VP cannot be negative`); });
   (st.data.objectives || []).forEach(o => { if (!RES.includes(o.res || "")) errors.push(`Objective "${o.name}": resource "${o.res}" must be ideas, code, process or buzz`); if (o.vp > 14) warnings.push(`Objective "${o.name}": ${o.vp} VP is very high`); });
+  ["publisherGates", "gatePool"].forEach(k => (st.data[k] || []).forEach(g => { if (!(g.reqs || []).length) errors.push(`Gate "${g.name}" has no requirements`); }));
   Object.keys(st.config).forEach(k => { const v = st.config[k]; if (typeof v === "number" && !isFinite(v)) errors.push(`Rule ${k} is not a number`); });
   const pe = st.config.phaseEnds; if (Array.isArray(pe) && pe.some((x, i) => i && x <= pe[i - 1])) errors.push("Phase ends must increase, for example [3,8,11,12]");
   return { errors, warnings };
@@ -61,6 +62,8 @@ X.frame = function (st, tab, tabs) {
   const U = SI.U, v = V(), n = X.diffList(st).length, val = X.validate(st), host = U.hosted;
   const pub = v.pub || {}; const pl = e => pub[e] && pub[e].version ? `v${pub[e].version}` : "defaults";
   let h = '<div class="tabs">' + tabs.map(t => `<button class="tab ${tab === t[0] ? "on" : ""}" data-act="studio-tab" data-v="${t[0]}">${t[1]}</button>`).join("") + "</div>";
+  const groups = ["Tutorial steps"].concat(Array.from(new Set((st.data.text || []).map(r => r.group))));
+  if (tab === "tutorial") h += `<div class="row wrap stu-bar"><label class="row" style="gap:6px">Wording group <select data-stf="tg">${groups.map(g => `<option ${(v.tg || groups[0]) === g ? "selected" : ""}>${esc(g)}</option>`).join("")}</select></label></div>`;
   if (tab !== "sim") h += `<div class="row wrap stu-bar"><input id="stq" placeholder="Search name, text, code" value="${esc(v.q)}" style="min-width:220px"><label class="row" style="gap:5px"><input type="checkbox" data-stf="ed" ${v.ed ? "checked" : ""}> Edited only</label>
     <span class="seg"><button class="btn sm ${v.view === "table" ? "primary" : ""}" data-act="st-view" data-v="table">Table</button><button class="btn sm ${v.view === "changes" ? "primary" : ""}" data-act="st-view" data-v="changes">Changes (${n})</button></span></div>`;
   h += `<div class="row wrap stu-bar"><button class="btn sm" data-act="st-undo" ${v.hist.length ? "" : "disabled"}>Undo</button><button class="btn sm" data-act="st-redo" ${v.fut.length ? "" : "disabled"}>Redo</button>
@@ -84,6 +87,10 @@ X.testUrl = () => { const s = SI.net && SI.net.site ? SI.net.site() : "c"; retur
 /* ---------- preview pane ---------- */
 function cardOf(tab, r) {
   if (tab === "systems" && SI.sysPreview) { try { return `<div class="mgrid" style="display:block">${SI.sysPreview(r)}</div>`; } catch (e) {} }
+  if (tab === "crisis" && SI.crisisPreview) { try { return SI.crisisPreview(r); } catch (e) {} }
+  if (tab === "objectives" && SI.symTag) { try { return `<div class="sys" style="width:100%"><div class="t">${esc(r.name)} ${SI.symTag(r)}</div><div class="meta">${esc(r.type)} · ${r.vp} VP</div>${(r.reqs || []).map(q => `<div class="e">${esc(q)}</div>`).join("")}</div>`; } catch (e) {} }
+  if (tab === "milestones") return `<div class="sys" style="width:100%"><div class="t">${esc(r.name)}</div><div class="e" style="color:var(--gold)">+${r.gold} Gold</div><div class="e">${esc(r.text)}</div></div>`;
+  if (tab === "publisherGates" || tab === "gatePool") return `<div class="sys" style="width:100%"><div class="t">${esc(r.name)}</div><div class="meta">Phase ${(r.phase | 0) + 1} publisher gate</div>${(r.reqs || []).map(q => `<div class="e">${esc(q)}</div>`).join("")}<div class="e">Pass: +${r.fund} Gold${r.vp ? ", +" + r.vp + " VP" : ""}</div><div class="e">Miss: ${r.penalty} penalty</div><div class="mute" style="font-size:11px">${esc(r.flavor)}</div></div>`;
   const COLS = SI.studioCols[tab] || [];
   return `<div class="sys" style="width:100%"><div class="t">${esc(r.name || r.id || "")}</div>` + COLS.filter(c => c[0] !== "name" && r[c[0]] !== "" && r[c[0]] != null).map(c => `<div class="e"><span class="mute">${esc(c[1].replace(/ \(.*$/, ""))}:</span> ${esc(SI.cellVal(r[c[0]], c[2]))}</div>`).join("") + "</div>";
 }
@@ -147,7 +154,7 @@ X.loadPub = async function () {
   const U = SI.U, v = V(); if (!U.hosted || v.pub) return; v.pub = {}; const site = SI.net.site();
   try { v.pub = { live: await jget("/__config?env=live&site=" + site), test: await jget("/__config?env=test&site=" + site) }; SI.render(); } catch (e) {}
 };
-X.apply = function (U) { SI.saveStudio(U.studio); SI.clearDraft(); U.active = clone({ config: U.studio.config, data: U.studio.data }); };
+X.apply = function (U) { SI.saveStudio(U.studio); SI.clearDraft(); U.active = clone({ config: U.studio.config, data: U.studio.data }); if (D.applyText) D.applyText(U.active.data.text); };
 
 /* ---------- actions ---------- */
 SI.studioAct = async function (act, t, ctx) {
@@ -188,6 +195,7 @@ document.addEventListener("change", e => {
   const t = e.target; if (!t || !SI.U) return; const v = V();
   if (t.dataset && t.dataset.stf === "ed") { v.ed = t.checked; SI.render(); }
   if (t.dataset && t.dataset.stf === "zip") { v.zip = t.checked; }
+  if (t.dataset && t.dataset.stf === "tg") { v.tg = t.value; SI.render(); }
   if (t.id === "stutpl") { v.tpl = t.value; }
   if (t.dataset && t.dataset.stufile && t.files && t.files[0]) {
     const kind = t.dataset.stufile, fr = new FileReader(); fr.onload = () => {

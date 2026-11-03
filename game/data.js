@@ -491,6 +491,20 @@ D.tutorial = [
 
 D.gate = { fnv: "349b4c0b", passphraseHash: "da0dfb5975f38caa0e062ba214404524ee4f093d588b56b9b85952791eff0921", note:"Client-side deterrent only. Replace with Cloudflare Access / a Worker check when migrating." };
 
+/* ---------- TEXT REGISTRY: player-facing wording the Data Studio can edit (display only) ---------- */
+(function () {
+  const rows = [], add = (id, group, label, text) => rows.push({ id, group, label, text });
+  Object.keys(D.disciplines).forEach(k => { const x = D.disciplines[k]; [["name", "name"], ["short", "one-line summary"], ["util", "rest action"]].forEach(f => { if (typeof x[f[0]] === "string") add("disc." + k + "." + f[0], "Disciplines", x.name + " · " + f[1], x[f[0]]); }); });
+  Object.keys(D.labels).forEach(k => add("label." + k, "Terms", "Term: " + k, D.labels[k]));
+  Object.keys(D.typeRules).forEach(k => add("typeRule." + k, "Category rules", k + " systems", D.typeRules[k]));
+  Object.keys(D.symbols).forEach(k => add("symbol." + k, "Symbols", k + " meaning", D.symbols[k].meaning));
+  D.phases.forEach((p, i) => add("phase." + i + ".name", "Phases", "Phase " + (i + 1) + " name", p.name));
+  const base = JSON.parse(JSON.stringify(rows));
+  D.textRows = () => JSON.parse(JSON.stringify(base));
+  D.applyText = list => { const m = {}; (list || []).forEach(r => { if (r && r.id) m[r.id] = r.text; });
+    base.forEach(b => { const v = m[b.id] != null ? m[b.id] : b.text, p = b.id.split("."); if (p[0] === "disc") D.disciplines[p[1]][p[2]] = v; else if (p[0] === "label") D.labels[p[1]] = v; else if (p[0] === "typeRule") D.typeRules[p[1]] = v; else if (p[0] === "symbol") D.symbols[p[1]].meaning = v; else if (p[0] === "phase") D.phases[+p[1]].name = v; }); };
+})();
+
 root.SHIPIT_DATA = D;
 if (typeof module !== "undefined") module.exports = D;
 })(typeof window !== "undefined" ? window : globalThis);

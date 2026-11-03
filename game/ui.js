@@ -244,7 +244,7 @@ function boardView(S) {
   return `<div class="panel"><h3><span style="color:${ph.color}">Main board: ${ph.name}</span><span class="mute" style="text-transform:none;letter-spacing:0">${S.cfg.spotResOr ? "" : `Each placement earns 1 resource of the role: Jr +${S.cfg.resJr} · Sr +${S.cfg.resSr} (+${S.cfg.srBonus} Progress or Marketing) · Over-Tired +${S.cfg.resOver}`}</span></h3>
   <div class="board" data-tut="board"><div class="rows">${launch ? `<div class="spots">${main.map(s => spotTile(S, s)).join("")}</div>` : rows.map(r => `<div class="brow" data-row="${esc(r.name)}"><div class="lab" style="color:${ph.color}">${esc(rowTitle(S, r.name))}</div><div class="spots">${r.items.map(s => spotTile(S, s)).join("")}</div></div>`).join("")}
   ${launch ? launchThresholds(S) : ""}</div>
-  <div class="shared col"><div class="mute" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase">${S.cfg.varC ? esc(rowTitle(S, "UTILITY")) : "Utility spots"}</div>${shared.map(s => spotTile(S, s)).join("")}</div></div>${S.cfg.spotResOr ? `<div class="boardrefs"><div class="boardref wcost"><div class="wt">Worker cost</div><div><b>Junior</b> hire ${ic("gold")}<b>${S.cfg.jrCost}</b> · salary ${ic("gold")}<b>${S.cfg.salaryJr}</b> per round · earns <b>+${S.cfg.resJr}</b></div><div><b>Senior</b> promoted free · salary ${ic("gold")}<b>${S.cfg.salarySr}</b> per round · earns <b>+${S.cfg.resSr}</b></div></div><div class="boardref r"><div class="key">${iconKey()}</div></div></div>` : ""}</div>`;
+  <div class="shared col"><div class="mute" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase">${S.cfg.varC ? esc(rowTitle(S, "UTILITY")) : "Utility spots"}</div>${shared.map(s => spotTile(S, s)).join("")}</div></div>${S.cfg.spotResOr ? `<div class="boardrefs"><div class="boardref wcost"><div class="wt">Worker cost</div><div><b>Junior</b> hire ${ic("gold")}<b>${S.cfg.jrCost}</b> · salary ${ic("gold")}<b>${S.cfg.salaryJr}</b> per round · earns <b>+${S.cfg.resJr}</b> of the spot’s resource</div><div><b>Senior</b> promoted free · salary ${ic("gold")}<b>${S.cfg.salarySr}</b> per round · earns <b>+${S.cfg.resSr}</b> of the spot’s resource</div></div><div class="boardref r"><div class="key">${iconKey()}</div></div></div>` : ""}</div>`;
 }
 function raceRules(S) {
   const c = S.cfg, N = S.players.length, tab = E.rankTable(c, N), ord = ["1st", "2nd", "3rd", "4th", "5th", "6th"];
@@ -687,6 +687,7 @@ function render() {
   if (keepFocus) { const el = document.getElementById(keepFocus); if (el && val != null) { try { el.value = val; el.focus(); } catch (e) {} } }
 }
 SI.render = render;
+SI.crisisPreview = crisisCardHtml; SI.symTag = symTag;
 SI.sysPreview = d => sysTile(d, true).replace('data-act="detail"', "");
 
 /* ---------- online play (rooms, lobby, synced actions) ---------- */
@@ -960,11 +961,11 @@ async function liveConfig() {
     U.hosted = true; U.role = w.role; U.owner = !!w.owner;
     const base = await liveConfig();
     if (U.owner) { await loadScript("studio.js"); await loadScript("studio2.js"); await loadScript("admin.js"); await loadScript("stats.js"); await loadScript("simui.js"); }
-    U.active = U.owner && root.localStorage.getItem("shipit.studio.v2") ? SI.loadStudio() : (base || SI.defaults()); U.studio = (U.owner && SI.loadDraft()) || SI.applyDiff(SI.diffOf(U.active));
+    U.active = U.owner && root.localStorage.getItem("shipit.studio.v2") ? SI.loadStudio() : (base || SI.defaults()); U.studio = (U.owner && SI.loadDraft()) || SI.applyDiff(SI.diffOf(U.active)); if (D.applyText) D.applyText(U.active.data.text);
     U.screen = "menu"; U.baseCfg = base;
     if (resumeRoom()) return;
   } else { // standalone: local passphrase gate, local Data Studio
-    await loadScript("studio.js"); await loadScript("studio2.js"); U.owner = !!SI.renderStudio; U.active = SI.loadStudio(); U.studio = SI.loadDraft() || SI.applyDiff(SI.diffOf(U.active)); U.tuned = "default";
+    await loadScript("studio.js"); await loadScript("studio2.js"); U.owner = !!SI.renderStudio; U.active = SI.loadStudio(); U.studio = SI.loadDraft() || SI.applyDiff(SI.diffOf(U.active)); if (D.applyText) D.applyText(U.active.data.text); U.tuned = "default";
     let ok = false; try { ok = sessionStorage.getItem("shipit.ok") === "1"; } catch (e) {} U.screen = ok ? "menu" : "gate";
     if (ok && loadAuto()) { render(); scheduleBots(); return; }
   }
