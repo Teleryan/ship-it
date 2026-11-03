@@ -8,9 +8,10 @@
 const SI = root.SI = root.SI || {};
 const esc = SI.esc, E = root.ShipItEngine;
 const KEY = "shipit.sim.cfg";
+const LSK = [["", "Standard"], ["novice", "Novice"], ["casual", "Human-like"], ["expert", "Expert"]];
 const SKILLS = [["", "Standard bot skill"], ["mix", "Mix of skill levels"], ["novice", "Novice"], ["casual", "Human-like"], ["expert", "Expert"]];
 const PERS = [["", "Standard bot"], ["crunch", "Crunch Studio"], ["hype", "Hype Machine"], ["systems", "Systems Studio"], ["clean", "Clean Ship"]];
-const dflt = () => ({ counts: [2, 3, 4, 5, 6], games: 40, seats: "rotate", data: "applied", skill: "", label: "", threads: Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1)) });
+const dflt = () => ({ counts: [2, 3, 4, 5, 6], games: 40, seats: "rotate", data: "applied", skill: "", lineup: [["crunch", "expert"], ["hype", "expert"], ["systems", "expert"], ["clean", "expert"]], label: "", threads: Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1)) });
 const cfg = () => { try { return Object.assign(dflt(), JSON.parse(root.localStorage.getItem(KEY) || "{}")); } catch (e) { return dflt(); } };
 const SM = () => { const m = SI.U.master; return m.sim || (m.sim = { run: null, msg: "", last: null }); };
 const f1 = x => (Math.round(x * 10) / 10).toString();
@@ -24,8 +25,8 @@ self.onmessage = function (ev) {
     const gi = m.first + k, seats = []; for (let i = 0; i < m.n; i++) seats.push({ name: "Bot " + (i + 1), bot: true });
     try {
       const S = E.newGame(seats, { seed: m.seed0 + gi, config: m.config, data: m.data });
-      S.players.forEach((p, i) => { const mode = m.seats; let q = ""; if (mode === "rotate") q = PERS[(i + gi) % PERS.length]; else if (mode === "random") q = PERS[Math.floor(((Math.sin((m.seed0 + gi) * 12.9898 + i * 78.233) * 43758.5453) % 1 + 1) % 1 * PERS.length)]; else if (mode !== "standard") q = mode; if (q) p.persona = q; });
-      if (m.skill) S.players.forEach((p, i) => { p.profile = m.skill === "mix" ? SK[(i + gi * 3) % SK.length] : m.skill; });
+      S.players.forEach((p, i) => { const mode = m.seats; let q = ""; if (mode === "rotate") q = PERS[(i + gi) % PERS.length]; else if (mode === "random") q = PERS[Math.floor(((Math.sin((m.seed0 + gi) * 12.9898 + i * 78.233) * 43758.5453) % 1 + 1) % 1 * PERS.length)]; else if (mode !== "standard" && mode !== "custom") q = mode; if (q) p.persona = q; if (mode === "custom" && m.lineup) { const L = m.lineup[i] || []; if (L[0]) p.persona = L[0]; if (L[1]) p.profile = L[1]; } });
+      if (m.skill && m.seats !== "custom") S.players.forEach((p, i) => { p.profile = m.skill === "mix" ? SK[(i + gi * 3) % SK.length] : m.skill; });
       A.begin(S, { mode: "sim", site: m.site, hash: m.hash, tuned: "sim", seats: [] });
       let g = 0; while (!S.over && g++ < 80000) { const r = B.step(S); if (!r.ok) break; A.track(S); }
       A.track(S); if (!S.over) { err++; continue; }
@@ -42,16 +43,20 @@ async function workerURL() {
 }
 
 /* ---------- panel ---------- */
+const lineupHtml = c => { const L = c.lineup || []; return `<div style="margin-top:10px"><b>Matchup</b> <span class="mute">One row per seat. The player count is the number of seats; seat order is shuffled by the game's seed, so every seat gets turn-order slots across the run.</span>${L.map((x, i) => `<div class="row wrap" style="gap:8px;margin-top:4px"><span style="width:52px">Seat ${i + 1}</span><select data-lu="p" data-i="${i}">${PERS.map(o => `<option value="${o[0]}" ${x[0] === o[0] ? "selected" : ""}>${o[1]}</option>`).join("")}</select><select data-lu="s" data-i="${i}">${LSK.map(o => `<option value="${o[0]}" ${x[1] === o[0] ? "selected" : ""}>${o[1]}</option>`).join("")}</select></div>`).join("")}<div class="row" style="gap:8px;margin-top:6px">${L.length < 6 ? '<button class="btn sm" data-act="m-sim-addseat">Add seat</button>' : ""}${L.length > 2 ? '<button class="btn sm" data-act="m-sim-delseat">Remove seat</button>' : ""}</div></div>`; };
+const saveCfg = c => { try { root.localStorage.setItem(KEY, JSON.stringify(c)); } catch (e) {} };
+document.addEventListener("change", e => { const t = e.target; if (!t || !t.dataset || !SI.U || !SI.U.master) return; if (t.id === "sim-seats") { const c = cfg(), g = id => document.getElementById(id); c.seats = t.value; if (g("sim-games")) { c.games = +g("sim-games").value || c.games; c.skill = g("sim-skill").value; c.data = g("sim-data").value; c.label = g("sim-label").value; c.threads = +g("sim-threads").value || c.threads; c.counts = [2, 3, 4, 5, 6].filter(n => { const el = document.querySelector(`[data-simn="${n}"]`); return el && el.checked; }); } saveCfg(c); slot(); return; } if (t.dataset.lu) { const c = cfg(), i = +t.dataset.i; c.lineup = (c.lineup || []).map(x => x.slice()); if (c.lineup[i]) c.lineup[i][t.dataset.lu === "p" ? 0 : 1] = t.value; saveCfg(c); } });
 SI.simPanel = function () {
   const c = cfg(), s = SM(), r = s.run;
   let h = `<div class="panel simcfg"><div class="row wrap" style="gap:12px"><b>Run simulations</b><span class="mute">Bots play full games in your browser; results are saved to the Simulations list.</span></div>
   <div class="row wrap" style="gap:12px;margin-top:8px"><span>Players: ${[2, 3, 4, 5, 6].map(n => `<label style="margin-right:6px"><input type="checkbox" data-simn="${n}" ${c.counts.includes(n) ? "checked" : ""}> ${n}</label>`).join("")}</span>
   <label>Games per count <input id="sim-games" type="number" min="1" max="400" value="${c.games}" style="width:70px"></label>
-  <label>Seat styles <select id="sim-seats"><option value="rotate" ${c.seats === "rotate" ? "selected" : ""}>Rotate through the four styles</option><option value="random" ${c.seats === "random" ? "selected" : ""}>Random styles</option><option value="standard" ${c.seats === "standard" ? "selected" : ""}>All standard bots</option>${PERS.slice(1).map(p => `<option value="${p[0]}" ${c.seats === p[0] ? "selected" : ""}>All ${p[1]}</option>`).join("")}</select></label>
+  <label>Seat styles <select id="sim-seats"><option value="rotate" ${c.seats === "rotate" ? "selected" : ""}>Rotate through the four styles</option><option value="random" ${c.seats === "random" ? "selected" : ""}>Random styles</option><option value="custom" ${c.seats === "custom" ? "selected" : ""}>Custom lineup (pick each seat below)</option><option value="standard" ${c.seats === "standard" ? "selected" : ""}>All standard bots</option>${PERS.slice(1).map(p => `<option value="${p[0]}" ${c.seats === p[0] ? "selected" : ""}>All ${p[1]}</option>`).join("")}</select></label>
   <label>Bot skill <select id="sim-skill">${SKILLS.map(o => `<option value="${o[0]}" ${c.skill === o[0] ? "selected" : ""}>${o[1]}</option>`).join("")}</select></label>
   <label>Data <select id="sim-data"><option value="applied" ${c.data === "applied" ? "selected" : ""}>Applied (new games)</option><option value="draft" ${c.data === "draft" ? "selected" : ""}>Studio draft</option><option value="base" ${c.data === "base" ? "selected" : ""}>Shipped baseline</option></select></label>
   <label>Label <input id="sim-label" placeholder="e.g. bt 3 test" value="${esc(c.label)}" maxlength="40" style="width:160px"></label>
   <label>Threads <input id="sim-threads" type="number" min="1" max="8" value="${c.threads}" style="width:55px"></label></div>
+  ${c.seats === "custom" ? lineupHtml(c) : ""}
   <div class="row wrap" style="gap:8px;margin-top:10px">${r ? `<button class="btn sm" data-act="m-sim-stop">Stop</button><span class="mute">${esc(s.msg)}</span>` : `<button class="btn primary sm" data-act="m-sim-run">Run simulations</button><span class="mute">${esc(s.msg)}</span>`}</div>`;
   if (r) { const pc = r.total ? Math.round(r.done / r.total * 100) : 0; h += `<div class="bar" style="margin-top:8px"><i style="width:${pc}%;background:var(--prod)"></i></div><div class="mute" style="font-size:12px">${r.done} of ${r.total} games · ${pc}%</div>`; }
   if (s.last) h += `<div class="mute" style="margin-top:8px;font-size:12px">Last run (${esc(s.last.label)}): ${s.last.rows.map(x => `${x.n}P: ${x.games} games, winner ${f1(x.win)}${x.err ? `, ${x.err} failed` : ""}`).join(" · ")}. Saved as ${s.last.batches} batch${s.last.batches === 1 ? "" : "es"}.</div>`;
@@ -63,9 +68,11 @@ const rid = () => Array.from(crypto.getRandomValues(new Uint8Array(9))).map(b =>
 SI.simAct = async function (act, t, ctx) {
   const s = SM();
   if (act === "m-sim-stop") { if (s.run) { s.run.stop = true; s.run.workers.forEach(w => w.terminate()); s.run.finish(true); } return; }
+  if (act === "m-sim-addseat" || act === "m-sim-delseat") { const c = cfg(); c.lineup = (c.lineup || []).slice(); if (act === "m-sim-addseat" && c.lineup.length < 6) c.lineup.push(["", ""]); if (act === "m-sim-delseat" && c.lineup.length > 2) c.lineup.pop(); saveCfg(c); slot(); return; }
   if (act !== "m-sim-run" || s.run) return;
-  const counts = [2, 3, 4, 5, 6].filter(n => { const el = document.querySelector(`[data-simn="${n}"]`); return el && el.checked; });
-  const c = { counts, games: Math.max(1, Math.min(400, +document.getElementById("sim-games").value || 40)), seats: document.getElementById("sim-seats").value, data: document.getElementById("sim-data").value, skill: document.getElementById("sim-skill").value, label: document.getElementById("sim-label").value.trim(), threads: Math.max(1, Math.min(8, +document.getElementById("sim-threads").value || 2)) };
+  const seatMode = document.getElementById("sim-seats").value, lineup = (cfg().lineup || []).slice(0, 6);
+  const counts = seatMode === "custom" ? [lineup.length] : [2, 3, 4, 5, 6].filter(n => { const el = document.querySelector(`[data-simn="${n}"]`); return el && el.checked; });
+  const c = { counts, games: Math.max(1, Math.min(400, +document.getElementById("sim-games").value || 40)), seats: document.getElementById("sim-seats").value, data: document.getElementById("sim-data").value, skill: document.getElementById("sim-skill").value, label: document.getElementById("sim-label").value.trim(), lineup, threads: Math.max(1, Math.min(8, +document.getElementById("sim-threads").value || 2)) };
   try { root.localStorage.setItem(KEY, JSON.stringify(c)); } catch (e) {}
   if (!counts.length) { s.msg = "Pick at least one player count."; slot(); return; }
   const U = ctx.U, st = c.data === "draft" ? U.studio : c.data === "base" ? SI.defaults() : (U.active || U.studio), hash = SI.hashOf(st);
@@ -89,7 +96,7 @@ SI.simAct = async function (act, t, ctx) {
   let next = 0, active = 0;
   const feed = w => {
     if (run.stop) return; if (next >= jobs.length) { w.terminate(); active--; if (!active) run.finish(false); return; }
-    const j = jobs[next++]; w.postMessage(Object.assign({ seats: c.seats, skill: c.skill, config: st.config, data: st.data, site: SI.net.site(), hash, label }, j));
+    const j = jobs[next++]; w.postMessage(Object.assign({ seats: c.seats, skill: c.skill, lineup: c.lineup, config: st.config, data: st.data, site: SI.net.site(), hash, label }, j));
   };
   for (let i = 0; i < c.threads; i++) {
     const w = new Worker(url); run.workers.push(w); active++;
