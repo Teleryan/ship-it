@@ -377,7 +377,7 @@ SI.tutCoach = function () {
 /* ---------- spotlight: dim everything except the highlighted area (the coach box sits above it) ---------- */
 let spotEl = null, spotSel = null;
 function spotDraw() {
-  const els = spotSel ? Array.from(document.querySelectorAll(spotSel)).filter(e => e.getClientRects().length) : [];
+  const els = spotSel && !document.querySelector('.overlay') ? Array.from(document.querySelectorAll(spotSel)).filter(e => e.getClientRects().length) : [];
   if (!els.length) { if (spotEl) { spotEl.remove(); spotEl = null; } return; }
   const W = window.innerWidth, H = window.innerHeight;
   const holes = els.map(e => { const r = e.getBoundingClientRect(); return `<rect x="${r.left - 6}" y="${r.top - 6}" width="${r.width + 12}" height="${r.height + 12}" rx="10" fill="black"/>`; }).join("");
@@ -386,6 +386,7 @@ function spotDraw() {
 }
 window.addEventListener("scroll", () => { if (spotSel) spotDraw(); }, true);
 window.addEventListener("resize", () => { if (spotSel) spotDraw(); });
+SI.tutSpotClear = function () { spotSel = null; spotDraw(); };
 SI.tutHighlight = function (rootEl) { spotSel = null; try { tutHighlight0(rootEl); } finally { spotDraw(); } };
 function tutHighlight0(rootEl) {
   const u = U(), T = u.tut; if (!T || T.auto) return;

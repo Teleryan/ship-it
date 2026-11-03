@@ -682,7 +682,7 @@ function render() {
     if (U.tut) h += SI.tutCoach();
     $root.innerHTML = h;
     $root.className = U.tut ? ("tut-" + (SI.tutLockMode() || "free")) : "";
-    if (U.tut) SI.tutHighlight($root);
+    if (U.tut) SI.tutHighlight($root); else if (SI.tutSpotClear) SI.tutSpotClear();
   }
   if (U.S && U.screen === "game" && !U.tut) SI.an.track(U.S);
   autosave();
