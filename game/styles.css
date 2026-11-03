@@ -331,3 +331,4 @@ table.dt input.n{width:62px}
 .wcost{text-align:left}.wcost .wt{font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px}.wcost b{color:var(--ink)}
 #root.tut-hard .tutmode [data-act=rules],#root.tut-hard .tutmode [data-act=menu],#root.tut-hard .tutmode [data-act=log],#root.tut-hard .tutmode [data-act=save],#root.tut-soft .tutmode [data-act=rules],#root.tut-soft .tutmode [data-act=menu],#root.tut-soft .tutmode [data-act=log],#root.tut-soft .tutmode [data-act=save]{pointer-events:auto}
 #root.tut-hard .overlay.rulesov,#root.tut-hard .overlay.rulesov *,#root.tut-soft .overlay.rulesov,#root.tut-soft .overlay.rulesov *{pointer-events:auto}
+.tutmode [data-act=gamemenu]{position:relative;z-index:200}#root.tut-hard .tutmode [data-act=gamemenu],#root.tut-soft .tutmode [data-act=gamemenu]{pointer-events:auto}

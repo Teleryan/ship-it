@@ -177,7 +177,7 @@ function topbar(S) {
   <div class="grow"></div>
   ${U.net ? `<span class="mute" title="Game code">${U.net.up ? "●" : "○ reconnecting"} Game ${esc(U.net.code)}</span>` : U.tut ? "" : `<button class="btn sm" data-act="undo" ${U.undo.length ? "" : "disabled"}>↶ Undo</button>`}
   <button class="btn sm" data-act="rules">Rules</button><button class="btn sm" data-act="milesref">Milestones</button><button class="btn sm" data-act="log">Log</button>${U.net ? "" : '<button class="btn sm" data-act="save">Save</button>'}
-  ${U.owner ? '<button class="btn sm" data-act="studio">Data Studio</button><button class="btn sm" data-act="master">Master</button>' : ""}${U.tut || (S && S.over) || (U.net && !U.net.host) ? "" : '<button class="btn sm" data-act="endgame">End game</button>'}<button class="btn sm" data-act="menu">${U.net ? "Leave" : "Menu"}</button></div>`;
+  ${U.owner ? '<button class="btn sm" data-act="studio">Data Studio</button><button class="btn sm" data-act="master">Master</button>' : ""}${U.tut || (S && S.over) || (U.net && !U.net.host) ? "" : '<button class="btn sm" data-act="endgame">End game</button>'}<button class="btn sm" data-act="${U.net ? "menu" : "gamemenu"}">${U.net ? "Leave" : "Menu"}</button></div>`;
 }
 function prompt(S) {
   const d = S.dq[0]; const a = actorName(S);
@@ -604,6 +604,9 @@ function marketStrip(S) {
   }).join("");
   return `<div class="panel" data-tut="mstrip"><h3>Systems to Build <span class="mute" style="font-weight:400;font-size:11px">· ${p ? esc(p.name) : ""} · greyed = cannot build yet · tap for details</span></h3><div class="mgrid">${rows}</div></div>`;
 }
+function gameMenuModal() {
+  return modalShell(`<h2>Menu</h2><div class="col" style="gap:8px;min-width:260px"><button class="btn primary" data-act="close">Resume game</button><button class="btn" data-act="rules">Rules and guides</button><button class="btn" data-act="save">Save game</button>${U.owner ? '<button class="btn" data-act="studio">Data Studio</button><button class="btn" data-act="master">Master and analytics</button>' : ""}<button class="btn" data-act="menu">Quit to main menu</button></div><p class="dim" style="margin:12px 0 0;font-size:12px">Quitting leaves this game. Save first if you want to continue later.${U.owner ? "" : " Data Studio and analytics need the owner login."}</p>`).replace('<div class="overlay"', '<div class="overlay rulesov" style="z-index:300"');
+}
 function rulesModal() {
   const R = root.SHIPIT_RULES || []; const id = U.rulesTab || "start"; const cur = R.find(r => r.id === id) || R[0];
   if (!cur) return modalShell("<h2>Rules</h2><p class=\"mute\">Rules are not loaded.</p>");
@@ -668,6 +671,7 @@ function render() {
     else if (U.modal === "endgame") h += endGameModal();
     else if (U.modal === "milesref") h += milesModal(S);
     else if (U.modal === "rules") h += rulesModal();
+    else if (U.modal === "gamemenu") h += gameMenuModal();
     else if (U.modal === "market" && S.step === "build") h += marketModal();
     else if (S.over && U.modal !== "noresults") h += resultsModal();
     else if (hasHuman && !U.tut && S.crisisCard && U.seenCrisis !== (S.phase + S.crisisCard) && !S.over && !humanDecision) h += crisisIntroModal(S.data.crisis.find(c => c.id === S.crisisCard));
@@ -804,7 +808,7 @@ $root.addEventListener("click", e => {
   const t = e.target.closest("[data-act]"); if (!t) return;
   if (t.classList.contains("overlay") && e.target !== t) return;
   if (U.tut && (t.dataset.act === "detail") && !t.closest(".coach") && !SI.tutAllowsDetail()) { toast("We will cover that in a moment"); return; }
-  const rulesAct = ["rules", "rtab", "menu", "log", "save"].includes(t.dataset.act) || (U.modal === "rules" && (t.dataset.act === "close" || t.dataset.act === "overlay"));
+  const rulesAct = ["rules", "rtab", "gamemenu", "menu", "log", "save"].includes(t.dataset.act) || (U.modal === "gamemenu" && ["studio", "master"].includes(t.dataset.act)) || ((U.modal === "rules" || U.modal === "gamemenu") && (t.dataset.act === "close" || t.dataset.act === "overlay"));
   if (U.tut && !rulesAct) { const lm = SI.tutLockMode(); if (lm && !t.closest(".coach") && !(lm === "soft" && t.closest(".overlay"))) return; }
   const v = t.dataset.v; const S = U.S; const a = S ? E.currentActor(S) : -1;
   switch (t.dataset.act) {
@@ -859,6 +863,7 @@ $root.addEventListener("click", e => {
     case "milesref": U.modal = "milesref"; render(); return;
     case "log": U.logOpen = !U.logOpen; render(); return;
     case "rules": U.modal = "rules"; render(); return;
+    case "gamemenu": U.modal = "gamemenu"; render(); return;
     case "rtab": U.rulesTab = v; render(); return;
     case "save": save(); return;
     case "undo": if (U.undo.length) { restore(U.undo.pop()); U.sel = null; render(); scheduleBots(); } return;
@@ -957,5 +962,13 @@ async function liveConfig() {
     if (ok && loadAuto()) { render(); scheduleBots(); return; }
   }
   render();
+})();
+
+/* ---------- stale-tab guard: tell the player when a newer build is live ---------- */
+(function () {
+  if (!root.fetch || !root.document) return; let base = null, shown = false;
+  const hash = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return h; };
+  const probe = () => fetch("ui.js", { cache: "no-store" }).then(r => r.ok ? r.text() : null).then(t => { if (t == null) return; const h = hash(t); if (base == null) { base = h; return; } if (h !== base && !shown) { shown = true; const d = document.createElement("div"); d.style.cssText = "position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:400;background:#1f2d3d;border:2px solid #f5c542;color:#e8eef5;padding:8px 14px;border-radius:10px;font:600 13px system-ui;display:flex;gap:10px;align-items:center"; d.innerHTML = 'A new version is available. <button style="background:#3498db;border:0;color:#fff;border-radius:6px;padding:4px 10px;font-weight:700">Reload</button><button aria-label="Dismiss" style="background:none;border:0;color:#9fb0c3;font-size:18px">\u00d7</button>'; d.children[0].onclick = () => root.location.reload(); d.children[1].onclick = () => d.remove(); document.body.appendChild(d); } }).catch(() => {});
+  probe(); document.addEventListener("visibilitychange", () => { if (!document.hidden) probe(); }); setInterval(probe, 300000);
 })();
 })(typeof window !== "undefined" ? window : globalThis);
