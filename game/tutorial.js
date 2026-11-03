@@ -242,7 +242,6 @@ const STEPS_C = [
   info("board_pitch", { hl: () => "[data-row=HYPE]" }),
   info("board_jam", { hl: () => "[data-row=CREW]" }),
   info("board_perks", { hl: () => ".shared" }),
-  info("board_rd", { hl: () => "[data-spot=rd]" }),
   doing("bid", { hl: () => ".modal", done: S => after(S, "bid", 1), allow: a => a.type !== "bid" ? MSG("msg_bid") : (a.amount > 3 ? MSG("msg_bid_small") : null) }),
   doing("draft", { hl: () => "[data-tut=draftpanel]", done: S => after(S, "draft", 1), allow: a => a.type === "pick" ? null : MSG("msg_draft") }),
   doing("hire", { hl: () => "[data-tut=hand]", done: S => after(S, "hire", 1),
