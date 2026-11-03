@@ -326,7 +326,7 @@ function actionArea(S) {
   }
   if (S.step === "build") {
     const free = a.freeBuilds > 0;
-    h += `<div class="panel"><h3>Build systems</h3><div class="row wrap"><button class="btn primary" data-tut="market" data-act="market">Open Systems Market</button><span class="mute">${resNow(a)} · ${ic("gold")} <b class="mono" style="color:var(--gold)">${a.gold}</b> · builds ${a.builds}/${E.maxBuilds(S, a)}${free ? ` · <b style="color:var(--good)">${a.freeBuilds} FREE build</b>` : ""}</span></div></div>`;
+    h += `<div class="panel"><h3>Build systems</h3><div class="row wrap"><button class="btn primary" data-tut="market" data-act="market">Open Systems to Build</button><span class="mute">${resNow(a)} · ${ic("gold")} <b class="mono" style="color:var(--gold)">${a.gold}</b> · builds ${a.builds}/${E.maxBuilds(S, a)}${free ? ` · <b style="color:var(--good)">${a.freeBuilds} FREE build</b>` : ""}</span></div></div>`;
   }
   if (S.step === "rest") h += restView(S, a);
   return h;
@@ -602,7 +602,7 @@ function marketStrip(S) {
     const tiles = (S.market[cat] || []).map(n => { const d = E.sysDef(S, n); const ck = E.canBuild(S, vi, n, false, cr); return sysTile(d, ck.ok); }).join("") || '<span class="mute">Sold out</span>';
     return `<div class="mcol"><div class="lab" style="color:${catColor[cat]}">${cat}</div><div class="tiles">${tiles}</div></div>`;
   }).join("");
-  return `<div class="panel" data-tut="mstrip"><h3>Systems for sale <span class="mute" style="font-weight:400;font-size:11px">· ${p ? esc(p.name) : ""} · greyed = cannot build yet · tap for details</span></h3><div class="mgrid">${rows}</div></div>`;
+  return `<div class="panel" data-tut="mstrip"><h3>Systems to Build <span class="mute" style="font-weight:400;font-size:11px">· ${p ? esc(p.name) : ""} · greyed = cannot build yet · tap for details</span></h3><div class="mgrid">${rows}</div></div>`;
 }
 function rulesModal() {
   const R = root.SHIPIT_RULES || []; const id = U.rulesTab || "start"; const cur = R.find(r => r.id === id) || R[0];
@@ -613,7 +613,7 @@ function marketModal() {
   const S = U.S; const a = P(E.currentActor(S)); const cat = U.marketCat || "All"; const free = a.freeBuilds > 0;
   const list = S.data.systems.filter(d => E.inMarket(S, d) && (cat === "All" || d.cat === cat)); const canRefresh = !!S.cfg.marketSize && (a.refreshed || 0) < (S.cfg.marketRefreshesPerRound || 1) && a.gold >= S.cfg.marketRefreshGold;
   const cr = S.cfg.varC && U.crunch ? U.crunch : undefined; const rdFree = !!(a.rd && S.cfg.rdCrunch);
-  let h = `<h2>Systems Market</h2>` + (S.cfg.varC ? `<div class="row wrap" style="margin-bottom:8px;gap:8px;align-items:center"><b>Build speed:</b>${rdFree ? `<span class="mute">R&amp;D: your build is rushed for free (one crew round less)</span>` : [["none", "Normal"], ["gold", "Rush with Gold (+" + S.cfg.crunchGold + "G): one crew round less"], ["fat", "Rush by tiring a worker: one crew round less"]].map(o => `<button class="tab ${(cr || "none") === o[0] ? "on" : ""}" data-act="crunch" data-v="${o[0]}">${o[1]}</button>`).join("")}</div>` : "") + `<div class="row wrap" style="margin-bottom:10px">${["All"].concat(E.CATS).map(c => `<button class="tab ${cat === c ? "on" : ""}" data-act="mcat" data-v="${c}">${c}</button>`).join("")}<span class="grow"></span><span class="mono">${resNow(a)} · Gold <b style="color:var(--gold)">${a.gold}</b> · builds ${a.builds}/${E.maxBuilds(S, a)}${free ? " · FREE build ready" : ""}</span></div>` + (cat !== "All" && D.typeRules && D.typeRules[cat] ? `<div class="mute" style="margin:0 0 8px"><b>${cat}:</b> ${esc(D.typeRules[cat])}</div>` : "");
+  let h = `<h2>Systems to Build</h2>` + (S.cfg.varC ? `<div class="row wrap" style="margin-bottom:8px;gap:8px;align-items:center"><b>Build speed:</b>${rdFree ? `<span class="mute">R&amp;D: your build is rushed for free (one crew round less)</span>` : [["none", "Normal"], ["gold", "Rush with Gold (+" + S.cfg.crunchGold + "G): one crew round less"], ["fat", "Rush by tiring a worker: one crew round less"]].map(o => `<button class="tab ${(cr || "none") === o[0] ? "on" : ""}" data-act="crunch" data-v="${o[0]}">${o[1]}</button>`).join("")}</div>` : "") + `<div class="row wrap" style="margin-bottom:10px">${["All"].concat(E.CATS).map(c => `<button class="tab ${cat === c ? "on" : ""}" data-act="mcat" data-v="${c}">${c}</button>`).join("")}<span class="grow"></span><span class="mono">${resNow(a)} · Gold <b style="color:var(--gold)">${a.gold}</b> · builds ${a.builds}/${E.maxBuilds(S, a)}${free ? " · FREE build ready" : ""}</span></div>` + (cat !== "All" && D.typeRules && D.typeRules[cat] ? `<div class="mute" style="margin:0 0 8px"><b>${cat}:</b> ${esc(D.typeRules[cat])}</div>` : "");
   const cards = list.map(d => {
     const ck = E.canBuild(S, a.id, d.name, free, cr); const ckPaid = free ? E.canBuild(S, a.id, d.name, false, cr) : ck;
     const hint = a.objectives.some(id => S.cfg.varC ? S.data.objectives[id].res === E.sysMainRes(d) : d.sym.some(s => S.data.objectives[id].sym.includes(s)));

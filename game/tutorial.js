@@ -119,7 +119,7 @@ const STEPS_A = [
     allow: blk },
 
   { id: "build", kind: "do", title: "Build a system", hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"),
-    text: S => `Press ${b("Open Systems Market")}. Each card shows its cost in resources (the same roles as the workers it needs), plus Gold. If you are one or two resources short you can pay Gold for them. Each card also shows which workers you need, and what it does. Only systems you can afford and have the right workers for are enabled. The rest explain why they are locked.${me(S).freeBuilds ? `<br><br>${b("A free build is on the house this round.")}` : ""}<br><br>Build one, close the market with ${b("×")}, then press ${b("Done")}.`,
+    text: S => `Press ${b("Open Systems to Build")}. Each card shows its cost in resources (the same roles as the workers it needs), plus Gold. If you are one or two resources short you can pay Gold for them. Each card also shows which workers you need, and what it does. Only systems you can afford and have the right workers for are enabled. The rest explain why they are locked.${me(S).freeBuilds ? `<br><br>${b("A free build is on the house this round.")}` : ""}<br><br>Build one, close the market with ${b("×")}, then press ${b("Done")}.`,
     done: S => after(S, "build", 1),
     allow: (a, S) => a.type === "build" ? null : a.type === "done" ? ((me(S).builds >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : "Try building one system first") : "Build a system, then press Done" },
 
