@@ -353,7 +353,6 @@ D.config = {
 D.spotsC = [
  // Skill spots
  {id:"idea1",row:"EARN",discs:["DES","ART"],fx:"",r:1,debt:0,phases:[0,1,2],note:"Earn Ideas (or the skill of the role you fill)"},
- {id:"idea2",row:"EARN",discs:["DES","ART"],fx:"",r:2,debt:0,phases:[0],note:"Earn double skills"},
  {id:"code1",row:"EARN",discs:["ENG","QA"],fx:"",r:1,debt:0,phases:[0,1],note:"Earn Code"},
  {id:"code2",row:"EARN",discs:["ENG","QA"],fx:"",r:2,debt:0,phases:[0],note:"Earn double skills"},
  {id:"plan1",row:"EARN",discs:["DATA","DES"],fx:"",r:1,debt:0,phases:[0],note:"Earn Process"},
@@ -364,6 +363,7 @@ D.spotsC = [
  {id:"labcrew",row:"CREW",discs:["ANY"],crew:[["Creative","Operations"]],fx:"+1 Culture",r:2,debt:0,phases:[1,2],note:"Crew: Creative + Operations"},
  // Progress / Hype spots
  {id:"pitch1",row:"HYPE",discs:["PX","ADV"],fx:"+3 Hype",debt:0,phases:[0],mkt:true},
+ {id:"pitch2",row:"HYPE",discs:["PX","ADV"],fx:"+2 Hype, +1 Marketing",debt:0,phases:[0],mkt:true},
  {id:"concept2",row:"PROGRESS",discs:["DES","DATA"],fx:"+2 Progress",debt:1,phases:[0]},
  {id:"proto1",row:"PROGRESS",discs:["ENG","ART"],fx:"+1 Progress",debt:1,phases:[0]},
  {id:"kickoff",row:"CREW",discs:["ANY"],crew:[["Creative","Operations"]],fx:"+3 Progress, +1 Culture",debt:0,phases:[0],note:"Crew: Creative + Operations"},
