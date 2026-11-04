@@ -80,6 +80,18 @@ const SA=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:3});ok(!SA.cf
  const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:11,config:{varC:1,burnout:1,train:1}});let g=0;while(g++<4000&&!(S.round>=3&&S.step==='place'&&!S.dq.length)){const a=B.decide(S);if(!a)break;E.act(S,a)}
  const pi=E.currentActor(S),p=S.players[pi];const w=p.workers.find(x=>x.lvl==='Jr'&&!x.placed&&!x.build);p.rs.trains=0;p.gold=5;
  if(w){w.benched='Training';w.trained=1;w.training=false;const r=E.act(S,{type:'train',p:pi,worker:w.id});ok(r.ok&&w.trained===2&&w.training&&p.gold===4,'Train during Place works for a worker already sitting out (2nd training)');ok(E.currentActor(S)===pi,'training does not use up the placement turn');}}
+{ // flowV2: Upkeep opens each round (not round 1), Income, then Bid; Rest and Milestones are one step
+ const cfg={varC:1,burnout:1,train:1,flowV2:1};const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:9,config:cfg});const seen=[];let last='',g=0;
+ while(g++<9000&&!S.over&&S.round<4){const k=S.round+':'+S.step;if(k!==last){seen.push(k);last=k}const a=B.decide(S);if(!a)break;const r=E.act(S,a);if(!r.ok)break}
+ ok(seen.slice(0,8).join(' ')==='1:setup 1:bid 1:draft 1:hire 1:place 1:build 1:rest 2:bid','flowV2 round 1: bid, draft, hire, place, build, rest, then round 2 opens at the bid');
+ ok(!seen.some(k=>/:milestones/.test(k)),'flowV2: no separate Milestones step');
+ const L=S.log.map(l=>l.m),iU=L.findIndex(m=>/^UPKEEP/.test(m)),iI=L.findIndex(m=>/^INCOME/.test(m)),iI2=L.findIndex((m,i)=>i>iI&&/^INCOME/.test(m));
+ ok(iU>iI&&iU<iI2,'flowV2: no Upkeep in round 1; the first Upkeep comes before round 2 Income');
+ const bidAfterInc=L.findIndex((m,i)=>i>iI2&&/^BLIND BID/.test(m));ok(bidAfterInc>iI2,'flowV2: Income comes before the Bid');
+ const T=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:9,config:cfg});let g2=0;while(g2++<9000&&!(T.round>=2&&T.step==='rest'&&!T.dq.length)){const a=B.decide(T);if(!a)break;E.act(T,a)}
+ const pq=E.currentActor(T);ok(!E.act(T,{type:'claim',p:pq,mile:-1}).ok,'flowV2: claim is accepted by the Rest step handler (bad id refused)');
+ const O=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:9,config:{varC:1}});let g3=0,seenO=[],lo='';while(g3++<9000&&!O.over&&O.round<3){const k=O.round+':'+O.step;if(k!==lo){seenO.push(k);lo=k}const a=B.decide(O);if(!a)break;E.act(O,a)}
+ ok(seenO.some(k=>/:milestones/.test(k)),'older order keeps its Milestones step when flowV2 is off');}
 { // Variant D: Insight is off the board at every player count
  for(const n of [2,3,4,5,6]){const seats=[];for(let i=0;i<n;i++)seats.push({name:'P'+i,bot:true});
   const D=E.newGame(seats,{seed:3,config:{varC:1,smallDrop:['insight'],smallMax:6}}); let any=false; for(let ph=0;ph<4;ph++){D.phase=ph; if(E.activeSpots(D).some(x=>x.id==='insight'))any=true}

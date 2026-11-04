@@ -210,6 +210,12 @@ function tokens(S) {
     burnMax: c.burnMax, burnOverStep: c.burnOverStep, burnOverMax: c.burnOverMax, burnUnpaidMin: c.burnUnpaidMin, burnRelief: c.burnRelief, burnTeamRelief: c.burnTeamRelief,
     energizedCulture: c.energizedCulture, energizedGold: c.energizedGold, burnStrainAt: c.burnStrainAt, burnStrainHype: c.burnStrainHype, burnBenchAt: c.burnBenchAt, burnQuitAt: c.burnQuitAt, burnQuitReset: c.burnQuitReset
   };
+  const v2 = !!c.flowV2;
+  t.phaseOrder = v2 ? "Crisis, Reveal" : "Crisis, Reveal, Bid, Draft";
+  t.roundOrder = v2 ? "<b>Upkeep</b> (not in round 1), <b>Income</b>, a blind <b>Bid</b> for turn order, <b>Draft</b>, <b>Hire</b>, <b>Place</b>, <b>Build</b>, then one <b>Rest and Milestones</b> step" : "a blind <b>Bid</b> for turn order, then <b>Income</b>, <b>Hire</b>, <b>Place</b>, <b>Build</b>, <b>Rest</b>, <b>Milestones</b>, <b>Upkeep</b>";
+  t.incomeNote = v2 ? "Next comes <b>Income</b>: every studio gets " + c.income + "G, so you have gold to bid with, and the hire pool is shown as you bid.\n\n" : "";
+  t.restMiles = v2 ? "\n\n<b>Rest and Milestones are one step.</b> Milestones are bonus goals in your hand, such as \"have 3 Seniors\". When one is met it shows <b>MET</b>: click it and press <b>Cash in</b> to take the gold. A milestone can only be completed during its phase window." : "";
+  t.upkeepV2 = v2 ? "\n\nFrom now on every round <b>opens with Upkeep</b>, before Income. There is no Upkeep in round 1." : "";
   t.restTeam = fmt(rw(c.train ? "rest_train" : "rest_nontrain").text, t);
   ["burnStats", "burnRest", "burnUpkeep"].forEach(k => { t[k] = c.burnout ? fmt(rw("burn_" + k.slice(4).toLowerCase()).text, t) : ""; });
   t.gateResult = done ? fmt(rw(done.passed.includes(0) ? "gate_pass" : "gate_miss").text, t) : "";
@@ -267,8 +273,8 @@ const STEPS_C = [
   doing("build", { hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"), done: S => after(S, "build", 1),
     allow: (a, S) => a.type === "build" ? null : a.type === "done" ? ((me(S).builds >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : MSG("msg_build_first")) : MSG("msg_build") }),
   info("build_rd", { hl: () => "[data-spot=rd]" }),
-  doing("rest1", { hl: () => "[data-tut=workers]", done: S => after(S, "rest", 1), allow: a => a.type === "train" ? MSG("msg_train_later") : (a.type === "done" || a.type === "fire" || a.type === "swapObj" || a.type === "swapMile") ? null : MSG("msg_rest") }),
-  doing("miles", { hl: () => "[data-tut=miles]", done: S => after(S, "milestones", 1), allow: a => (a.type === "claim" || a.type === "done") ? null : MSG("msg_miles") }),
+  doing("rest1", { hl: () => "[data-tut=workers]", done: S => after(S, "rest", 1), allow: a => a.type === "train" ? MSG("msg_train_later") : (a.type === "done" || a.type === "fire" || a.type === "swapObj" || a.type === "swapMile" || a.type === "claim") ? null : MSG("msg_rest") }),
+  doing("miles", { only: () => !E.rawConfig().flowV2, hl: () => "[data-tut=miles]", done: S => after(S, "milestones", 1), allow: a => (a.type === "claim" || a.type === "done") ? null : MSG("msg_miles") }),
   info("upkeep", { hl: () => "[data-tut=steps]" }),
   info("gates", { hl: () => "[data-tut=gates]" }),
   /* ---- round 2: recruit, rest, crunch ---- */
@@ -284,8 +290,8 @@ const STEPS_C = [
   softInfo("hype_bank", { hl: () => "[data-tut=tracks]", only: () => !!E.rawConfig().hypeBank }),
   softInfo("crisis", { hl: () => "[data-tut=crisis]" }),
   play("r4play", { hl: () => null, done: S => reachedRound(S, 4, "rest") }),
-  doing("promote", { rv: () => (U().S && U().S.cfg.train) ? "promote_train" : "promote", hl: () => "[data-tut=rest]", done: S => me(S).workers.some(w => w.lvl === "Sr") || reachedRound(S, 4, "milestones"),
-    allow: (a, S) => a.type === "train" ? (S.cfg.train && !trigOk(S, me(S).workers.find(w => w.id === a.worker) || {}) && eligibleJr(S).some(w => trigOk(S, w)) ? MSG("msg_promote_fit") : null) : a.type === "promote" ? (eligibleJr(S).some(w => trigOk(S, w)) && !trigOk(S, me(S).workers.find(w => w.id === a.worker) || {}) ? MSG("msg_promote_fit") : null) : a.type === "done" ? (eligibleJr(S).length ? MSG(S.cfg.train ? "msg_promote_train" : "msg_promote") : null) : MSG(S.cfg.train ? "msg_promote_train" : "msg_promote") }),
+  doing("promote", { rv: () => (U().S && U().S.cfg.train) ? "promote_train" : "promote", hl: () => "[data-tut=rest]", done: S => me(S).workers.some(w => w.lvl === "Sr") || (S.cfg.flowV2 ? S.round > 4 : reachedRound(S, 4, "milestones")),
+    allow: (a, S) => a.type === "claim" ? null : a.type === "train" ? (S.cfg.train && !trigOk(S, me(S).workers.find(w => w.id === a.worker) || {}) && eligibleJr(S).some(w => trigOk(S, w)) ? MSG("msg_promote_fit") : null) : a.type === "promote" ? (eligibleJr(S).some(w => trigOk(S, w)) && !trigOk(S, me(S).workers.find(w => w.id === a.worker) || {}) ? MSG("msg_promote_fit") : null) : a.type === "done" ? (eligibleJr(S).length ? MSG(S.cfg.train ? "msg_promote_train" : "msg_promote") : null) : MSG(S.cfg.train ? "msg_promote_train" : "msg_promote") }),
   doing("trigger", { hl: () => "[data-tut=workers]", done: S => me(S).rs.triggers >= 1 || reachedRound(S, 5, "build") || (S.round >= 5 && !sysOpt(S)),
     allow: (a, S) => a.type === "place" ? (srIds(S).includes(a.worker) && !String(a.target).startsWith("sys:") ? MSG("msg_trigger") : null) : a.type === "pass" ? MSG("msg_trigger") : null }),
   play("prod", { hl: () => null, done: S => S.round >= 9 }),

@@ -189,6 +189,12 @@ function menuView() {
 /* ---------- game view pieces ---------- */
 function actorName(S) { const a = E.currentActor(S); return a >= 0 ? S.players[a] : null; }
 function stepTracker(S) {
+  if (S.cfg.flowV2) { // Upkeep opens each round (not round 1), then Income, Bid, Draft, Hire, Place, Build, Rest and Milestones
+    const pg2 = ["Crisis", "Reveal"], rg2 = [["upkeep", "Upkeep"], ["income", "Income"], ["bid", "Bid"], ["draft", "Draft"], ["hire", "Hire"], ["place", "Place"], ["build", "Build"], ["rest", "Rest + Milestones"]];
+    const inP = ["setup", "crisis"].includes(S.step), idxR2 = { bid: 2, draft: 3, hire: 4, place: 5, build: 6, rest: 7 }[S.step];
+    return `<div class="stepgroup sg-phase" data-tut="steps"><span class="lab">Phase start</span>${pg2.map((s, i) => `<span class="step ${inP ? (i === 0 ? "on" : "") : "done"}">${s}</span>`).join("")}</div>
+  <div class="stepgroup sg-round" data-tut="steps"><span class="lab">Round</span>${rg2.map((s, i) => `<span class="step ${i === 0 && S.round === 1 ? "" : !inP ? (i === idxR2 ? "on" : i < idxR2 ? "done" : "") : ""}" ${i === 0 && S.round === 1 ? 'title="No Upkeep in round 1" style="opacity:.35;text-decoration:line-through"' : ""}>${s[1]}</span>`).join("")}</div>`;
+  }
   const pg = [["crisis","Crisis"],["reveal","Reveal"],["bid","Bid"],["draft","Draft"]];
   const rg = [["income","Income"],["hire","Hire"],["place","Place"],["build","Build"],["rest","Rest"],["milestones","Milestones"],["upkeep","Upkeep"]];
   const inPhase = ["setup","crisis","bid","draft"].includes(S.step);
@@ -209,7 +215,7 @@ function prompt(S) {
   const d = S.dq[0]; const a = actorName(S);
   if (S.over) return "Game over";
   if (d) return { keepObj: "choose your objectives", bid: d.purpose === "turn" ? "secret blind bid for turn order" : "secret auction bid", choose: "make a crisis choice", pickWorker: "choose a worker to lose", raidHire: "Studio Raid: hire at half cost?", pivot: "pivot your Platform", dropObj: "remove an objective", keepMile: "choose milestone(s) to keep", swapObjPick: "choose objective", patch: "Day-One Patch: spend Momentum" }[d.t] || "decide";
-  return { draft: "take 1 card (" + (S.draft.left != null ? S.draft.left + " picks left in the draft" : S.draft.cards.length + " left") + ")", hire: "hire from your hand, then Done", place: "select a worker, then a highlighted spot (or Pass)", build: "build a system with skills, builds " + (a ? a.builds + "/" + E.maxBuilds(S, a) : ""), rest: "promote, headhunt, swap or release, then Done", milestones: "cash in completed milestones, then Done" }[S.step] || "";
+  return { draft: "take 1 card (" + (S.draft.left != null ? S.draft.left + " picks left in the draft" : S.draft.cards.length + " left") + ")", hire: "hire from your hand, then Done", place: "select a worker, then a highlighted spot (or Pass)", build: "build a system with skills, builds " + (a ? a.builds + "/" + E.maxBuilds(S, a) : ""), rest: S.cfg.flowV2 ? "promote or train, cash in milestones, then Done" : "promote, headhunt, swap or release, then Done", milestones: "cash in completed milestones, then Done" }[S.step] || "";
 }
 function banner(S) {
   const a = actorName(S);
@@ -380,8 +386,8 @@ function draftView(S) {
 }
 function restView(S, a) {
   const cost = E.promoCost(S), hc = cost * S.cfg.headhuntMult;
-  let h = `<div class="panel" data-tut="rest"><h3>Rest phase</h3><div class="mute" style="margin-bottom:6px">Promotion ${S.cfg.promoFree ? "is free for a worker who has worked and is resting this round" : cost + "G"} (${a.promos}/${S.cfg.promotionsPerRest} used)${U.tut || !S.cfg.headhuntsPerRest ? "" : ` · Headhunt ${hc}G, victim gets ${Math.floor(hc * S.cfg.headhuntComp)}G (${a.hunts}/${S.cfg.headhuntsPerRest} used)`}</div>`;
-  h += `<div class="mute" style="margin:2px 0 6px">Click a worker to promote or release them.</div><div class="workers">${a.workers.map(w => workerCard(S, w, a.id, false)).join("") || '<span class="mute">No workers.</span>'}</div>`;
+  let h = `<div class="panel" data-tut="rest"><h3>${S.cfg.flowV2 ? "Rest and Milestones" : "Rest phase"}</h3><div class="mute" style="margin-bottom:6px">Promotion ${S.cfg.promoFree ? "is free for a worker who has worked and is resting this round" : cost + "G"} (${a.promos}/${S.cfg.promotionsPerRest} used)${U.tut || !S.cfg.headhuntsPerRest ? "" : ` · Headhunt ${hc}G, victim gets ${Math.floor(hc * S.cfg.headhuntComp)}G (${a.hunts}/${S.cfg.headhuntsPerRest} used)`}</div>`;
+  h += `<div class="mute" style="margin:2px 0 6px">${S.cfg.flowV2 ? "Click a worker to train or promote them. Cash in any completed Milestone from the cards below, then press Done." : "Click a worker to promote or release them."}</div><div class="workers">${a.workers.map(w => workerCard(S, w, a.id, false)).join("") || '<span class="mute">No workers.</span>'}</div>`;
   const others = S.players.filter(p => p.id !== a.id && p.workers.length);
   if (others.length && !U.tut && S.cfg.headhuntsPerRest) {
     h += `<div class="mute" style="margin:10px 0 4px">Headhunt a worker</div>` + others.map(o => `<div class="row wrap" style="margin:3px 0"><b style="color:${o.color}">${esc(o.name)}</b>${o.workers.map(w => { const catchUp = S.cfg.headhuntCatchUp && o.workers.length <= a.workers.length; const bad = catchUp || a.gold < hc || a.hunts >= S.cfg.headhuntsPerRest || (w.lvl === "Sr" && !E.srAllowed(S)); return `<button class="btn sm" data-act="hunt" data-t="${o.id}" data-w="${w.id}" ${bad ? "disabled" : ""} title="${bad ? (catchUp ? "Only from a studio with more workers than yours" : a.gold < hc ? "Needs " + hc + "G" : "Not available") : ""}">${w.lvl} ${w.disc}${w.fat ? " (" + ["", "tired", "over-tired"][w.fat] + ")" : ""}</button>`; }).join("")}</div>`).join("");
@@ -616,7 +622,7 @@ function detailModal() {
     case "mile": {
       const id = +d.id, m = S.data.milestones[id]; if (!m) return closeOnly(); const met = E.milestoneMet(S, +d.p, id);
       h += `<div class="dtitle">${esc(m.name)}</div><p>${esc(m.text)}</p><p class="mute">Phase window: ${mileWhen(m, E.mileWindow(S, m))}. A milestone can only be completed inside its window; a card whose window has passed is swapped for a new one at the next phase start.</p><p style="color:var(--gold)"><b>Reward: +${m.gold}G</b> ${met ? '<span style="color:var(--good)">MET</span>' : '<span class="mute">not met yet</span>'}</p>`;
-      if (S.step === "milestones" && mineTurn && a === +d.p && !S.dq.length) h += `<div class="row" style="margin-top:12px">${actBtn("Cash in", `data-act="claim" data-mile="${id}"`, !met, "Requirement not met yet")}</div>`;
+      if ((S.step === "milestones" || (S.cfg.flowV2 && S.step === "rest")) && mineTurn && a === +d.p && !S.dq.length) h += `<div class="row" style="margin-top:12px">${actBtn("Cash in", `data-act="claim" data-mile="${id}"`, !met, "Requirement not met yet")}</div>`;
       break; }
     case "obj": {
       const id = +d.id, o = S.data.objectives[id]; if (!o) return closeOnly(); const st = E.objectiveStatus(S, +d.p, id);

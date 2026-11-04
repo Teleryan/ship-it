@@ -245,7 +245,7 @@ E.advance = function (S) {
     switch (S.step) {
       case "setup": beginPhase(S); continue;
       case "crisis": afterCrisis(S); continue;
-      case "draft": if (!S.draft.cards.length) { beginRound(S); continue; } if (S.cur >= S.order.length) S.cur = 0; return;
+      case "draft": if (!S.draft.cards.length) { afterDraft(S); continue; } if (S.cur >= S.order.length) S.cur = 0; return;
       case "hire": case "build": case "rest": case "milestones":
         if (S.cur >= S.order.length) { nextStep(S); continue; }
         return;
@@ -287,17 +287,24 @@ function afterCrisis(S) {
   // draftPool > 0: a fixed-size face-up pool that refills after every pick; otherwise deal exactly per x players cards
   S.draft = { cards: picks ? drawDisc(S, pool || picks) : [], per, left: pool ? picks : null };
   log(S, "REVEAL: " + S.draft.cards.length + " discipline cards dealt face up" + (pool ? " (pool refills to " + pool + " after each pick)" : ""));
+  if (c.flowV2) roundSetup(S); // Income first, then the Bid
+  startBid(S);
+}
+
+function beginDraft(S) {
+  if (S.draft.cards.length) { S.step = "draft"; S.cur = 0; log(S, "DRAFT: take 1 card each in turn order" + (S.draft.left != null ? " (" + S.draft.left + " picks, pool refills)" : " until depleted")); }
+  else afterDraft(S);
+}
+// flowV2 (Variant D): Upkeep opens the round, Income comes next, then the Bid; the draft and Hire follow the bid
+function afterDraft(S) { if (S.cfg.flowV2) { S.step = "hire"; S.cur = 0; } else beginRound(S); }
+function startBid(S) {
   S.step = "bid"; S.bids = {}; if (S.cfg.varC) rollRecruit(S);
   S.order.forEach(pi => S.dq.push({ t: "bid", p: pi, purpose: "turn" }));
   S.dq.push({ t: "auto", fn: "turnOrder" });
 }
 
-function beginDraft(S) {
-  if (S.draft.cards.length) { S.step = "draft"; S.cur = 0; log(S, "DRAFT: take 1 card each in turn order" + (S.draft.left != null ? " (" + S.draft.left + " picks, pool refills)" : " until depleted")); }
-  else beginRound(S);
-}
-
-function beginRound(S) {
+function beginRound(S) { roundSetup(S); S.step = "hire"; S.cur = 0; }
+function roundSetup(S) {
   S.players.forEach(p => {
     p.rs = { spent: 0, gained: 0, spentRes: 0, hires: 0, placed: 0, triggers: 0, builds: 0, debtRemoved: 0, hypeGained: 0, discards: 0, cashed: 0, debtStart: p.debt };
     p.workers.forEach(w => { w.placed = false; w.benched = false; if (w.training) { w.benched = "Training"; w.training = false; } });
@@ -320,7 +327,6 @@ function beginRound(S) {
     if (S.cfg.burnout && sal - pay >= (S.cfg.burnUnpaidMin || 1)) { p.rs.unpaid = true; const b = Math.min(S.cfg.burnUnpaidMax || 2, Math.ceil((sal - pay) / (S.cfg.burnUnpaidPer || 2))); const r = gain(S, p.id, "burnout", b); if (r) log(S, p.name + " could not pay everyone: Burnout +" + r); }
   });
   if (S.cfg.burnout) burnBands(S);
-  S.step = "hire"; S.cur = 0;
 }
 
 /* ---------- Variant D: Burnout track ---------- */
@@ -399,8 +405,9 @@ function nextStep(S) {
       p.swapMile = S.cfg.noSwaps ? 0 : p.workers.filter(w => (w.disc === "DATA") && ((w.lvl === "Sr" && w.placed) || (w.lvl === "Jr" && !w.placed))).length;
     });
   } else if (prev === "rest") {
-    S.step = "milestones";
     S.players.forEach(p => { p.cs.hypeStreak = p.hype >= 10 ? p.cs.hypeStreak + 1 : 0; });
+    if (S.cfg.flowV2) return roundEnd(S); // Rest and Milestones are one step
+    S.step = "milestones";
   } else if (prev === "milestones") { upkeep(S); }
 }
 
@@ -430,7 +437,8 @@ function placeAdvance(S) {
 function bumpPlace(S) { S.cur = (S.cur + 1) % S.order.length; }
 
 /* ---------- Upkeep & round end ---------- */
-function upkeep(S) {
+// End of round (phase-end events): crisis hooks, gates, Hype banking. Returns true if the game ended.
+function endOfRound(S) {
   // scheduled end-of-round crisis hooks
   S.sched = S.sched.filter(h => {
     if (h.round !== S.round) return true;
@@ -438,7 +446,7 @@ function upkeep(S) {
     if (h.kind === "award") awardResolve(S, h);
     return false;
   });
-  if (S.cfg.raceScoring && S.cfg.raceEnd && raceCheck(S)) return endGame(S);
+  if (S.cfg.raceScoring && S.cfg.raceEnd && raceCheck(S)) { endGame(S); return true; }
   if (S.round === 1) drawGates(S);
   if (S.round >= PHASE_ENDS[3] || PHASE_OF_ROUND(S.round + 1) !== S.phase) resolveGate(S);
   if (S.cfg.hypeBank && S.phase < 3 && PHASE_OF_ROUND(S.round + 1) !== S.phase) { // lock in: when a phase closes, Hype is banked as Marketing, which never fades
@@ -448,6 +456,10 @@ function upkeep(S) {
     const mx = Math.max.apply(null, S.players.map(q => q.hype)), tops = S.players.filter(q => q.hype === mx);
     if (tops.length === 1 && mx >= (S.cfg.hypeLeadMin || 1)) { tops[0].vpAdj += S.cfg.hypeLeadVP; S.hypeLead = (S.hypeLead || []).concat([{ phase: S.phase, id: tops[0].id, vp: S.cfg.hypeLeadVP }]); log(S, "HYPE LEADER: " + tops[0].name + " has the most Hype (" + mx + ") at the end of " + D0.phases[S.phase].name + ": +" + S.cfg.hypeLeadVP + " VP"); }
   }
+  return false;
+}
+// Upkeep: Hype fades, Culture moves toward 0, Burnout, tired workers recover or quit
+function upkeepPlayers(S) {
   S.players.forEach(p => {
     p.systems.forEach(sy => { const d = sysDef(S, sy.name); if (d && d.rule && d.rule.upk) { Object.keys(d.rule.upk).forEach(k => gain(S, p.id, k, d.rule.upk[k])); log(S, p.name + "'s " + d.name + ": " + d.pas); } });
     if (S.cfg.hypeIncStep) { const hg = Math.min(S.cfg.hypeIncMax || 2, Math.floor(p.hype / S.cfg.hypeIncStep)); if (hg) { S._nt = 1; gain(S, p.id, "gold", hg); S._nt = 0; log(S, p.name + " has " + p.hype + " Hype: Wishlists bring +" + hg + "G"); } }
@@ -475,11 +487,24 @@ function upkeep(S) {
     p.flags.freeBuildUsed = false;
   });
   log(S, "UPKEEP: Hype -" + S.cfg.hypeDecay + ", Culture toward 0, workers recover");
+}
+function upkeep(S) {
+  if (endOfRound(S)) return;
+  upkeepPlayers(S);
   if (S.round >= PHASE_ENDS[3]) return endGame(S);
   S.round++;
   if (PHASE_OF_ROUND(S.round) !== S.phase) beginPhase(S);
   else if (S.cfg.bidEveryRound) { S.draft = { cards: [], per: 0, left: null }; S.step = "bid"; S.bids = {}; if (S.cfg.varC) rollRecruit(S); S.order.forEach(pi => S.dq.push({ t: "bid", p: pi, purpose: "turn" })); S.dq.push({ t: "auto", fn: "turnOrder" }); }
   else { S.step = "x"; beginRound(S); }
+}
+// flowV2: the round closes (gates), the next round opens with Upkeep (not in round 1), then Income and the Bid. No Upkeep after the last round.
+function roundEnd(S) {
+  if (endOfRound(S)) return;
+  if (S.round >= PHASE_ENDS[3]) return endGame(S);
+  S.round++;
+  upkeepPlayers(S);
+  if (PHASE_OF_ROUND(S.round) !== S.phase) return beginPhase(S);
+  S.draft = { cards: [], per: 0, left: null }; roundSetup(S); startBid(S);
 }
 /* Publisher gates: a review at the end of each phase. Meet every requirement: funding tranche (+ VP). Miss: VP penalty. Best Progress among those who pass: bonus VP. */
 /* Publisher gates are drawn once per game, at the end of round 1: one review per phase, picked from the pool for that phase. */
@@ -931,21 +956,25 @@ function stepAction(S, a, actor) {
     case "rest": return restAction(S, a, p);
     case "milestones": {
       if (a.type === "done") { S.cur++; return { ok: true }; }
-      if (a.type === "claim") {
-        const idx = p.miles.indexOf(a.mile); if (idx < 0) return err("Not in hand");
-        const m = S.data.milestones[a.mile]; if (!MILE_CHECK[m.name] || !mileOpen(S, m) || !MILE_CHECK[m.name](S, p)) return err(!mileOpen(S, m) ? "Not in this milestone's phase" : "Requirement not met");
-        p.miles.splice(idx, 1); p.claimed.push(a.mile); S._nt = 1; gain(S, pi, "gold", m.gold); S._nt = 0; p.rs.cashed++; p.cs.cashedTotal++;
-        drawMile(S, pi, true); log(S, p.name + " cashes in " + m.name + " (+" + m.gold + "G)"); return { ok: true };
-      }
+      if (a.type === "claim") return claimMile(S, p, a);
       return err("Invalid action");
     }
   }
   return err("Nothing to do");
 }
 
+function claimMile(S, p, a) {
+  const pi = p.id;
+  const idx = p.miles.indexOf(a.mile); if (idx < 0) return err("Not in hand");
+  const m = S.data.milestones[a.mile]; if (!MILE_CHECK[m.name] || !mileOpen(S, m) || !MILE_CHECK[m.name](S, p)) return err(!mileOpen(S, m) ? "Not in this milestone's phase" : "Requirement not met");
+  p.miles.splice(idx, 1); p.claimed.push(a.mile); S._nt = 1; gain(S, pi, "gold", m.gold); S._nt = 0; p.rs.cashed++; p.cs.cashedTotal++;
+  drawMile(S, pi, true); log(S, p.name + " cashes in " + m.name + " (+" + m.gold + "G)"); return { ok: true };
+}
+
 function restAction(S, a, p) {
   const pi = p.id, c = S.cfg;
   switch (a.type) {
+    case "claim": if (!c.flowV2) return err("Milestones are cashed in at their own step"); return claimMile(S, p, a);
     case "done": S.cur++; return { ok: true };
     case "promote": {
       const w = p.workers.find(x => x.id === a.worker); if (!w || w.lvl !== "Jr") return err("Pick a Junior worker");

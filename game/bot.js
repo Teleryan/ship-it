@@ -70,7 +70,7 @@ B.decide = function (S) {
     case "hire": return hire(S, p);
     case "place": return place(S, p);
     case "build": return build(S, p);
-    case "rest": return rest(S, p);
+    case "rest": if (S.cfg.flowV2) { const m = mile(S, p); if (m.type === "claim") return m; } return rest(S, p);
     case "milestones": return mile(S, p);
   }
   return null;
