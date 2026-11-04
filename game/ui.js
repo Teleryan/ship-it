@@ -17,6 +17,9 @@ const U = SI.U = {
 const PH = D.phases;
 const catOf = d => (D.disciplines[d] && D.categories[D.disciplines[d].cat]) || { color: "#667" };
 const dcol = d => catOf(d).color;
+// text colour for a category-coloured fill: white fails AA on the orange and teal categories, so pick whichever of white / near-black contrasts more
+const onCol = hex => { const m = /^#?([0-9a-f]{6})$/i.exec(hex || ""); if (!m) return "#fff"; const c = [0, 2, 4].map(i => parseInt(m[1].substr(i, 2), 16) / 255).map(v => v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4)); const L = .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; return 1.05 / (L + .05) >= (L + .05) / .0553 ? "#fff" : "#06121c"; };
+const fill = hex => `background:${hex};color:${onCol(hex)}`;
 const dcat = d => D.disciplines[d] ? D.disciplines[d].cat : "";
 const FAT = ["Active", "Tired", "Over-Tired"];
 const nameOf = t => { const k = String(t).toUpperCase(); return D.disciplines[k] ? D.disciplines[k].name : t; };
@@ -57,9 +60,9 @@ function fxHtml(str) {
     return `<span class="fx1 t">${esc(part)}</span>`;
   }).join("");
 }
-const crewChips = spot => (spot.crew || []).map(alt => alt.map(c => `<span class="chip" style="background:${(D.categories[c] || {}).color || "#667"}">${c}</span>`).join("+")).join(' <span class="mute">or</span> ');
+const crewChips = spot => (spot.crew || []).map(alt => alt.map(c => `<span class="chip" style="${fill((D.categories[c] || {}).color || "#666677")}">${c}</span>`).join("+")).join(' <span class="mute">or</span> ');
 const fmtBuild = s => { const p = String(s).split("+"); const m = p[0].match(/^(\d+)([MG])$/); if (!m) return s; let head; if (m[2] === "M") { const need = E.buildNeed(E.parseBuild(s)), tot = E.RES.reduce((t, k) => t + need[k], 0), gp = U.S && U.S.cfg.sysGoldMult ? Math.round(tot * U.S.cfg.sysGoldMult) : 0; head = E.resText(need) + (gp ? " + " + gp + " Gold" : ""); } else head = m[1] + "G"; return head + (p.length > 1 ? " · needs " + p.slice(1).map(nameOf).join(" and ") + " workers" : ""); };
-const chip = (d, extra) => `<span class="chip" style="background:${dcol(d)}" title="${esc(D.disciplines[d] ? D.disciplines[d].name : d)}">${esc(D.disciplines[d] ? D.disciplines[d].name : d)}${extra || ""}</span>`;
+const chip = (d, extra) => `<span class="chip" style="${fill(dcol(d))}" title="${esc(D.disciplines[d] ? D.disciplines[d].name : d)}">${esc(D.disciplines[d] ? D.disciplines[d].name : d)}${extra || ""}</span>`;
 const symTag = x => { if (U.S && U.S.cfg.varC) { const k = x.res || (x.build ? E.sysMainRes(x) : null); return k ? ic(k) : ""; } return symHtml(x.sym); };
 const symLine = x => { if (U.S && U.S.cfg.varC) return ""; return `<p class="mute">${(x.sym || []).map(s => D.symbols[s].glyph + " " + D.symbols[s].meaning).join(" · ")}</p>`; };
 const symHtml = a => (a || []).map(s => `<span class="sym" style="color:${D.symbols[s].color}" title="${D.symbols[s].meaning}">${D.symbols[s].glyph}</span>`).join("");
@@ -221,7 +224,7 @@ function topbar(S) {
   <div class="grow"></div>
   ${U.net ? `<span class="mute" title="Game code">${U.net.up ? "●" : "○ reconnecting"} Game ${esc(U.net.code)}</span>` : U.tut ? "" : `<button class="btn sm" data-act="undo" ${U.undo.length ? "" : "disabled"}>↶ Undo</button>`}
   <button class="btn sm" data-act="rules">Rules</button><button class="btn sm" data-act="milesref">Milestones</button><button class="btn sm" data-act="log">Log</button>${U.net ? "" : '<button class="btn sm" data-act="save">Save</button>'}
-  ${U.owner ? '<button class="btn sm" data-act="studio">Data Studio</button><button class="btn sm" data-act="master">Master</button>' : ""}${U.tut || (S && S.over) || (U.net && !U.net.host) ? "" : '<button class="btn sm" data-act="endgame">End game</button>'}<button class="btn sm" data-act="${U.net ? "menu" : "gamemenu"}">${U.net ? "Leave" : "Menu"}</button></div>`;
+  ${U.owner ? '<button class="btn sm" data-act="studio">Data Studio</button><button class="btn sm" data-act="master">Master</button>' : ""}${U.tut || (S && S.over) || (U.net && !U.net.host) ? "" : '<button class="btn sm danger" data-act="endgame">End game</button>'}<button class="btn sm" data-act="${U.net ? "menu" : "gamemenu"}">${U.net ? "Leave" : "Menu"}</button></div>`;
 }
 function prompt(S) {
   const d = S.dq[0]; const a = actorName(S);
@@ -233,7 +236,7 @@ function banner(S) {
   const a = actorName(S);
   if (S.over) return `<div class="turnbanner"><div class="who">Game over</div><button class="btn primary" data-act="results">View results</button></div>`;
   const col = a ? a.color : "#556";
-  return `<div class="turnbanner" style="border-left:6px solid ${col}"><div><div class="mute" style="font-size:11px;text-transform:uppercase;letter-spacing:.1em">${a && a.bot ? "Bot thinking" : "Your turn"}</div><div class="who" style="color:${col}">${a ? esc(a.name) : "…"}</div></div><div class="mute grow">${esc(prompt(S))}</div>
+  return `<div class="turnbanner" style="border-left:6px solid ${col}"><div><div class="mute kick">${a && a.bot ? "Bot thinking" : "Your turn"}</div><div class="who" style="color:${col}">${a ? esc(a.name) : "…"}</div></div><div class="grow prompt">${esc(prompt(S))}</div>
   ${S.step === "place" && a && !a.bot ? '<button class="btn" data-tut="pass" data-act="pass">Pass (done placing)</button>' : ""}
   ${["hire","build","rest","milestones"].includes(S.step) && a && !a.bot && !S.dq.length ? `<button class="btn primary" data-act="done">Done</button>` : ""}</div>`;
 }
@@ -252,6 +255,7 @@ function spotTile(S, spot, view) {
   const a = E.currentActor(S); const w = (U.sel != null && a >= 0 && S.step === "place") ? P(a).workers.find(x => x.id === U.sel) : null;
   if (w) { const o = E.placementOptions(S, a, w).find(x => x.target === "spot:" + spot.id); if (o && o.ok) cls += " ok"; else { cls += " no"; reason = o ? o.reason : ""; } }
   if ((spot.mode || "single") === "single" && occ.length) cls += " taken";
+  if (spot.debt) cls += " hasdebt";
   if (spot.mode === "shared" || ["team", "outsource", "workshop", "mentor", "crunch", "fundraise"].includes(spot.id)) cls += " shared-s";
   const mode = spot.mode === "shared" ? "SHARED" : spot.mode === "multi" ? "MULTI" : spot.excl ? "EXCL" : "";
   let fxh;
@@ -259,11 +263,11 @@ function spotTile(S, spot, view) {
   else { let fx = spot.fx || spot.tile || spot.note || ""; if (S.cfg.spotResOr && spot.r) fx = (spot.fx ? spot.fx + " · " : "") + "Earn skills" + (spot.r > 1 ? " ×" + spot.r : ""); fxh = esc(fx); }
   const m = S.phase === 3 && S.cfg.launchMult !== 1 ? ` ×${S.cfg.launchMult}` : "";
   return `<button class="${cls}" data-act="detail" data-k="spot" data-id="${spot.id}" data-spot="${spot.id}" title="${esc(reason || spot.note || "")}" ${cls.includes("ok") ? "" : 'aria-disabled="true"'}>
-    ${spot.debt ? `<span class="corner" title="Adds Tech Debt">+${spot.debt}</span>` : ""}
+    ${spot.debt ? `<span class="corner" title="Adds ${spot.debt} Tech Debt">+${spot.debt}${ic("debt")}</span>` : ""}
     ${S.cfg.varC && S.phase !== 3 && ["EARN", "PROGRESS", "HYPE", "CREW"].includes(spot.row) ? (mode ? `<div class="kind">${mode}</div>` : "") : `<div class="kind">${esc(spot.row)} ${mode ? "· " + mode : ""}</div>`}
     <div class="dc">${spot.crew ? crewChips(spot) : spot.discs.map(d => d === "ANY" ? '<span class="chip" style="background:#667">ANY</span>' : chip(d)).join("")}${spot.srOnly ? '<span class="chip" style="background:#a33">Sr</span>' : ""}</div>
     <div class="fx">${fxh}${m}</div>${spot.cost ? `<div class="note">${(spot.cost.res ? "Pay " + spot.cost.res + " skills" : "Pay " + spot.cost.gold + "G") + (JSON.stringify(spot.crew || []).includes("Any") ? " · 2 workers, different roles" : "")}</div>` : ""}
-    <div class="occ">${occ.map(i => `<i style="background:${P(i).color}" title="${esc(P(i).name)}"></i>`).join("")}</div></button>`;
+    ${cls.includes(" no") && reason ? `<div class="why">${esc(reason)}</div>` : ""}<div class="occ">${occ.map(i => `<i style="${fill(P(i).color)}" title="${esc(P(i).name)}">${i + 1}</i>`).join("")}</div></button>`;
 }
 function recruitPanel(S) {
   if (!S.cfg.varC || !S.recruit || !["bid", "draft", "hire", "place"].includes(S.step) || S.phase === 3) return "";
@@ -272,9 +276,9 @@ function recruitPanel(S) {
     const ck = me ? E.canRecruit(S, a, i) : { ok: false, reason: S.step === "place" ? "" : "Recruiting opens when placing starts (after the draft and hire steps)" };
     const taken = o.by != null;
     return `<div class="sys" style="width:190px;${taken ? "opacity:.55" : ""}"><div class="t" style="color:${dcol(o.disc)}">${esc(nameOf(o.disc))}</div><div class="meta">${esc(o.cat)} · Junior</div>
-    <div class="row" style="margin-top:4px;gap:6px">${taken ? `<span class="mute"><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${P(o.by).color}"></i> ${esc(P(o.by).name)}</span>` : `<button class="btn sm primary" data-act="recruit" data-i="${i}" ${ck.ok ? "" : "disabled"} title="${esc(ck.ok ? "" : ck.reason || "")}">Recruit · ${me ? E.recruitCost(S, a) : S.cfg.recruitCost}G</button>`}</div></div>`;
+    <div class="row" style="margin-top:6px;gap:6px;flex-wrap:wrap">${taken ? `<span class="mute"><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${P(o.by).color}"></i> ${esc(P(o.by).name)}</span>` : `<button class="btn sm primary" data-act="recruit" data-i="${i}" ${ck.ok ? "" : "disabled"} title="${esc(ck.ok ? "" : ck.reason || "")}">Recruit · ${me ? E.recruitCost(S, a) : S.cfg.recruitCost}G</button>`}</div>${!taken && !ck.ok && ck.reason ? `<div class="why">${esc(ck.reason)}</div>` : ""}</div>`;
   }).join("");
-  return `<div class="panel" data-tut="recruit"><h3>Recruitment <span class="mute" style="text-transform:none;letter-spacing:0">Pay ${S.cfg.recruitCost}G, no worker needed. A new Junior can be placed this round. One per player per round; the pool is shared and refreshes every round.</span></h3><div class="row wrap">${tiles}</div></div>`;
+  return `<div class="panel" data-tut="recruit"><h3>Recruitment</h3><p class="hint">Pay ${S.cfg.recruitCost}G, no worker needed. A new Junior can be placed this round. One per player per round; the pool is shared and refreshes every round.</p><div class="row wrap">${tiles}</div></div>`;
 }
 function buildingsList(S, p) {
   const b = p.building || []; if (!b.length) return "";
@@ -319,7 +323,7 @@ function workerCard(S, w, vi, selectable) {
   const sel = U.sel === w.id; const lvl = w.lvl === "Sr" ? "Senior" : "Junior";
   const pick = !!selectable && S.step === "place" && !S.dq.length && !w.placed && !w.build && !w.benched;
   return `<div class="wk ${sel ? "sel" : ""} ${w.placed || w.build ? "placed" : ""} ${pick ? "pick" : ""}" ${pick ? `data-act="sel-worker" data-id="${w.id}" title="Click to ${sel ? "deselect" : "select"} for placing"` : `data-act="detail" data-k="worker" data-id="${w.id}" data-p="${vi}"`}>
-   <div class="whd" style="background:${dcol(w.disc)}">${esc(dcat(w.disc))}</div>
+   <div class="whd" style="${fill(dcol(w.disc))}">${esc(dcat(w.disc))}</div>
    <div class="wbd"><div class="d">${esc(D.disciplines[w.disc].name)}</div>${w.as ? `<div class="as">acts as ${nameOf(w.as)}</div>` : ""}<div class="l ${w.lvl === "Sr" ? "sr" : ""}">${lvl}</div><div class="fat f${w.fat}" title="${FAT[w.fat]}"><i></i></div><div class="fl">${w.build ? "Building" : w.benched === "Training" ? "Training" : w.training ? "Training next round" : w.placed ? "Placed" : FAT[w.fat]}</div></div>${pick ? `<button class="wi" data-act="detail" data-k="worker" data-id="${w.id}" data-p="${vi}" aria-label="Worker details">Details</button>` : ""}</div>`;
 }
 // the studio's workers sit above the main board so the worker you place is next to the spot you place it on
@@ -333,7 +337,7 @@ function playerPanel(S) {
   const sel = mine && S.step === "place" && !S.dq.length;
   let h = `<div class="panel"><h3><span style="color:${p.color}">${esc(p.name)}'s systems and goals</span><span class="mute" style="text-transform:none;letter-spacing:0">${p.systems.length} systems</span></h3>`;
   // systems
-  h += `<div style="margin:2px 0 4px" class="mute">Systems <span class="dim">(slots ${S.cfg.slotsPerCategory}/category)</span></div><div class="row wrap">`;
+  h += `<div class="sub">Systems <span class="dim">(slots ${S.cfg.slotsPerCategory}/category)</span></div><div class="row wrap">`;
   if (!p.systems.length) h += '<span class="mute">None built.</span>';
   p.systems.forEach((sy, i) => {
     const def = E.sysDef(S, sy.name); let cls = "sys";
@@ -342,11 +346,11 @@ function playerPanel(S) {
     h += `<button class="${cls}" style="border-color:${catColor[def.cat]}" data-act="detail" data-k="sys" data-id="${i}" data-p="${vi}" title="${esc(reason)}"><div class="t">${esc(def.name)} ${symTag(def)}</div><div class="meta">${def.cat} · trigger ${esc(fmtTrig(def.trig))}${sy.t ? " · <b>used</b>" : ""}</div><div class="e">${fxTxt(def.fx || def.each || "")}</div>${def.pas ? `<div class="e" style="color:var(--gold)">Passive: ${esc(def.pas)}</div>` : ""}<div class="vp">${def.vp} VP · synergy +${def.syn}</div></button>`;
   });
   h += "</div>";
-  if ((p.building || []).length) h += `<div style="margin:10px 0 4px" class="mute">Building (finishes later; no trigger, passive or score until ready)</div><div class="row wrap">${buildingsList(S, p)}</div>`;
+  if ((p.building || []).length) h += `<div class="sub">Building (finishes later; no trigger, passive or score until ready)</div><div class="row wrap">${buildingsList(S, p)}</div>`;
   if (priv(S, vi)) {
-    h += `<div style="margin:12px 0 4px" class="mute">Hand: discipline cards (${p.hand.length})</div><div class="hand" data-tut="hand">${p.hand.length ? p.hand.map(c => handCard(S, c, vi, mine)).join("") : '<span class="mute">Empty.</span>'}</div>`;
-    h += `<div style="margin:12px 0 4px" class="mute">Milestones (${p.miles.length}) · cash in when met</div><div class="row wrap" ${S.cfg.flowV2 && S.step === "rest" && mine ? "" : 'data-tut="miles"'}>${p.miles.map(id => mileCard(S, id, vi, mine)).join("") || '<span class="mute">None</span>'}</div>`;
-    h += `<div style="margin:12px 0 4px" class="mute">Objectives: scored at end</div><div class="row wrap">${p.objectives.map(id => objCard(S, id, vi, mine)).join("") || '<span class="mute">None</span>'}</div>`;
+    h += `<div class="sub">Hand: discipline cards (${p.hand.length})</div><div class="hand" data-tut="hand">${p.hand.length ? p.hand.map(c => handCard(S, c, vi, mine)).join("") : '<span class="mute">Empty.</span>'}</div>`;
+    h += `<div class="sub">Milestones (${p.miles.length}) · cash in when met</div><div class="row wrap" ${S.cfg.flowV2 && S.step === "rest" && mine ? "" : 'data-tut="miles"'}>${p.miles.map(id => mileCard(S, id, vi, mine)).join("") || '<span class="mute">None</span>'}</div>`;
+    h += `<div class="sub">Objectives: scored at end</div><div class="row wrap">${p.objectives.map(id => objCard(S, id, vi, mine)).join("") || '<span class="mute">None</span>'}</div>`;
   } else h += `<p class="mute" style="margin-top:12px">Hand, milestones and objectives are hidden until it is ${esc(p.name)}'s turn.</p>`;
   return h + "</div>";
 }
@@ -354,7 +358,7 @@ const noSw = () => !!(U.S ? U.S.cfg.noSwaps : (E.rawConfig && E.rawConfig().noSw
 const discTag = disc => { const d = D.disciplines[disc]; return noSw() && d.alt ? d.alt : d.short; };
 function discCardHtml(disc, cls, attrs, hint, foot) {
   const d = D.disciplines[disc];
-  return `<div class="dcard ${cls || ""}" ${attrs || ""}><div class="hd" style="background:${dcol(disc)}">${esc(d.cat)}</div><div class="bd"><div class="code">${esc(d.name)}</div><div class="sm"><span class="dtag">${esc(discTag(disc))}</span></div>${hint ? `<div class="hint">${esc(hint)}</div>` : ""}${foot ? `<div class="foot">${foot}</div>` : ""}</div></div>`;
+  return `<div class="dcard ${cls || ""}" ${attrs || ""}><div class="hd" style="${fill(dcol(disc))}">${esc(d.cat)}</div><div class="bd"><div class="code">${esc(d.name)}</div><div class="sm"><span class="dtag">${esc(discTag(disc))}</span></div>${hint ? `<div class="hint">${esc(hint)}</div>` : ""}${foot ? `<div class="foot">${foot}</div>` : ""}</div></div>`;
 }
 function handCard(S, c, vi, mine) {
   const hint = mine && S.step === "hire" && !S.dq.length ? "Click to hire" : "";
@@ -390,7 +394,7 @@ function actionArea(S) {
   return h;
 }
 function draftView(S) {
-  if (S.step === "bid" && S.draft.cards.length) return `<div class="panel"><h3>Revealed for the draft (${S.draft.cards.length}). Bid knowing what is on offer. Drafting is free</h3><div class="hand" data-tut="draft">${S.draft.cards.map(c => discCardHtml(c.disc, "", `data-act="detail" data-k="draft" data-id="${c.id}"`, "")).join("")}</div></div>`;
+  if (S.step === "bid" && S.draft.cards.length) return `<div class="panel"><h3>Revealed for the draft (${S.draft.cards.length})</h3><p class="hint">Bid knowing what is on offer. Drafting is free; hiring costs gold later.</p><div class="hand" data-tut="draft">${S.draft.cards.map(c => discCardHtml(c.disc, "", `data-act="detail" data-k="draft" data-id="${c.id}"`, "")).join("")}</div></div>`;
   if (S.step !== "draft") return "";
   const a = actorName(S); const human = a && !a.bot;
   const drafted = `<div class="drafted" data-tut="drafted"><h3>Drafted so far</h3>${S.players.map((p, i) => `<div class="drow${E.currentActor(S) === i ? " cur" : ""}"><span class="dn">${esc(p.name)}</span>${p.hand.length ? p.hand.map(c => discCardHtml(c.disc, "mini", `data-act="detail" data-k="hand" data-id="${c.id}" data-p="${i}"`, "")).join("") : '<span class="mute">Nothing yet</span>'}</div>`).join("")}</div>`;
@@ -452,7 +456,7 @@ function racePanel(S) {
     const gate = tgt(title), mx = Math.max(20, gate + 4, ...rows.map(r => r.v + r.x)) * 1.08;
     let rank = 0, prev = null; const mx0 = rows.some(r => r.v + r.x > 0);
     const body = rows.map((r, i) => { if (r.v + r.x !== prev) rank = i + 1; prev = r.v + r.x; const pc = n => (n / mx * 100).toFixed(1) + "%";
-      return `<div class="lane" title="${esc(r.p.name)}: ${r.v}${r.x ? " + " + r.x + " Marketing" : ""}"><span class="rk">${mx0 ? rank : "–"}</span><span class="dot" style="background:${r.p.color}"></span><div class="bar"><i style="width:${pc(r.v)};background:${r.p.color}"></i>${r.x ? `<i class="x" style="left:${pc(r.v)};width:${pc(r.x)};background:${r.p.color}"></i>` : ""}${gate ? `<u style="left:${pc(gate)}"></u>` : ""}</div><b class="mono">${r.v + r.x}</b></div>`; }).join("");
+      return `<div class="lane" title="${esc(r.p.name)}: ${r.v}${r.x ? " + " + r.x + " Marketing" : ""}"><span class="rk">${mx0 ? rank : "–"}</span><span class="dot" style="background:${r.p.color}"></span><span class="ln">${esc(r.p.name)}</span><div class="bar"><i style="width:${pc(r.v)};background:${r.p.color}"></i>${r.x ? `<i class="x" style="left:${pc(r.v)};width:${pc(r.x)};background:${r.p.color}"></i>` : ""}${gate ? `<u style="left:${pc(gate)}"></u>` : ""}</div><b class="mono">${r.v + r.x}</b></div>`; }).join("");
     return `<div class="trk"><div class="th">${ic(key)}<b>${title}</b>${gate ? `<span class="mute">gate ${gate}+</span>` : ""}</div>${body}</div>`;
   };
   return `<div class="panel" data-tut="tracks"><h3>Race tracks <span class="mute" style="text-transform:none;letter-spacing:0">rank earns VP</span></h3>${lane("progress", "Progress", p => p.prod)}${lane("hype", "Hype", p => p.hype, p => Math.floor(p.mktg * (c.mergeMktg ? 0 : c.mktgToHype)))}</div>`;
@@ -464,9 +468,9 @@ function playersPanel(S) {
   return list.map(p => {
     const pos = S.order.indexOf(p.id); const cur = E.currentActor(S) === p.id; const vi = viewIndex(S) === p.id;
     return `<div class="pt ${cur ? "cur" : ""}" data-pid="${p.id}" data-act="view" data-v="${p.id}" style="cursor:pointer;${vi ? "background:var(--panel2)" : ""}"><div class="nm"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${p.bot ? ' <span class="tag">bot</span>' : ""}<span class="grow"></span>${ordered && pos >= 0 ? `<span class="ordbadge" title="Turn order for this phase, set by the blind bid">Turn order: ${pos + 1}</span>` : ""}</div>
-    <div class="stats big">${(S.cfg.burnout ? [["g", "gold", p.gold], ["k", "marketing", p.mktg]] : [["g", "gold", p.gold], ["p", "progress", p.prod], ["k", "marketing", p.mktg], ["h", "hype", p.hype]]).map(x => `<div class="st rs ${x[0]}" title="${ICN[x[1]]}">${ic(x[1])}<b>${x[2]}</b></div>`).join("")}
-    <div class="st rs d" title="Tech Debt (share of the Debt limit)">${ic("debt")}<b>${p.debt} <span class="dim">${Math.round(E.debtPct(S, p))}%</span></b></div><div class="st rs c" title="Culture">${ic("culture")}<b>${p.culture > 0 ? "+" : ""}${p.culture}</b></div>${S.cfg.burnout ? `<div class="st rs bo ${E.burnBand(S, p) === "Steady" ? "" : "hot"}" title="Burnout ${p.burnout} of ${S.cfg.burnMax}. ${E.burnBand(S, p)}">${ic("burnout")}<b>${p.burnout} <span class="dim">${E.burnBand(S, p)}</span></b></div>` : ""}</div>
-    <div class="stats res">${E.RES.map(k => `<div class="st rs" title="${E.RES_NAME[k]}: earned by placing a ${({ ideas: "Creative", code: "Development", process: "Operations", buzz: "Marketing" })[k]} role">${ic(k)}<b style="color:${RC[k]}">${p[k]}</b></div>`).join("")}</div>
+    <div class="stats big">${(S.cfg.burnout ? [["g", "gold", p.gold], ["k", "marketing", p.mktg]] : [["g", "gold", p.gold], ["p", "progress", p.prod], ["k", "marketing", p.mktg], ["h", "hype", p.hype]]).map(x => `<div class="st rs ${x[0]}" title="${ICN[x[1]]}">${ic(x[1])}<span class="sv"><small>${ICN[x[1]]}</small><b>${x[2]}</b></span></div>`).join("")}
+    <div class="st rs d" title="Tech Debt (share of the Debt limit)">${ic("debt")}<span class="sv"><small>Tech Debt</small><b>${p.debt} <span class="dim">${Math.round(E.debtPct(S, p))}%</span></b></span></div><div class="st rs c" title="Culture">${ic("culture")}<span class="sv"><small>Culture</small><b>${p.culture > 0 ? "+" : ""}${p.culture}</b></span></div>${S.cfg.burnout ? `<div class="st rs bo ${E.burnBand(S, p) === "Steady" ? "" : "hot"}" title="Burnout ${p.burnout} of ${S.cfg.burnMax}. ${E.burnBand(S, p)}">${ic("burnout")}<span class="sv"><small>Burnout</small><b>${p.burnout} <span class="dim">${E.burnBand(S, p)}</span></b></span></div>` : ""}</div>
+    <div class="stats res">${E.RES.map(k => `<div class="st rs" title="${E.RES_NAME[k]}: earned by placing a ${({ ideas: "Creative", code: "Development", process: "Operations", buzz: "Marketing" })[k]} role">${ic(k)}<span class="sv"><small>${ICN[k]}</small><b style="color:${RC[k]}">${p[k]}</b></span></div>`).join("")}</div>
     ${poolBars(S, p, live)}<div class="mute" style="font-size:11px;margin-top:4px">${p.workers.length} workers · ${p.systems.length} systems${(p.building || []).length ? " (+" + p.building.length + " building)" : ""}${p.vpAdj ? " · crisis VP " + (p.vpAdj > 0 ? "+" : "") + p.vpAdj : ""}</div></div>`;
   }).join("");
 }
@@ -478,8 +482,8 @@ function gameView() {
   const S = U.S;
   const crisis = S.crisisCard ? S.data.crisis.find(c => c.id === S.crisisCard) : null;
   return `<div class="app ${U.tut ? "tutmode" : ""}">${topbar(S)}<div class="main"><div class="left">${banner(S)}${actionArea(S)}${recruitPanel(S)}${S.step === "build" ? marketStrip(S) : ""}${workersPanel(S)}${boardView(S)}${S.step === "build" ? "" : marketStrip(S)}${playerPanel(S)}</div>
-  <div class="right"><div class="panel"><h3>Studios</h3><div class="col">${playersPanel(S)}</div></div>${racePanel(S)}${gatesPanel(S)}${crisis ? `<div class="panel" data-tut="crisis" data-act="detail" data-k="crisis" style="cursor:pointer"><h3>Active crisis</h3>${crisisCardHtml(crisis)}</div>` : ""}
-  <div class="panel"><h3>Game log <button class="btn sm" data-act="log">${U.logOpen ? "Hide" : "Show all"}</button></h3><div class="log" style="${U.logOpen ? "max-height:60vh" : ""}">${S.log.slice(U.logOpen ? -300 : -14).reverse().map(l => `<div><span class="r">R${l.r}</span> ${esc(l.m)}</div>`).join("")}</div></div></div></div></div>`;
+  <div class="right"><div class="panel pnl-studios"><h3>Studios</h3><div class="col studios">${playersPanel(S)}</div></div>${racePanel(S)}${gatesPanel(S)}${crisis ? `<div class="panel" data-tut="crisis" data-act="detail" data-k="crisis" style="cursor:pointer"><h3>Active crisis</h3>${crisisCardHtml(crisis)}</div>` : ""}
+  <div class="panel pnl-log"><h3>Game log <button class="btn sm" data-act="log">${U.logOpen ? "Hide" : "Show all"}</button></h3><div class="log" style="${U.logOpen ? "max-height:60vh" : ""}">${S.log.slice(U.logOpen ? -300 : -14).reverse().map(l => `<div><span class="r">R${l.r}</span> ${esc(l.m)}</div>`).join("")}</div></div></div></div></div>`;
 }
 
 /* ---------- modals ---------- */
@@ -518,7 +522,7 @@ function decisionModal(S) {
       h += `<h3>${isTurn ? "Blind bid for turn order" : "Secret auction bid"}</h3><p class="mute">${isTurn ? "Highest bid goes first. <b>Everyone pays their bid.</b> Ties: fewer workers goes first." : "Winner pays their bid. Others keep their gold."} You have <b style="color:var(--gold)">${p.gold}G</b>.</p>
       ${isTurn && S.draft.cards.length ? `<div class="mute" style="margin:10px 0 4px">Face-up cards for this draft (click one to read it)</div><div class="hand" style="margin-bottom:12px">${S.draft.cards.map(c => discCardHtml(c.disc, "", `data-act="detail" data-k="draft" data-id="${c.id}"`, "")).join("")}</div>` : ""}
       ${isTurn && S.recruit && S.recruit.length && S.cfg.varC && S.phase !== 3 ? `<div class="mute" style="margin:10px 0 4px">Recruitment pool this round: ${S.recruit.length} worker${S.recruit.length === 1 ? "" : "s"} for ${S.players.length} players (${S.cfg.recruitCost}G each, one per player, opens at Place). Going first gets you the pick.</div><div class="row wrap" style="gap:6px;margin-bottom:12px">${S.recruit.map(o => `<span class="sys" style="width:auto;padding:4px 8px;display:inline-flex;gap:6px;align-items:center;border-color:${dcol(o.disc)}"><b style="color:${dcol(o.disc)}">${esc(nameOf(o.disc))}</b><span class="mute">${esc(o.cat)}</span></span>`).join("")}</div>` : ""}
-      <div class="row"><input id="bid" type="number" min="0" max="${p.gold}" value="0" style="width:100px;font-size:20px"><button class="btn primary" data-tut="act" data-act="bid">Lock in bid</button></div>`; break; }
+      <label class="bidlab" for="bid">Your bid in Gold (0 to ${p.gold})</label><div class="row"><input id="bid" type="number" inputmode="numeric" min="0" max="${p.gold}" value="0" style="width:110px;font-size:22px;min-height:48px"><button class="btn primary" style="min-height:48px;padding:0 22px" data-tut="act" data-act="bid">Lock in bid</button></div>`; break; }
     case "choose": h += `<h3>Your choice</h3>` + d.options.map(o => `<button class="btn optbtn" data-act="choose" data-k="${o.k}" ${o.disabled ? "disabled" : ""} title="${esc(o.reason || "")}"><b>${o.k.length === 1 ? o.k + ")" : ""}</b> ${esc((S.cfg.poolScoring && ((S.data.crisis.find(cc => cc.id === d.card) || {}).options || []).find(x => x.k === o.k) || {}).poolLabel || o.label)}${o.disabled ? ' <span class="mute">(' + esc(o.reason || "") + ")</span>" : ""}</button>`).join(""); break;
     case "pickWorker": h += `<h3>Choose a worker to lose${d.srOnly ? " (Sr only)" : ""}</h3><div class="workers">${p.workers.map(w => `<div class="wk" data-act="pickw" data-w="${w.id}" style="${d.srOnly && w.lvl !== "Sr" ? "opacity:.3;pointer-events:none" : ""}"><div class="d" style="color:${dcol(w.disc)}">${w.disc}</div><div class="l">${w.lvl} · ${["Active","Tired","Over-Tired"][w.fat]}</div></div>`).join("")}</div>`; break;
     case "raidHire": {
@@ -543,7 +547,7 @@ function coverView(S) {
 function actBtn(label, attrs, disabled, reason, primary) {
   return `<button class="btn ${primary === false ? "" : "primary"}" data-tut="act" ${attrs} ${disabled ? "disabled" : ""} title="${esc(reason || "")}">${esc(label)}</button>${disabled && reason ? `<span class="mute" style="font-size:12px;margin-left:6px">${esc(reason)}</span>` : ""}`;
 }
-function discHead(disc) { const d = D.disciplines[disc]; return `<div class="dhead" style="background:${dcol(disc)}"><span>${esc(d.cat)}</span></div>`; }
+function discHead(disc) { const d = D.disciplines[disc]; return `<div class="dhead" style="${fill(dcol(disc))}"><span>${esc(d.cat)}</span></div>`; }
 const dname = d => (D.disciplines[d] || {}).name || d;
 function lines(items) { return `<ul class="dl">${items.filter(Boolean).map(s => `<li>${s}</li>`).join("")}</ul>`; }
 function sec(title, items) { return `<div class="dsec"><h4>${esc(title)}</h4>${lines(items)}</div>`; }
@@ -629,7 +633,7 @@ function detailModal() {
       let def, idx = null;
       if (d.k === "sys") { idx = +d.id; const sy = P(+d.p).systems[idx]; if (!sy) return closeOnly(); def = E.sysDef(S, sy.name); } else { def = S.data.systems.find(x => x.name === d.id); if (!def) return closeOnly(); }
       const busyD = S.cfg.varC ? E.buildRounds(S, P(viewIndex(S)), U.crunch, def) : 0, dl = (k, v) => `<div class="drow"><span class="dk">${k}</span><span>${v}</span></div>`;
-      h += `<div class="dhead" style="background:${catColor[def.cat]}"><span>${def.cat}</span></div><div class="dtitle">${esc(def.name)} ${symTag(def)} <span class="dvp">${def.vp} VP</span></div>
+      h += `<div class="dhead" style="${fill(catColor[def.cat])}"><span>${def.cat}</span></div><div class="dtitle">${esc(def.name)} ${symTag(def)} <span class="dvp">${def.vp} VP</span></div>
       <div class="dsec"><h4>Cost to build</h4><div class="c" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:15px">${buildChips(def.build)}</div>${busyD ? dl("Crew busy", busyD + " round" + (busyD === 1 ? "" : "s") + " while it is built") : ""}${def.debt ? dl("Tech Debt", `<b class="bad">+${def.debt}</b> when built`) : ""}</div>
       <div class="dsec"><h4>Reward when triggered</h4>${dl("Trigger", "place " + esc(fmtTrig(def.trig)) + " worker here")}${def.fx ? dl("Gives", "<b>" + fxTxt(def.fx) + "</b>") : ""}${def.once ? dl("On build", esc(def.once)) : ""}${def.each ? dl("Each time", esc(def.each)) : ""}</div>
       <div class="dsec"><h4>Benefit</h4>${def.pas ? dl("Passive", `<span style="color:var(--gold)">${esc(def.pas)}</span> (always on)`) : ""}${dl("End of game", def.vp + " VP, plus " + def.syn + " synergy VP if it shares " + (U.S.cfg.varC ? "its main skill (" + ICN[E.sysMainRes(def)] + ")" : "a symbol") + " with a completed objective")}</div>
@@ -682,7 +686,7 @@ function marketStrip(S) {
     const tiles = (S.market[cat] || []).map(n => { const d = E.sysDef(S, n); const ck = E.canBuild(S, vi, n, false, cr); return sysTile(d, ck.ok); }).join("") || '<span class="mute">Sold out</span>';
     return `<div class="mcol"><div class="lab" style="color:${catColor[cat]}">${cat}</div><div class="tiles">${tiles}</div></div>`;
   }).join("");
-  return `<div class="panel" data-tut="mstrip"><h3>Systems to Build <span class="mute" style="font-weight:400;font-size:11px">· ${p ? esc(p.name) : ""} · greyed = cannot build yet · tap for details</span></h3><div class="mgrid">${rows}</div></div>`;
+  return `<div class="panel" data-tut="mstrip"><h3>Systems to Build <span class="mute" style="font-weight:400;font-size:12px">${p ? esc(p.name) + " · " : ""}greyed = cannot build yet · tap a card for details</span></h3><div class="mgrid">${rows}</div></div>`;
 }
 function gameMenuModal() {
   return modalShell(`<h2>Menu</h2><div class="col" style="gap:8px;min-width:260px"><button class="btn primary" data-act="close">Resume game</button><button class="btn" data-act="rules">Rules and guides</button><button class="btn" data-act="save">Save game</button>${U.owner ? '<button class="btn" data-act="studio">Data Studio</button><button class="btn" data-act="master">Master and analytics</button>' : ""}<button class="btn" data-act="menu">Quit to main menu</button></div><p class="dim" style="margin:12px 0 0;font-size:12px">Quitting leaves this game. Save first if you want to continue later.${U.owner ? "" : " Data Studio and analytics need the owner login."}</p>`).replace('<div class="overlay"', '<div class="overlay rulesov" style="z-index:300"');
@@ -710,7 +714,7 @@ function marketModal() {
 function poolResults(S, rows) {
   const cell = (x, vp) => { const o = x.obj + x.syn; return `<td>${x.total} <span class="dim">(${Math.round(x.base)} base · ${Math.round(x.sys)} sys · ${Math.round(o)} obj${x.adj ? " · " + (x.adj > 0 ? "+" : "") + Math.round(x.adj) + " gates/events" : ""}${x.debt ? " · " + Math.round(x.debt) + " debt" : ""})</span></td><td><b>${vp.toFixed(1)}</b></td>`; };
   let h = `<h2>${esc(P(S.winner).name)} ships the best game!</h2><div class="scroll-y"><table class="scoretbl"><thead><tr><th>Studio</th><th>Progress pts</th><th>VP</th><th>Hype pts</th><th>VP</th><th>TOTAL</th></tr></thead><tbody>`;
-  rows.forEach(r => { h += `<tr class="${r.id === S.winner ? "win" : ""}"><td><span class="dot" style="background:${P(r.id).color};display:inline-block;margin-right:6px"></span>${esc(r.name)}</td>${cell(r.parts.pool.P, r.parts.prodShare)}${cell(r.parts.pool.H, r.parts.hypeStrength)}<td><b>${r.total.toFixed(0)}</b></td></tr>`; });
+  rows.forEach(r => { h += `<tr class="${r.id === S.winner ? "win" : ""}"><td><span class="dot" style="background:${P(r.id).color};display:inline-block;margin-right:6px"></span>${esc(r.name)}${r.id === S.winner ? ' <span class="wintag">Winner</span>' : ""}</td>${cell(r.parts.pool.P, r.parts.prodShare)}${cell(r.parts.pool.H, r.parts.hypeStrength)}<td><b>${r.total.toFixed(0)}</b></td></tr>`; });
   h += `</tbody></table>${U.tut || U.tutDone ? SI.tutScoreExplainer(S) : ""}</div><div class="row" style="margin-top:14px"><button class="btn primary" data-act="${U.net ? "online-again" : "start"}">${U.tut || U.tutDone ? "Start a real game" : "Play again"}</button><button class="btn" data-act="menu">Menu</button><button class="btn" data-act="close">Close</button></div>`;
   return modalShell(h, { wide: true });
 }
@@ -720,7 +724,7 @@ function resultsModal() {
   if (pool) return poolResults(S, rows);
   const cols = [["prodShare", race ? "Progress race" : "Progress %"]].concat(race ? [] : [["mktShare","Marketing %"]]).concat([["hypeStrength", race ? "Hype race" : "Hype"]]).concat(race ? [] : [["delivery","Deliv."]]).concat([["debtPenalty","Debt"],["culture","Culture"]]).concat(S.cfg.burnout ? [["burnout","Burnout"]] : []).concat([["objectives","Obj."],["synergy","Synergy"],["systems","Sys"]]).concat(race ? [] : [["launch","Launch"]]).concat([["reach","Reach"],["gold","Gold"],["crisis","Crisis/Gates"]]);
   let h = `<h2>${esc(P(S.winner).name)} ships the best game!</h2><div class="scroll-y"><table class="scoretbl"><thead><tr><th>Studio</th>${cols.map(c => `<th>${c[1]}</th>`).join("")}<th>TOTAL</th></tr></thead><tbody>`;
-  rows.forEach(r => { h += `<tr class="${r.id === S.winner ? "win" : ""}"><td><span class="dot" style="background:${P(r.id).color};display:inline-block;margin-right:6px"></span>${esc(r.name)} <span class="dim">${race ? "Debt " + P(r.id).debt + " · Mktg " + P(r.id).mktg : r.parts.threshold + " " + r.parts.debtPct + "%"}</span></td>${cols.map(c => `<td>${(+r.parts[c[0]]).toFixed(c[0].includes("Share") && !S.cfg.raceScoring ? 1 : 0)}</td>`).join("")}<td><b>${r.total.toFixed(0)}</b></td></tr>`; });
+  rows.forEach(r => { h += `<tr class="${r.id === S.winner ? "win" : ""}"><td><span class="dot" style="background:${P(r.id).color};display:inline-block;margin-right:6px"></span>${esc(r.name)}${r.id === S.winner ? ' <span class="wintag">Winner</span>' : ""} <span class="dim">${race ? "Debt " + P(r.id).debt + " · Mktg " + P(r.id).mktg : r.parts.threshold + " " + r.parts.debtPct + "%"}</span></td>${cols.map(c => `<td>${(+r.parts[c[0]]).toFixed(c[0].includes("Share") && !S.cfg.raceScoring ? 1 : 0)}</td>`).join("")}<td><b>${r.total.toFixed(0)}</b></td></tr>`; });
   h += `</tbody></table>${U.tut || U.tutDone ? SI.tutScoreExplainer(S) : ""}</div><div class="row" style="margin-top:14px"><button class="btn primary" data-act="${U.net ? "online-again" : "start"}">${U.tut || U.tutDone ? "Start a real game" : "Play again"}</button><button class="btn" data-act="menu">Menu</button><button class="btn" data-act="close">Close</button></div>`;
   return modalShell(h, { wide: true });
 }
@@ -730,7 +734,7 @@ function studioModal() {
   const h = `<h2>Data Studio <span class="mute" style="font-size:13px;font-weight:400">· ${D.version} · edits apply to new games</span></h2>` + SI.renderStudio(U.studio, U.tab, U.sim) + (U.S && U.screen === "game" ? `<div class="row" style="margin-top:12px"><button class="btn primary" data-act="restart">Restart game with these values</button></div>` : "");
   return modalShell(h, { wide: true });
 }
-function crisisIntroModal(c) { return modalShell(`<div style="display:flex;justify-content:center">${crisisCardHtml(c)}</div><div class="row" style="margin-top:14px;justify-content:center"><button class="btn primary" data-act="close">Continue</button></div>`); }
+function crisisIntroModal(c) { return modalShell(`<div style="display:flex;justify-content:center">${crisisCardHtml(c)}</div><div class="row" style="margin-top:14px;justify-content:center"><button class="btn primary" data-act="close">Continue</button></div>`, { cls: "crisisov" }); }
 
 /* ---------- copy overrides (Data Studio > Text): swap edited default wording in rendered HTML ---------- */
 SI.copyFix = function (html) {

@@ -1,5 +1,5 @@
 :root{
-  --bg:#0f1720; --panel:#17212d; --panel2:#1d2a39; --line:#2a3a4d; --ink:#e8eef5; --mute:#8fa3b8; --dim:#5d7189;
+  --bg:#0f1720; --panel:#17212d; --panel2:#1d2a39; --line:#2a3a4d; --ink:#e8eef5; --mute:#a3b4c7; --dim:#8a9db3;
   --pre:#9b59b6; --prod:#3498db; --pol:#27ae60; --launch:#e74c3c; --gold:#f5c542; --good:#2ecc71; --bad:#ff6b5e; --warn:#f39c12;
   --mom:#7ad7f0; --ideas:#c38ae6; --code:#6db6f0; --process:#3fd3b0; --buzz:#ffa94d; --hype:#ff7eb6; --mk:#ffa94d; --pr:#7aa7ff;
   --radius:10px; --font:'Archivo',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
@@ -7,7 +7,7 @@
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;-webkit-font-smoothing:antialiased}
 button{font:inherit;color:inherit;cursor:pointer}
-button:disabled{cursor:not-allowed;opacity:.38}
+button:disabled{cursor:not-allowed;opacity:.5}
 input,select,textarea{font:inherit;color:var(--ink);background:#0c131b;border:1px solid var(--line);border-radius:6px;padding:5px 8px}
 input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--prod);outline-offset:1px}
 h1,h2,h3,h4{margin:0;font-weight:700;letter-spacing:.01em}
@@ -380,3 +380,139 @@ table.dt input.n{width:62px}
 .detail .dsec + .dsec{border-top:1px solid var(--line);padding-top:10px}
 .detail .drow{display:grid;grid-template-columns:92px 1fr;gap:8px;margin:4px 0;font-size:13px}.detail .drow .dk{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);padding-top:2px}
 .detail .dvp{float:right;font-size:13px;color:var(--gold);font-family:var(--mono)}
+
+/* ============ UI audit pass 1: contrast, type floor, touch targets, feedback ============ */
+/* --dim #5d7189 was 3.0:1 on the panel colour; now 5.9:1. --mute 7.7:1 */
+.btn{min-height:36px}
+.btn.sm{min-height:30px;padding:3px 9px;font-size:12.5px}
+.btn:active:not(:disabled){transform:translateY(1px);filter:brightness(.92)}
+.btn.danger:hover:not(:disabled){background:rgba(255,107,94,.12)}
+.btn:disabled{border-style:dashed}
+:where(.spot,.wk,.sys,.sys2,.dcard,.pt):focus-visible{outline:2px solid var(--prod);outline-offset:2px}
+.spot:active,.wk:active,.sys2:active,.sys:active,.dcard:active{filter:brightness(1.15)}
+.step{font-size:11.5px;padding:3px 8px}
+.step.done::before{content:"\2713";margin-right:3px;opacity:.7}
+.top{gap:8px 12px}
+.top>.btn.sm{margin-left:0}
+.modal .x{width:40px;height:40px;display:flex;align-items:center;justify-content:center;padding:0;font-size:26px}
+.modal.detail.hashead .x{width:46px}
+.panel h3{font-size:13px;flex-wrap:wrap;gap:2px 14px}
+.panel h3 .mute{font-weight:500}
+/* type floor: nothing below 11px, card body text 12px */
+.st small,.spot .kind,.sys2 .sr .k,.wk .whd,.dcard .foot .more,.coach .cp,.crisis .k,.sys2 .pas b,.detail .dsec h4,.detail .drow .dk{font-size:11px}
+.wk .fl,.wk .as,.spot .note,.dcard .hint,.sys2 .trg,.sys2 .roles,.sys .meta,.sys .vp,.sys2 .vp,.lane,.log{font-size:12px}
+.wk .whd{padding:4px}
+.sys2 .sr{grid-template-columns:64px 1fr}.sys2 .sr .k{padding-top:1px}
+.log{line-height:1.5}
+.cfg small,.kpi small,.kpi span,.ch-leg{font-size:12px}
+.tag{font-size:12px}
+@media (pointer:coarse){
+  .btn{min-height:44px}.btn.sm{min-height:40px;padding:6px 12px}
+  .step{padding:6px 10px}
+  .wk .wi{padding:10px 0}
+  .tab{min-height:44px}
+}
+
+/* ============ UI audit pass 2: board, banner, panels ============ */
+.turnbanner .prompt{font-size:16px;font-weight:600;color:var(--ink);line-height:1.3}
+.turnbanner .kick{font-size:12px;text-transform:uppercase;letter-spacing:.1em}
+.turnbanner{flex-wrap:wrap;border-left-width:6px}
+.panel>.hint{margin:-2px 0 10px;font-size:13px;line-height:1.45;color:var(--mute);max-width:80ch}
+.sub{margin:14px 0 6px;font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.sub:first-of-type{margin-top:2px}
+.why{font-size:12px;line-height:1.3;color:var(--warn);margin-top:4px}
+.spot .why{margin-top:2px;color:#ffc27a}
+/* board: tiles fill the row instead of leaving a ragged gap; same grid for every row */
+.brow .spots{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:8px}
+.brow .spot{width:auto;min-height:96px}
+.brow{grid-template-columns:104px 1fr}
+.spot.no{opacity:.62}
+.spot.taken{border-style:solid;border-color:#3b4d62}
+/* Tech Debt corner badge no longer collides with the role chips */
+.spot .corner{display:inline-flex;align-items:center;gap:2px;font-size:11px;padding:1px 7px 1px 9px;background:#2b1517;color:#ff9a92;border:0 solid var(--bad);border-width:0 0 1px 1px;border-radius:0 7px 0 10px}
+.spot .corner .ic{width:12px;height:12px}
+.spot.hasdebt .dc{padding-right:40px}
+/* occupancy markers carry the player number, not colour alone */
+.spot .occ{gap:3px;flex-wrap:wrap}
+.occ i{width:20px;height:20px;border-radius:50%;font:800 11px/18px var(--font);text-align:center;font-style:normal;border:1px solid #0008}
+/* "tap for details" affordance */
+.spot::after,.wk[data-act="detail"]::after{content:"i";position:absolute;right:6px;bottom:6px;width:16px;height:16px;border-radius:50%;border:1px solid var(--dim);color:var(--mute);font:italic 700 11px/14px Georgia,serif;text-align:center;pointer-events:none}
+.wk[data-act="detail"]::after{bottom:auto;top:24px}
+.spot:hover::after,.wk:hover::after{border-color:var(--gold);color:var(--gold)}
+@media (max-width:980px){
+  .brow .spots{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+}
+/* the 170px bottom pad only exists to clear the tutorial coach card */
+.left,.right{padding-bottom:24px}
+.tutmode .left,.tutmode .right{padding-bottom:170px}
+.brow .spots{grid-template-columns:repeat(auto-fill,minmax(128px,1fr))}
+.spot .chip{font-size:11px}
+/* studio tiles: every number carries a visible label (icons alone were only explained by hover tooltips) */
+.stats .st.rs .sv{display:flex;flex-direction:column;line-height:1.1;min-width:0}
+.stats .st.rs .sv small{font-size:11px;font-weight:600;letter-spacing:.02em;text-transform:none;color:var(--mute);white-space:nowrap}
+.stats.big{gap:6px}
+.stats.big .st.rs{padding:4px 7px;gap:6px}
+.stats.big .st.rs b{font-size:14px;white-space:nowrap}
+.stats.res .st.rs{justify-content:flex-start;padding-left:4px}
+.stats.res .st.rs b{font-size:15px}
+/* race tracks: bigger lanes, player name next to the swatch */
+.lane{gap:6px;margin:5px 0;font-size:13px}
+.lane .ln{width:62px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mute);font-size:12px}
+.lane .bar{height:12px}
+.lane .dot{width:11px;height:11px}
+.lane .rk{width:14px;font-size:12px}
+.trk .th{font-size:13px}
+.trk .th .mute{font-size:12px}
+.gate-note,.panel .mute{overflow-wrap:anywhere}
+
+/* ---- narrow screens: banner first, then the studio strip (gold, burnout, debt are needed to decide a placement), then the action area; tracks, gates and log last ---- */
+@media (max-width:980px){
+  .main{display:flex;flex-direction:column;gap:12px}
+  .left,.right{display:contents}
+  .left>*{order:5}.right>*{order:8}
+  .left>.turnbanner{order:0}
+  .right>.pnl-studios{order:1;padding:8px 0 8px 10px}
+  .right>.pnl-studios h3{padding-right:10px}
+  .right>.pnl-log{order:9}
+  .studios{flex-direction:row;overflow-x:auto;scroll-snap-type:x proximity;gap:8px;padding:0 10px 4px 0;-webkit-overflow-scrolling:touch}
+  .studios>.pt{flex:0 0 min(300px,86%);scroll-snap-align:start}
+  .tutmode .main{padding-bottom:170px}
+}
+@media (max-width:600px){
+  .turnbanner .who{font-size:18px}
+  .turnbanner .grow{flex-basis:100%;order:3}
+  .top .btn.sm{flex:0 0 auto}
+  .modal{padding:16px 14px}
+  .spot{min-height:92px}
+  .brow{grid-template-columns:1fr}.brow .lab{font-size:13px;margin-top:4px}
+}
+
+/* ============ UI audit pass 3: panel copy, bid, results ============ */
+.panel>h3+.mute,.panel>h3+div.mute{font-size:13px;line-height:1.45;max-width:80ch}
+.bidlab{display:block;margin:2px 0 6px;font-weight:700}
+.wintag{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:var(--gold);color:#06121c;font:800 11px var(--font);letter-spacing:.06em;text-transform:uppercase;vertical-align:middle}
+.scoretbl th{font-size:11px;white-space:nowrap}
+.scoretbl td,.scoretbl th{padding:7px 8px}
+.win td{background:#3a3716}
+.scoretbl td:first-child{white-space:nowrap}
+@media (max-width:700px){
+  .scoretbl th:first-child,.scoretbl td:first-child{position:sticky;left:0;background:var(--panel);z-index:1}
+  .scoretbl .win td:first-child{background:#3a3716}
+  .scoretbl th:last-child,.scoretbl td:last-child{position:sticky;right:0;background:var(--panel2);z-index:1;box-shadow:-6px 0 8px -6px #000}
+  .scoretbl .win td:last-child{background:#3a3716}
+  .scroll-y{overflow:auto}
+}
+.crisis{border-radius:12px}
+.modal.crisisov{background:transparent;border:0;padding:0;min-width:0}
+.modal.crisisov .crisis{max-width:480px}
+.crisis .k{font-size:11px}
+.crisis .fl{color:var(--mute)}
+.wk{width:104px}
+.wk .whd{letter-spacing:.06em;white-space:nowrap}
+.wk[data-act="detail"]::after{top:auto;bottom:5px;right:5px}
+.stepgroup{flex-wrap:wrap}
+.top{max-width:100%}
+.modal.detail .x{text-shadow:0 0 4px rgba(0,0,0,.55)}
+/* the single grid column was sizing to the widest child (step tracker), making the phone page ~590-670px wide */
+.app{grid-template-columns:minmax(0,1fr)}
+@media (max-width:600px){.mgrid{grid-template-columns:1fr}}
