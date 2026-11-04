@@ -436,8 +436,16 @@ function upkeep(S) {
   if (S.cfg.raceScoring && S.cfg.raceEnd && raceCheck(S)) return endGame(S);
   if (S.round === 1) drawGates(S);
   if (S.round >= PHASE_ENDS[3] || PHASE_OF_ROUND(S.round + 1) !== S.phase) resolveGate(S);
+  if (S.cfg.hypeBank && S.phase < 3 && PHASE_OF_ROUND(S.round + 1) !== S.phase) { // lock in: when a phase closes, Hype is banked as Marketing, which never fades
+    S.players.forEach(q => { const x = Math.min(S.cfg.hypeBank, q.hype); if (x > 0) { q.hype -= x; q.mktg += x; log(S, q.name + " banks " + x + " Hype as Marketing"); } });
+  }
+  if (S.cfg.hypeLeadVP && S.phase < 3 && PHASE_OF_ROUND(S.round + 1) !== S.phase) { // press buzz: the studio with the most Hype when a phase closes earns VP
+    const mx = Math.max.apply(null, S.players.map(q => q.hype)), tops = S.players.filter(q => q.hype === mx);
+    if (tops.length === 1 && mx >= (S.cfg.hypeLeadMin || 1)) { tops[0].vpAdj += S.cfg.hypeLeadVP; S.hypeLead = (S.hypeLead || []).concat([{ phase: S.phase, id: tops[0].id, vp: S.cfg.hypeLeadVP }]); log(S, "HYPE LEADER: " + tops[0].name + " has the most Hype (" + mx + ") at the end of " + D0.phases[S.phase].name + ": +" + S.cfg.hypeLeadVP + " VP"); }
+  }
   S.players.forEach(p => {
     p.systems.forEach(sy => { const d = sysDef(S, sy.name); if (d && d.rule && d.rule.upk) { Object.keys(d.rule.upk).forEach(k => gain(S, p.id, k, d.rule.upk[k])); log(S, p.name + "'s " + d.name + ": " + d.pas); } });
+    if (S.cfg.hypeIncStep) { const hg = Math.min(S.cfg.hypeIncMax || 2, Math.floor(p.hype / S.cfg.hypeIncStep)); if (hg) { S._nt = 1; gain(S, p.id, "gold", hg); S._nt = 0; log(S, p.name + " has " + p.hype + " Hype: Wishlists bring +" + hg + "G"); } }
     gainHypeDecay(S, p);
     if (S.cfg.burnout) {
       const oN = p.rs.overN || 0, st = S.cfg.burnOverStep || 2, add = Math.min(S.cfg.burnOverMax || 2, Math.floor(oN / st)); p.rs.overPlaced = add > 0;

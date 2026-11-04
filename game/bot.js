@@ -35,7 +35,16 @@ const quirk = (S, p) => { if (!p.qk) p.qk = [E.rnd(S), E.rnd(S), E.rnd(S), E.rnd
 let W = NEUTRAL;
 // Variant C: Progress and Hype are worth more while the phase's publisher gate is out of reach, less once it is safe
 let GF = { prod: 1, hype: 1 };
-function gateFactors(S, p) {
+function gateFactors(S, p) { // gate pressure, then the press-buzz (Hype leader) incentive
+  gateFactors0(S, p);
+  if (S.cfg.hypeBank && S.phase < 3) GF.hype *= 1 + Math.min(0.8, S.cfg.hypeBank * 0.12);
+  if (S.cfg.hypeLeadVP && S.phase < 3) {
+    const end = (S.cfg.phaseEnds || [])[S.phase] || S.round, rl = Math.max(1, end - S.round + 1);
+    const rival = Math.max.apply(null, S.players.filter(q => q.id !== p.id).map(q => q.hype).concat([0])), gap = rival - p.hype;
+    if (gap <= 4 + 2 * rl) GF.hype *= 1 + S.cfg.hypeLeadVP * 0.12;
+  }
+}
+function gateFactors0(S, p) {
   GF = { prod: 1, hype: 1 };
   if (!S.cfg.varC || !S.gateSet) return;
   const g = S.gateSet.find(x => x.phase === S.phase); if (!g) return;
