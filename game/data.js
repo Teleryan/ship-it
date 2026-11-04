@@ -282,7 +282,6 @@ D.config = {
     recruitSize56:["C: Recruitment offers (5-6 players)",""],
     flowV2:["D: Round order (Upkeep first)","1 = Upkeep opens each round (none in round 1), then Income, then the new hire pool and Bid, Draft, Hire, Place, Build, and one Rest and Milestones step. 0 = the older order (Bid, Income, ... Rest, Milestones, Upkeep)"],
     recruitDelta:["D: Recruitment offers = players + this","0 = off. -1 = one fewer offer than players, so one player misses out each round. Overrides the offer counts above (min 1)"],
-    recruitScale:["D: Recruitment offers per player","0 = use the offer counts above. 1 = one offer per player (so each player can take one), 2 = two per player. Capped by the number of disciplines"],
     noSwaps:["C: No objective or milestone swaps","1 = Community and Analytics workers cannot swap objectives or milestones mid-game (only crisis events change them)"],
     recruitInLaunch:["C: Recruitment in Launch","1 = allowed in the final round"],
     buildDelay:["C: normal build time (rounds)","A system you buy is finished this many rounds later"],
@@ -446,8 +445,8 @@ D.spotsC = [
 D.configC = {
   varC:1, noSwaps:1, resSubMax:0, envLabel:"ENV C · PHASES", rowNames:{EARN:["Backlog","Backlog","Backlog","Backlog"],PROGRESS:["Prototype","Vertical Slice","Beta Build","Gold Master"],HYPE:["Pitch Deck","Trailer Drop","Press Tour","Launch Party"],CREW:["Game Jam","Game Jam","Game Jam","Game Jam"],UTILITY:["Studio Perks","Studio Perks","Studio Perks","Studio Perks"]}, raceCurveByN:{2:0.12,3:0.2,4:0.25,5:0.25,6:0.3}, racePotByN:{2:38,3:38,4:40,5:42,6:42}, debtLossByN:{2:4,3:6,4:8}, cultLossByN:{2:3,3:5,4:6}, phaseEnds:[3,8,11,12],
   spotResOr:1, srSystems:1, srPromoteOnly:1, srAllowedPreProd:1,
-  promoFree:1, promoNeedsRest:1, promotionsPerRest:1, headhuntsPerRest:0, overworkCulture:-1, burnout:0, train:0, smallDrop:[], smallMax:6, hypeBank:0, hypeLeadVP:0, hypeLeadMin:3, hypeIncStep:0, hypeIncMax:2, trainCost:1, trainCulture:1, trainNeeded:2, trainsPerRest:2, burnMax:6, burnOver:1, burnUnpaidPer:2, burnOverStep:2, burnOverMax:2, burnUnpaidMax:1, burnUnpaidMin:2, burnRelief:1, burnTeamRelief:1, burnStrainAt:3, burnStrainHype:1, burnBenchAt:5, burnQuitAt:6, burnQuitReset:4, energizedBurnMax:0, energizedCulture:2, energizedGold:1, burnVP:{"0":0,"1":0,"2":0,"3":-1,"4":-3,"5":-5,"6":-8},
-  recruitCost:3, recruitPerRound:1, recruitSize2:2, recruitSize34:3, recruitSize56:4, recruitScale:0, recruitDelta:0, flowV2:0, recruitInLaunch:0,
+  promoFree:1, promoNeedsRest:1, promotionsPerRest:1, headhuntsPerRest:0, overworkCulture:-1, burnout:0, train:0, smallDrop:[], smallMax:6, hypeBank:0, hypeLeadVP:0, hypeLeadMin:3, hypeIncStep:0, hypeIncMax:2, trainCost:1, trainCulture:1, trainNeeded:2, trainsPerRest:2, burnMax:6, burnUnpaidPer:2, burnOverStep:2, burnOverMax:2, burnUnpaidMax:1, burnUnpaidMin:2, burnRelief:1, burnTeamRelief:1, burnStrainAt:3, burnStrainHype:1, burnBenchAt:5, burnQuitAt:6, burnQuitReset:4, energizedBurnMax:0, energizedCulture:2, energizedGold:1, burnVP:{"0":0,"1":0,"2":0,"3":-1,"4":-3,"5":-5,"6":-8},
+  recruitCost:3, recruitPerRound:1, recruitSize2:2, recruitSize34:3, recruitSize56:4, recruitDelta:0, flowV2:0, recruitInLaunch:0,
   bidEveryRound:1, bidWinnerOnly:0, buildDelay:2, crunchDelay:1, crunchGold:2, rdCrunch:1, rdDiscount:0, convertRate:3,
   income:6, sysGoldMult:0.5, sysCostMult:1, gateProgMult:0.6, gateHypeMult:0.6,
   draftPre:2, draftPre2:3, draftProd:3, draftProd2:4, draftPol:2, draftPol2:3

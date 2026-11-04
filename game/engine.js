@@ -370,14 +370,14 @@ function completeBuilds(S) {
     });
   });
 }
-E.recruitSize = function (S) { const n = S.players.length, c = S.cfg; if (c.recruitDelta) return Math.max(1, Math.min(n + c.recruitDelta, 8)); if (c.recruitScale) return Math.min(n * c.recruitScale, 8); return n <= 2 ? (c.recruitSize2 || 2) : n <= 4 ? (c.recruitSize34 || 3) : (c.recruitSize56 || 4); };
+E.recruitSize = function (S) { const n = S.players.length, c = S.cfg; if (c.recruitDelta) return Math.max(1, Math.min(n + c.recruitDelta, 8)); return n <= 2 ? (c.recruitSize2 || 2) : n <= 4 ? (c.recruitSize34 || 3) : (c.recruitSize56 || 4); };
 // A fresh shared pool every round: some categories, one random discipline from each. Take one by paying Gold (no worker needed).
 function rollRecruit(S) {
   if (S.recruitRound === S.round) return; S.recruitRound = S.round;
   const size = E.recruitSize(S), cats = shuffle(S, Object.keys(D0.categories));
   const left = {}; cats.forEach(cat => { left[cat] = D0.categories[cat].discs.filter(d => !(S.phase === 0 && d === "QA" && !S.cfg.qaAllowedPreProd)); });
   S.recruit = [];
-  if (S.cfg.recruitScale || S.cfg.recruitDelta) { // one offer per player: cycle the categories, a different discipline each time
+  if (S.cfg.recruitDelta) { // pool sized to the player count: cycle the categories, a different discipline each time
     let guard = 0; while (S.recruit.length < size && guard++ < 40) { const cat = cats[(guard - 1) % cats.length]; const ds = left[cat]; if (!ds.length) continue; const d = ds.splice(rint(S, ds.length), 1)[0]; S.recruit.push({ cat, disc: d, by: null }); }
   } else cats.slice(0, size).forEach(cat => { const ds = left[cat]; S.recruit.push({ cat, disc: ds[rint(S, ds.length)], by: null }); });
   log(S, "RECRUITMENT: " + S.recruit.map(o => dn(o.disc)).join(", ") + " available");
