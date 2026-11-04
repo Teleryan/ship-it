@@ -43,8 +43,6 @@ const KEY_ORDER = ["ideas", "code", "process", "buzz", "progress", "hype", "mark
 const iconKey = () => KEY_ORDER.map(k => `<span class="kk">${ic(k)}${ICN[k]}</span>`).join("");
 const rowTitle = (S, key) => { const n = S.cfg.rowNames && S.cfg.rowNames[key]; return (n && n[S.phase]) || key; };
 const RES_ICONS = E.RES.map(ic).join("");
-const resChip = (k, n) => `<span class="rchip" style="--c:${RC[k]}">${ic(k)}${n}</span>`;
-const resBadges = o => E.RES.filter(k => o[k] > 0).map(k => resChip(k, o[k])).join(" ");
 const resNow = p => E.RES.map(k => `<span class="rchip" style="--c:${RC[k]}">${ic(k)}<b class="mono">${p[k]}</b></span>`).join(" ");
 const fxTxt = s => (U.S && U.S.cfg.varC) ? fxHtml(s) : esc(s);
 // words in requirement text become icons

@@ -140,7 +140,6 @@ E.newGame = function (seats, opts) {
 
 /* ---------- helpers ---------- */
 const P = (S, i) => S.players[i];
-function phaseCfg(S) { return D0.phases[S.phase]; }
 E.phaseOfRound = PHASE_OF_ROUND;
 function statChange(S, pi, stat, d) {
   if (stat === "mktg" && S.cfg.mergeMktg) stat = "hype";
@@ -181,8 +180,6 @@ function drawDisc(S, n) {
   }
   return out;
 }
-const wCount = p => p.workers.length;
-function effDisc(w) { return DISCS.includes(w.disc) ? w.disc : w.disc; }
 // which disciplines may this worker act as (wild workers declare when placed / built-with)
 function actsAs(w) { const d = D0.disciplines[w.disc]; return d.wild ? d.wild.concat([w.disc]) : [w.disc]; }
 function countWeighted(p, disc) { return p.workers.reduce((a, w) => a + ((w.disc === disc || (w.as === disc)) ? (w.lvl === "Sr" ? 2 : 1) : 0), 0); }
@@ -260,7 +257,7 @@ E.advance = function (S) {
 
 function beginPhase(S) {
   S.phase = PHASE_OF_ROUND(S.round);
-  const prevMod = S.mod; S.mod = {};
+  S.mod = {};
   S.players.forEach(p => { p.flags.noMentor = false; });
   S.order = S.order.slice(); S.bids = {};
   log(S, "=== PHASE START: " + D0.phases[S.phase].name + " ===");
@@ -574,7 +571,6 @@ function spotUsableBy(S, pi, w, spot) {
     if (!srAllowed(S)) return { ok: false, reason: "No Senior workers in Concept" };
   }
   if (spot.special === "insight" || spot.id === "insight") { if (!S.decks.mile.length) return { ok: false, reason: "Milestone deck empty" }; }
-  if (spot.special === "outsource" && false) return { ok: false };
   return { ok: true, as };
 }
 function placementOptions(S, pi, w) {
@@ -1166,7 +1162,7 @@ function awardResolve(S, h) {
 /* ============================================================
    MILESTONE REQUIREMENTS (all 40 auto-checked)
    ============================================================ */
-const dev = ["ENG","ART","DES","QA"], mkt = ["PX","DATA","ADV"];
+const mkt = ["PX","DATA","ADV"];
 const nSys = p => p.systems.length;
 const catSet = p => new Set(p.systems.map(s => s.cat)).size;
 const jr = p => p.workers.filter(w => w.lvl === "Jr").length, sr = p => p.workers.filter(w => w.lvl === "Sr").length;

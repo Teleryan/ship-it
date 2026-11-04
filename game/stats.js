@@ -17,7 +17,6 @@ const f1 = x => (Math.round(x * 10) / 10).toString();
 const pct = (a, b) => b ? Math.round(a / b * 100) + "%" : "–";
 const CAP = 20 * 60; // a round longer than 20 minutes means someone stepped away: count it as 20 minutes
 const mmss = s => { s = Math.round(s); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
-const PARTCOL = ["var(--prod)", "var(--hype)", "var(--process)", "var(--gold)", "var(--ideas)", "var(--bad)", "var(--buzz)", "var(--code)", "#7bd88f", "#c9d1d9"];
 
 /* ---------- records ---------- */
 T.expand = function (games) {

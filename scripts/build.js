@@ -1,4 +1,4 @@
-// Builds the four environments (C at /, A at /a/, B at /b/, D at /d/) into dist/shipit-site.json (minified)
+// Builds the four environments (D Burnout at /, C Phases at /c/, A classic at /a/, B pools at /b/) into dist/shipit-site.json (minified)
 const fs=require("fs"),path=require("path"),cp=require("child_process");
 const G=path.join(__dirname,"..","game"), OUT=path.join(__dirname,"..","dist");
 const FILES=["index.html","styles.css","data.js","core.js","engine.js","bot.js","studio.js","studio2.js","tutorial.js","net.js","analytics.js","admin.js","stats.js","simui.js","rules.js","ui.js"];

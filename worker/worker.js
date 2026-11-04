@@ -157,7 +157,7 @@ export default {
     }
     if (P.startsWith("/__")) return json({ error: "Not found" }, 404);
 
-    // ---- the game itself: Environment A at /, Environment B at /b/ ----
+    // ---- the game itself: D at /, C at /c/, A at /a/, B at /b/ ----
     if (request.method !== "GET" && request.method !== "HEAD") return secure(new Response("Method not allowed", { status: 405 }));
     const site = siteOf(P); if (P === "/a" || P === "/b" || P === "/c") return new Response(null, { status: 302, headers: { location: P + "/" } });
     if (P === "/d" || P.startsWith("/d/")) return new Response(null, { status: 302, headers: { location: "/" + P.slice(3) } });
