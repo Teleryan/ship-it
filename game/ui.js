@@ -67,7 +67,19 @@ const catColor = { Innovation: "#e67e22", Stability: "#c0392b", Reach: "#e91e63"
 const P = i => U.S.players[i];
 
 /* ---------- plumbing ---------- */
-function toast(m) { U.toast = m; render(); clearTimeout(U.toastT); U.toastT = setTimeout(() => { U.toast = null; render(); }, 2600); }
+function toast(m, ms) { U.toast = m; render(); clearTimeout(U.toastT); U.toastT = setTimeout(() => { U.toast = null; render(); }, ms || 2600); }
+// Tell every player when someone else takes a worker from the shared Recruitment pool (a bot, or another seat online)
+function noteRecruits() {
+  const S = U.S; if (!S || !S.recruit || U.tut || U.screen !== "game") return;
+  if (!U.recSeen || U.recSeen.r !== S.round) { U.recSeen = { r: S.round, ids: {} }; S.recruit.forEach((o, i) => { if (o.by != null) U.recSeen.ids[i] = 1; }); return; }
+  const msgs = [];
+  S.recruit.forEach((o, i) => {
+    if (o.by == null || U.recSeen.ids[i]) return; U.recSeen.ids[i] = 1;
+    const q = S.players[o.by]; if (!q || (U.net ? U.net.mine.includes(o.by) : !q.bot)) return; // you already know about your own recruit
+    msgs.push(q.name + " recruited a " + nameOf(o.disc) + " from the pool (" + S.recruit.filter(x => x.by == null).length + " left)");
+  });
+  if (msgs.length) setTimeout(() => toast(msgs.join(" · "), 5000), 0);
+}
 function snapshot() { try { return JSON.stringify(U.S, (k, v) => k === "data" ? undefined : v); } catch (e) { return null; } }
 function restore(js) { const data = U.S.data; const S = JSON.parse(js); S.data = data; U.S = S; }
 function save() { try { root.localStorage.setItem("shipit.save.v1", JSON.stringify(U.S)); toast("Game saved in this browser"); U.toast = null; } catch (e) { toast("Could not save"); } }
@@ -505,6 +517,7 @@ function decisionModal(S) {
       const isTurn = d.purpose === "turn";
       h += `<h3>${isTurn ? "Blind bid for turn order" : "Secret auction bid"}</h3><p class="mute">${isTurn ? "Highest bid goes first. <b>Everyone pays their bid.</b> Ties: fewer workers goes first." : "Winner pays their bid. Others keep their gold."} You have <b style="color:var(--gold)">${p.gold}G</b>.</p>
       ${isTurn && S.draft.cards.length ? `<div class="mute" style="margin:10px 0 4px">Face-up cards for this draft (click one to read it)</div><div class="hand" style="margin-bottom:12px">${S.draft.cards.map(c => discCardHtml(c.disc, "", `data-act="detail" data-k="draft" data-id="${c.id}"`, "")).join("")}</div>` : ""}
+      ${isTurn && S.recruit && S.recruit.length && S.cfg.varC && S.phase !== 3 ? `<div class="mute" style="margin:10px 0 4px">Recruitment pool this round: ${S.recruit.length} worker${S.recruit.length === 1 ? "" : "s"} for ${S.players.length} players (${S.cfg.recruitCost}G each, one per player, opens at Place). Going first gets you the pick.</div><div class="row wrap" style="gap:6px;margin-bottom:12px">${S.recruit.map(o => `<span class="sys" style="width:auto;padding:4px 8px;display:inline-flex;gap:6px;align-items:center;border-color:${dcol(o.disc)}"><b style="color:${dcol(o.disc)}">${esc(nameOf(o.disc))}</b><span class="mute">${esc(o.cat)}</span></span>`).join("")}</div>` : ""}
       <div class="row"><input id="bid" type="number" min="0" max="${p.gold}" value="0" style="width:100px;font-size:20px"><button class="btn primary" data-tut="act" data-act="bid">Lock in bid</button></div>`; break; }
     case "choose": h += `<h3>Your choice</h3>` + d.options.map(o => `<button class="btn optbtn" data-act="choose" data-k="${o.k}" ${o.disabled ? "disabled" : ""} title="${esc(o.reason || "")}"><b>${o.k.length === 1 ? o.k + ")" : ""}</b> ${esc((S.cfg.poolScoring && ((S.data.crisis.find(cc => cc.id === d.card) || {}).options || []).find(x => x.k === o.k) || {}).poolLabel || o.label)}${o.disabled ? ' <span class="mute">(' + esc(o.reason || "") + ")</span>" : ""}</button>`).join(""); break;
     case "pickWorker": h += `<h3>Choose a worker to lose${d.srOnly ? " (Sr only)" : ""}</h3><div class="workers">${p.workers.map(w => `<div class="wk" data-act="pickw" data-w="${w.id}" style="${d.srOnly && w.lvl !== "Sr" ? "opacity:.3;pointer-events:none" : ""}"><div class="d" style="color:${dcol(w.disc)}">${w.disc}</div><div class="l">${w.lvl} · ${["Active","Tired","Over-Tired"][w.fat]}</div></div>`).join("")}</div>`; break;
@@ -737,6 +750,7 @@ function fixSeg(s, keys, m) {
 /* ---------- main render ---------- */
 function render() {
   if (U.S && U.S.data && E.applyLook) E.applyLook(U.S.data);
+  noteRecruits();
   const keepFocus = document.activeElement && document.activeElement.id; const val = keepFocus ? document.activeElement.value : null;
   if (U.screen === "gate") $root.innerHTML = SI.copyFix(gateView());
   else if (U.screen === "menu") $root.innerHTML = SI.copyFix(menuView() + (U.modal === "studio" && U.owner ? "\u0001" + studioModal() + "\u0002" : U.modal === "master" && U.owner ? "\u0001" + masterModal() + "\u0002" : U.modal === "cleardata" ? clearDataModal() : ""));
