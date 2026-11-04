@@ -190,7 +190,7 @@ function menuView() {
 function actorName(S) { const a = E.currentActor(S); return a >= 0 ? S.players[a] : null; }
 function stepTracker(S) {
   if (S.cfg.flowV2) { // Upkeep opens each round (not round 1), then Income, Bid, Draft, Hire, Place, Build, Rest and Milestones
-    const pg2 = ["Crisis", "Reveal"], rg2 = [["upkeep", "Upkeep"], ["income", "Income"], ["bid", "Bid"], ["draft", "Draft"], ["hire", "Hire"], ["place", "Place"], ["build", "Build"], ["rest", "Rest + Milestones"]];
+    const pg2 = ["Crisis", "Reveal"], rg2 = [["upkeep", "Upkeep"], ["income", "Income"], ["bid", "Bid"], ["draft", "Draft"], ["hire", "Hire"], ["place", "Place"], ["build", "Build"], ["rest", "Clean up"]];
     const inP = ["setup", "crisis"].includes(S.step), idxR2 = { bid: 2, draft: 3, hire: 4, place: 5, build: 6, rest: 7 }[S.step];
     return `<div class="stepgroup sg-phase" data-tut="steps"><span class="lab">Phase start</span>${pg2.map((s, i) => `<span class="step ${inP ? (i === 0 ? "on" : "") : "done"}">${s}</span>`).join("")}</div>
   <div class="stepgroup sg-round" data-tut="steps"><span class="lab">Round</span>${rg2.map((s, i) => `<span class="step ${i === 0 && S.round === 1 ? "" : !inP ? (i === idxR2 ? "on" : i < idxR2 ? "done" : "") : ""}" ${i === 0 && S.round === 1 ? 'title="No Upkeep in round 1" style="opacity:.35;text-decoration:line-through"' : ""}>${s[1]}</span>`).join("")}</div>`;
@@ -215,7 +215,7 @@ function prompt(S) {
   const d = S.dq[0]; const a = actorName(S);
   if (S.over) return "Game over";
   if (d) return { keepObj: "choose your objectives", bid: d.purpose === "turn" ? "secret blind bid for turn order" : "secret auction bid", choose: "make a crisis choice", pickWorker: "choose a worker to lose", raidHire: "Studio Raid: hire at half cost?", pivot: "pivot your Platform", dropObj: "remove an objective", keepMile: "choose milestone(s) to keep", swapObjPick: "choose objective", patch: "Day-One Patch: spend Momentum" }[d.t] || "decide";
-  return { draft: "take 1 card (" + (S.draft.left != null ? S.draft.left + " picks left in the draft" : S.draft.cards.length + " left") + ")", hire: "hire from your hand, then Done", place: "select a worker, then a highlighted spot (or Pass)", build: "build a system with skills, builds " + (a ? a.builds + "/" + E.maxBuilds(S, a) : ""), rest: S.cfg.flowV2 ? "promote or train, cash in milestones, then Done" : "promote, headhunt, swap or release, then Done", milestones: "cash in completed milestones, then Done" }[S.step] || "";
+  return { draft: "take 1 card (" + (S.draft.left != null ? S.draft.left + " picks left in the draft" : S.draft.cards.length + " left") + ")", hire: "hire from your hand, then Done", place: "select a worker, then a highlighted spot (or Pass)", build: "build a system with skills, builds " + (a ? a.builds + "/" + E.maxBuilds(S, a) : ""), rest: S.cfg.flowV2 ? "clean up: cash in milestones, train or promote, then Done" : "promote, headhunt, swap or release, then Done", milestones: "cash in completed milestones, then Done" }[S.step] || "";
 }
 function banner(S) {
   const a = actorName(S);
@@ -333,7 +333,7 @@ function playerPanel(S) {
   if ((p.building || []).length) h += `<div style="margin:10px 0 4px" class="mute">Building (finishes later; no trigger, passive or score until ready)</div><div class="row wrap">${buildingsList(S, p)}</div>`;
   if (priv(S, vi)) {
     h += `<div style="margin:12px 0 4px" class="mute">Hand: discipline cards (${p.hand.length})</div><div class="hand" data-tut="hand">${p.hand.length ? p.hand.map(c => handCard(S, c, vi, mine)).join("") : '<span class="mute">Empty.</span>'}</div>`;
-    h += `<div style="margin:12px 0 4px" class="mute">Milestones (${p.miles.length}) · cash in when met</div><div class="row wrap" data-tut="miles">${p.miles.map(id => mileCard(S, id, vi, mine)).join("") || '<span class="mute">None</span>'}</div>`;
+    h += `<div style="margin:12px 0 4px" class="mute">Milestones (${p.miles.length}) · cash in when met</div><div class="row wrap" ${S.cfg.flowV2 && S.step === "rest" && mine ? "" : 'data-tut="miles"'}>${p.miles.map(id => mileCard(S, id, vi, mine)).join("") || '<span class="mute">None</span>'}</div>`;
     h += `<div style="margin:12px 0 4px" class="mute">Objectives: scored at end</div><div class="row wrap">${p.objectives.map(id => objCard(S, id, vi, mine)).join("") || '<span class="mute">None</span>'}</div>`;
   } else h += `<p class="mute" style="margin-top:12px">Hand, milestones and objectives are hidden until it is ${esc(p.name)}'s turn.</p>`;
   return h + "</div>";
@@ -374,7 +374,7 @@ function actionArea(S) {
     const free = a.freeBuilds > 0;
     h += `<div class="panel"><h3>Build systems</h3><div class="row wrap"><button class="btn primary" data-tut="market" data-act="market">Open Systems to Build</button><span class="mute">${resNow(a)} · ${ic("gold")} <b class="mono" style="color:var(--gold)">${a.gold}</b> · builds ${a.builds}/${E.maxBuilds(S, a)}${free ? ` · <b style="color:var(--good)">${a.freeBuilds} FREE build</b>` : ""}</span></div></div>`;
   }
-  if (S.step === "rest") h += restView(S, a);
+  if (S.step === "rest") h += (S.cfg.flowV2 ? cleanMiles(S, a) : "") + restView(S, a);
   return h;
 }
 function draftView(S) {
@@ -384,10 +384,17 @@ function draftView(S) {
   const drafted = `<div class="drafted" data-tut="drafted"><h3>Drafted so far</h3>${S.players.map((p, i) => `<div class="drow${E.currentActor(S) === i ? " cur" : ""}"><span class="dn">${esc(p.name)}</span>${p.hand.length ? p.hand.map(c => discCardHtml(c.disc, "mini", `data-act="detail" data-k="hand" data-id="${c.id}" data-p="${i}"`, "")).join("") : '<span class="mute">Nothing yet</span>'}</div>`).join("")}</div>`;
   return `<div class="panel" data-tut="draftpanel">${drafted}<h3 style="margin-top:14px">Discipline draft: face-up cards (${S.draft.cards.length}). Drafting is free, hiring costs gold later</h3>${human ? '<div class="mute" style="margin:-2px 0 10px">Press Shortlist to pick a candidate, or tap a card to read more first.</div>' : ""}<div class="hand" data-tut="draft">${S.draft.cards.map(c => discCardHtml(c.disc, human ? "pick" : "", `data-act="detail" data-k="draft" data-id="${c.id}"`, "", human ? `<button class="btn sm primary draftbtn" data-act="draft-pick" data-id="${c.id}">Shortlist</button>` : "")).join("")}</div></div>`;
 }
+// Clean up step: milestones sit at the top, next to where the hand is shown in Hire, with a Cash in button once met
+function cleanMiles(S, a) {
+  if (!a || a.bot) return "";
+  const cards = a.miles.map(id => { const met = E.milestoneMet(S, a.id, id), m = S.data.milestones[id], open = E.mileWindow(S, m) !== "later";
+    return `<div class="col" style="gap:4px">${mileCard(S, id, a.id, true)}${actBtn("Cash in +" + m.gold + "G", `data-act="claim" data-mile="${id}"`, !met, met ? "" : "Requirement not met yet", false)}</div>`; }).join("");
+  return `<div class="panel" data-tut="miles"><h3>Your milestones (${a.miles.length}): cash in when met</h3><div class="row wrap" style="align-items:flex-start">${cards || '<span class="mute">No milestones in hand.</span>'}</div></div>`;
+}
 function restView(S, a) {
   const cost = E.promoCost(S), hc = cost * S.cfg.headhuntMult;
-  let h = `<div class="panel" data-tut="rest"><h3>${S.cfg.flowV2 ? "Rest and Milestones" : "Rest phase"}</h3><div class="mute" style="margin-bottom:6px">Promotion ${S.cfg.promoFree ? "is free for a worker who has worked and is resting this round" : cost + "G"} (${a.promos}/${S.cfg.promotionsPerRest} used)${U.tut || !S.cfg.headhuntsPerRest ? "" : ` · Headhunt ${hc}G, victim gets ${Math.floor(hc * S.cfg.headhuntComp)}G (${a.hunts}/${S.cfg.headhuntsPerRest} used)`}</div>`;
-  h += `<div class="mute" style="margin:2px 0 6px">${S.cfg.flowV2 ? "Click a worker to train or promote them. Cash in any completed Milestone from the cards below, then press Done." : "Click a worker to promote or release them."}</div><div class="workers">${a.workers.map(w => workerCard(S, w, a.id, false)).join("") || '<span class="mute">No workers.</span>'}</div>`;
+  let h = `<div class="panel" data-tut="rest"><h3>${S.cfg.flowV2 ? "Clean up: Rest and Milestones" : "Rest phase"}</h3><div class="mute" style="margin-bottom:6px">Promotion ${S.cfg.promoFree ? "is free for a worker who has worked and is resting this round" : cost + "G"} (${a.promos}/${S.cfg.promotionsPerRest} used)${U.tut || !S.cfg.headhuntsPerRest ? "" : ` · Headhunt ${hc}G, victim gets ${Math.floor(hc * S.cfg.headhuntComp)}G (${a.hunts}/${S.cfg.headhuntsPerRest} used)`}</div>`;
+  h += `<div class="mute" style="margin:2px 0 6px">${S.cfg.flowV2 ? "Cash in any met Milestone above, click a worker to train or promote them, then press Done." : "Click a worker to promote or release them."}</div><div class="workers">${a.workers.map(w => workerCard(S, w, a.id, false)).join("") || '<span class="mute">No workers.</span>'}</div>`;
   const others = S.players.filter(p => p.id !== a.id && p.workers.length);
   if (others.length && !U.tut && S.cfg.headhuntsPerRest) {
     h += `<div class="mute" style="margin:10px 0 4px">Headhunt a worker</div>` + others.map(o => `<div class="row wrap" style="margin:3px 0"><b style="color:${o.color}">${esc(o.name)}</b>${o.workers.map(w => { const catchUp = S.cfg.headhuntCatchUp && o.workers.length <= a.workers.length; const bad = catchUp || a.gold < hc || a.hunts >= S.cfg.headhuntsPerRest || (w.lvl === "Sr" && !E.srAllowed(S)); return `<button class="btn sm" data-act="hunt" data-t="${o.id}" data-w="${w.id}" ${bad ? "disabled" : ""} title="${bad ? (catchUp ? "Only from a studio with more workers than yours" : a.gold < hc ? "Needs " + hc + "G" : "Not available") : ""}">${w.lvl} ${w.disc}${w.fat ? " (" + ["", "tired", "over-tired"][w.fat] + ")" : ""}</button>`; }).join("")}</div>`).join("");
