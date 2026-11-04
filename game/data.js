@@ -215,6 +215,8 @@ D.config = {
     trainCost:["D: Training cost (Gold)","Gold paid each time a Junior trains"],
     trainCulture:["D: Training Culture","Culture gained each time a Junior trains"],
     trainNeeded:["D: Trainings before promotion","A Junior needs this many training sessions to be promoted to Senior"],
+    smallDrop:["Board: spots removed","JSON: list of spot ids taken off the board, e.g. [\"insight\"]. Variant D removes Insight (Draw 1 Milestone) to curb surplus Gold."],
+    smallMax:["Board: removal applies up to N players","The removed spots only come off the board when the table has this many players or fewer (6 = every table)"],
     trainsPerRest:["D: Trainings per round","Most workers a studio can send to train in one Rest step"],
     deckBase:["Discipline deck: copies of each role","Copies of every role in the discipline deck (2+ players)"],
     deckExtra:["Discipline deck: extra copies at 3+ players","Added to each role when 3 or more play"],
@@ -434,7 +436,7 @@ D.spotsC = [
 D.configC = {
   varC:1, noSwaps:1, resSubMax:0, envLabel:"ENV C · PHASES", rowNames:{EARN:["Backlog","Backlog","Backlog","Backlog"],PROGRESS:["Prototype","Vertical Slice","Beta Build","Gold Master"],HYPE:["Pitch Deck","Trailer Drop","Press Tour","Launch Party"],CREW:["Game Jam","Game Jam","Game Jam","Game Jam"],UTILITY:["Studio Perks","Studio Perks","Studio Perks","Studio Perks"]}, raceCurveByN:{2:0.12,3:0.2,4:0.25,5:0.25,6:0.3}, racePotByN:{2:38,3:38,4:40,5:42,6:42}, debtLossByN:{2:4,3:6,4:8}, cultLossByN:{2:3,3:5,4:6}, phaseEnds:[3,8,11,12],
   spotResOr:1, srSystems:1, srPromoteOnly:1, srAllowedPreProd:1,
-  promoFree:1, promoNeedsRest:1, promotionsPerRest:1, headhuntsPerRest:0, overworkCulture:-1, burnout:0, train:0, trainCost:1, trainCulture:1, trainNeeded:2, trainsPerRest:2, burnMax:6, burnOver:1, burnUnpaidPer:2, burnOverStep:2, burnOverMax:2, burnUnpaidMax:1, burnUnpaidMin:2, burnRelief:1, burnTeamRelief:1, burnStrainAt:3, burnStrainHype:1, burnBenchAt:5, burnQuitAt:6, burnQuitReset:4, energizedBurnMax:0, energizedCulture:2, energizedGold:1, burnVP:{"0":0,"1":0,"2":0,"3":-1,"4":-3,"5":-5,"6":-8},
+  promoFree:1, promoNeedsRest:1, promotionsPerRest:1, headhuntsPerRest:0, overworkCulture:-1, burnout:0, train:0, smallDrop:[], smallMax:6, trainCost:1, trainCulture:1, trainNeeded:2, trainsPerRest:2, burnMax:6, burnOver:1, burnUnpaidPer:2, burnOverStep:2, burnOverMax:2, burnUnpaidMax:1, burnUnpaidMin:2, burnRelief:1, burnTeamRelief:1, burnStrainAt:3, burnStrainHype:1, burnBenchAt:5, burnQuitAt:6, burnQuitReset:4, energizedBurnMax:0, energizedCulture:2, energizedGold:1, burnVP:{"0":0,"1":0,"2":0,"3":-1,"4":-3,"5":-5,"6":-8},
   recruitCost:3, recruitPerRound:1, recruitSize2:2, recruitSize34:3, recruitSize56:4, recruitInLaunch:0,
   bidEveryRound:1, bidWinnerOnly:0, buildDelay:2, crunchDelay:1, crunchGold:2, rdCrunch:1, rdDiscount:0, convertRate:3,
   income:6, sysGoldMult:0.5, sysCostMult:1, gateProgMult:0.6, gateHypeMult:0.6,

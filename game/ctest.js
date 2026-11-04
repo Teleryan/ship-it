@@ -67,4 +67,10 @@ const SA=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:3});ok(!SA.cf
  let g2=0;while(g2++<200&&S.step!=='place'&&!S.over){const a=B.decide(S);if(!a)break;E.act(S,a)}
  ok(w.benched==='Training'&&E.placementOptions(S,pi,w)[0].ok===false,'a trainee sits out the next round');
  const C=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:11,config:{varC:1}});ok(!E.act(C,{type:'train',p:0,worker:1}).ok,'Env C: no training');}
+{ // Variant D: Insight is off the board at every player count
+ for(const n of [2,3,4,5,6]){const seats=[];for(let i=0;i<n;i++)seats.push({name:'P'+i,bot:true});
+  const D=E.newGame(seats,{seed:3,config:{varC:1,smallDrop:['insight'],smallMax:6}}); let any=false; for(let ph=0;ph<4;ph++){D.phase=ph; if(E.activeSpots(D).some(x=>x.id==='insight'))any=true}
+  ok(!any,'Variant D: Insight removed at '+n+' players');
+  const C=E.newGame(seats,{seed:3,config:{varC:1}}); C.phase=1; ok(E.activeSpots(C).some(x=>x.id==='insight'),'Env C keeps Insight at '+n+' players');}
+ const T=E.newGame([{name:'A',bot:true},{name:'B',bot:true},{name:'C',bot:true}],{seed:3,config:{varC:1,smallDrop:['insight'],smallMax:2}}); T.phase=1; ok(E.activeSpots(T).some(x=>x.id==='insight'),'smallMax limits the removal by player count'); }
 console.log('fails',fails);
