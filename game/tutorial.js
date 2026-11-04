@@ -203,6 +203,8 @@ function tokens(S) {
     convertRate: c.convertRate || 3, refreshGold: c.marketRefreshGold, gateName: esc(g.name || ""), gate2Name: esc(g2.name || ""), gateReqs: esc((g.reqs || []).join(", ")),
     gateEnd: (c.phaseEnds || [])[g.phase || 0] || "", gateFund: g.fund || 0, gatePenalty: g.penalty || 0,
     crisisLine: crisis ? ": <b>" + esc(crisis.name) + "</b>. " + esc(crisis.text) : "",
+    nPlayers: S.players.length, goldPerVP: c.goldPerVP || 3, raceFirst: (E.rankTable(c, S.players.length) || [])[0], raceLast: (E.rankTable(c, S.players.length) || []).slice(-1)[0],
+    burnLine: c.burnout ? "<br><b>Burnout</b>: an exhausted studio loses VP at the end (" + [3, 4, 5, 6].map(k => k + ": " + (((c.burnVP || {})[k]) || 0)).join(", ") + ")." : "",
     trainCost: c.trainCost, trainCulture: c.trainCulture, trainNeeded: c.trainNeeded,
     freeBuild: p.freeBuilds ? "<br><br><b>A free build is on the house this round.</b>" : "",
     burnMax: c.burnMax, burnOverStep: c.burnOverStep, burnOverMax: c.burnOverMax, burnUnpaidMin: c.burnUnpaidMin, burnRelief: c.burnRelief, burnTeamRelief: c.burnTeamRelief,
@@ -236,6 +238,11 @@ const reachedRound = (S, r, stage) => S.round > r || (S.round === r && RANK[S.st
 
 const STEPS_C = [
   info("welcome", { center: true, hold: true, hl: () => null, allow: () => MSG("msg_start") }),
+  /* ---- how you win, before phases and rounds ---- */
+  info("win_vp", { center: true, hl: () => null }),
+  info("win_races", { hl: () => "[data-tut=tracks]" }),
+  info("win_build", { hl: () => "[data-tut=market]" }),
+  info("win_lose", { hl: () => ".pt[data-pid='0'] .stats" }),
   info("loop", { hl: () => "[data-tut=steps]" }),
   doing("objectives", { hl: () => ".modal", done: S => !S.dq.some(d => d.t === "keepObj" && d.p === 0), allow: a => a.type === "keepObj" ? null : MSG("msg_obj") }),
   info("phasestart", { hl: () => "[data-tut=steps]" }),
