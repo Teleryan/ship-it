@@ -615,10 +615,11 @@ function detailModal() {
     case "sys": case "market": {
       let def, idx = null;
       if (d.k === "sys") { idx = +d.id; const sy = P(+d.p).systems[idx]; if (!sy) return closeOnly(); def = E.sysDef(S, sy.name); } else { def = S.data.systems.find(x => x.name === d.id); if (!def) return closeOnly(); }
-      h += `<div class="dhead" style="background:${catColor[def.cat]}"><span>${def.cat}</span></div><div class="dtitle">${esc(def.name)} ${symTag(def)}</div>
-      ${def.pas ? `<p><b style="color:var(--gold)">Passive (always on):</b> ${esc(def.pas)}.</p>` : ""}<p class="mute">Trigger: place a ${esc(fmtTrig(def.trig))} worker here. Build cost: ${esc(fmtBuild(def.build))}.${def.debt ? ` Adds ${def.debt} Tech Debt when built.` : ""}</p>
-      ${def.fx ? `<p><b>${esc(def.fx)}</b></p>` : ""}${def.once ? `<p>On build: ${esc(def.once)}</p>` : ""}${def.each ? `<p>Each time: ${esc(def.each)}</p>` : ""}
-      <p class="mute">${def.vp} VP at the end, plus ${def.syn} synergy VP if it shares ${U.S.cfg.varC ? "its main skill (" + ICN[E.sysMainRes(def)] + ")" : "a symbol"} with a completed objective.</p>
+      const busyD = S.cfg.varC ? E.buildRounds(S, P(viewIndex(S)), U.crunch, def) : 0, dl = (k, v) => `<div class="drow"><span class="dk">${k}</span><span>${v}</span></div>`;
+      h += `<div class="dhead" style="background:${catColor[def.cat]}"><span>${def.cat}</span></div><div class="dtitle">${esc(def.name)} ${symTag(def)} <span class="dvp">${def.vp} VP</span></div>
+      <div class="dsec"><h4>Cost to build</h4><div class="c" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:15px">${buildChips(def.build)}</div>${busyD ? dl("Crew busy", busyD + " round" + (busyD === 1 ? "" : "s") + " while it is built") : ""}${def.debt ? dl("Tech Debt", `<b class="bad">+${def.debt}</b> when built`) : ""}</div>
+      <div class="dsec"><h4>Reward when triggered</h4>${dl("Trigger", "place " + esc(fmtTrig(def.trig)) + " worker here")}${def.fx ? dl("Gives", "<b>" + fxTxt(def.fx) + "</b>") : ""}${def.once ? dl("On build", esc(def.once)) : ""}${def.each ? dl("Each time", esc(def.each)) : ""}</div>
+      <div class="dsec"><h4>Benefit</h4>${def.pas ? dl("Passive", `<span style="color:var(--gold)">${esc(def.pas)}</span> (always on)`) : ""}${dl("End of game", def.vp + " VP, plus " + def.syn + " synergy VP if it shares " + (U.S.cfg.varC ? "its main skill (" + ICN[E.sysMainRes(def)] + ")" : "a symbol") + " with a completed objective")}</div>
       ${symLine(def)}`;
       if (d.k === "sys") h += placeSection(S, "sys:" + idx);
       else if (U.modal === "market" && S.step === "build" && mineTurn) {
@@ -651,8 +652,14 @@ const buildChips = str => {
 /* Compact system tile: name, main skill, VP, cost icons, one effect line. Detail lives in the popup. */
 const bR = d => { const S = U.S; if (!S || !S.cfg.varC) return 0; const p = S.players[viewIndex(S)]; return E.buildRounds(S, p, U.crunch, d); };
 function sysTile(d, ok, extra) {
-  const hint = U.S && U.S.cfg.varC && viewHasSyn(d);
-  return `<div class="sys2 ${ok ? "" : "off"}" data-act="detail" data-k="market" data-id="${esc(d.name)}" style="border-color:${catColor[d.cat]}"><div class="h"><span class="n">${esc(d.name)}</span>${symTag(d)}${hint ? '<span class="star" title="Matches the skill of one of your objectives">★</span>' : ""}<span class="vp">${d.vp} VP</span></div><div class="c">${buildChips(d.build)}</div>${d.fx ? `<div class="e">${fxTxt(d.fx)}</div>` : ""}${d.pas ? `<div class="pas"><b>Passive</b> ${esc(d.pas)}</div>` : ""}<div class="trg">Crew busy ${bR(d)} round${bR(d) === 1 ? "" : "s"} · Trigger ${esc(fmtTrig(d.trig))}${d.debt ? ` · <b class="bad">+${d.debt} Debt</b>` : ""}</div>${extra || ""}</div>`;
+  const hint = U.S && U.S.cfg.varC && viewHasSyn(d), busy = bR(d);
+  const row = (k, html, cls) => `<div class="sr"><span class="k">${k}</span><div class="${cls || ""}">${html}</div></div>`;
+  return `<div class="sys2 ${ok ? "" : "off"}" data-act="detail" data-k="market" data-id="${esc(d.name)}" style="border-color:${catColor[d.cat]}"><div class="h"><span class="n">${esc(d.name)}</span>${symTag(d)}${hint ? '<span class="star" title="Matches the skill of one of your objectives">★</span>' : ""}<span class="vp">${d.vp} VP</span></div>`
+    + row("Cost", `<div class="c">${buildChips(d.build)}</div>`)
+    + (d.fx ? row("Gives", fxTxt(d.fx), "e") : "")
+    + (d.pas ? row("Passive", esc(d.pas), "pas") : "")
+    + row("Trigger", `${esc(fmtTrig(d.trig))}${busy ? ` · crew busy ${busy} round${busy === 1 ? "" : "s"}` : ""}${d.debt ? ` · <b class="bad">+${d.debt} Debt</b>` : ""}`, "trg")
+    + (extra || "") + `</div>`;
 }
 const viewHasSyn = d => { const S = U.S, p = S.players[viewIndex(S)]; return !!p && p.objectives.some(id => S.data.objectives[id].res && S.data.objectives[id].res === E.sysMainRes(d)); };
 function marketStrip(S) {
