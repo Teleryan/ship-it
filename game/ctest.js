@@ -52,7 +52,7 @@ const SA=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:3});ok(!SA.cf
  E.statChange(S,0,'burnout',99);ok(p.burnout===6,'Burnout is capped at the top of the track');E.statChange(S,0,'burnout',-99);ok(p.burnout===0,'Burnout cannot go below 0');}
 
 // Variant D: Training
-{const mk=()=>E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:11,config:{varC:1,burnout:1,train:1}});
+{const mk=()=>E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:11,config:{varC:1,burnout:1,train:1,trainNeeded:2}});
  const S=mk();let g=0;while(g++<4000&&!(S.round>=4&&S.step==='rest'&&!S.dq.length)){const a=B.decide(S);if(!a)break;E.act(S,a)}
  const pi=E.currentActor(S),p=S.players[pi];p.workers.forEach(w=>{w.placed=false;w.build=null;w.lvl='Jr';w.trained=0;w.training=false});p.rs.trains=0;p.promos=0;p.gold=10;p.culture=0;
  const w=p.workers[0];let r=E.act(S,{type:'promote',p:pi,worker:w.id});ok(!r.ok,'cannot promote an untrained Junior');
@@ -92,6 +92,23 @@ const SA=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:3});ok(!SA.cf
  const pq=E.currentActor(T);ok(!E.act(T,{type:'claim',p:pq,mile:-1}).ok,'flowV2: claim is accepted by the Rest step handler (bad id refused)');
  const O=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:9,config:{varC:1}});let g3=0,seenO=[],lo='';while(g3++<9000&&!O.over&&O.round<3){const k=O.round+':'+O.step;if(k!==lo){seenO.push(k);lo=k}const a=B.decide(O);if(!a)break;E.act(O,a)}
  ok(seenO.some(k=>/:milestones/.test(k)),'older order keeps its Milestones step when flowV2 is off');}
+{ // training settings: defaults 1 and 1; duration 2 keeps a trainee out for two rounds
+ const def=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:3,config:{varC:1,burnout:1,train:1}});ok(def.cfg.trainNeeded===1&&def.cfg.trainDuration===1,'training defaults: 1 training to promote, 1 round long');
+ const mk=d=>{const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:11,config:{varC:1,burnout:1,train:1,trainDuration:d}});let g=0;while(g++<4000&&!(S.round>=4&&S.step==='rest'&&!S.dq.length)){const a=B.decide(S);if(!a)break;E.act(S,a)}return S};
+ for(const d of [1,2]){const S=mk(d),pi=E.currentActor(S),p=S.players[pi];p.workers.forEach(w=>{w.placed=false;w.build=null;w.lvl='Jr';w.trained=0;w.training=false;w.trainLeft=0;w.benched=false});p.rs.trains=0;p.gold=10;
+  const w=p.workers[0];const r=E.act(S,{type:'train',p:pi,worker:w.id});ok(r.ok&&w.trainLeft===d,'Rest training sets '+d+' round(s) away');
+  const p1=E.act(S,{type:'promote',p:pi,worker:w.id});ok(p1.ok&&w.lvl==='Sr','one training promotes at the default (trainNeeded 1), duration '+d);
+  const T=mk(d),pj=E.currentActor(T),q=T.players[pj];q.workers.forEach(x=>{x.placed=false;x.build=null;x.trainLeft=0;x.benched=false});}
+ {const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:11,config:{varC:1,burnout:1,train:1,trainDuration:2,flowV2:1}});let g=0;while(g++<4000&&!(S.round>=2&&S.step==='hire'&&!S.dq.length)){const a=B.decide(S);if(!a)break;E.act(S,a)}
+  const pi=E.currentActor(S),p=S.players[pi];p.hand=[{id:'x1',disc:'ENG'}];p.gold=10;p.rs.trains=0;E.act(S,{type:'hire',p:pi,card:'x1',lvl:'Jr',train:true});const nw=p.workers[p.workers.length-1];
+  ok(nw.trainNow&&nw.trainLeft===1,'Hire + Train with duration 2: out this round and one more');}
+ {const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:11,config:{varC:1,burnout:1,train:1,trainDuration:1,flowV2:1}});let g=0;while(g++<4000&&!(S.round>=2&&S.step==='hire'&&!S.dq.length)){const a=B.decide(S);if(!a)break;E.act(S,a)}
+  const pi=E.currentActor(S),p=S.players[pi];p.hand=[{id:'x1',disc:'ENG'}];p.gold=10;p.rs.trains=0;E.act(S,{type:'hire',p:pi,card:'x1',lvl:'Jr',train:true});const nw=p.workers[p.workers.length-1];
+  ok(nw.trainNow&&nw.trainLeft===0,'Hire + Train with duration 1: out for this round only');}}
+{ // mini draft every round that does not start a phase
+ const cfg={varC:1,burnout:1,train:1,flowV2:1,draftMiniDelta:-1};const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true},{name:'C',bot:true}],{seed:5,config:cfg});let g=0,sizes=[];
+ while(g++<9000&&!S.over&&S.round<6){if(S.step==='bid'&&S.dq[0]&&S.dq[0].t==='bid'&&sizes.every(x=>x[0]!==S.round))sizes.push([S.round,S.draft.cards.length]);const a=B.decide(S);if(!a)break;E.act(S,a)}
+ const mid=sizes.find(x=>x[0]===2);ok(mid&&mid[1]===2,'round 2 bid shows a face-up draft of players - 1 cards (3 players -> 2)');}
 { // Variant D: Insight is off the board at every player count
  for(const n of [2,3,4,5,6]){const seats=[];for(let i=0;i<n;i++)seats.push({name:'P'+i,bot:true});
   const D=E.newGame(seats,{seed:3,config:{varC:1,smallDrop:['insight'],smallMax:6}}); let any=false; for(let ph=0;ph<4;ph++){D.phase=ph; if(E.activeSpots(D).some(x=>x.id==='insight'))any=true}

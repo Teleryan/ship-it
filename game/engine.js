@@ -307,7 +307,7 @@ function beginRound(S) { roundSetup(S); S.step = "hire"; S.cur = 0; }
 function roundSetup(S) {
   S.players.forEach(p => {
     p.rs = { spent: 0, gained: 0, spentRes: 0, hires: 0, placed: 0, triggers: 0, builds: 0, debtRemoved: 0, hypeGained: 0, discards: 0, cashed: 0, debtStart: p.debt };
-    p.workers.forEach(w => { w.placed = false; w.benched = false; if (w.training) { w.benched = "Training"; w.training = false; } });
+    p.workers.forEach(w => { w.placed = false; w.benched = false; w.training = false; w.trainNow = false; if (w.trainLeft > 0) { w.benched = "Training"; w.trainLeft--; } });
     p.rd = false; p.rdDisc = 0; p.refreshed = 0; p.builds = 0; p.promos = 0; p.hunts = 0; p.swapObj = 0; p.swapMile = 0; p.recruited = 0; p.recruitExtra = 0;
     p.systems.forEach(s => s.t = false);
   });
@@ -329,6 +329,7 @@ function roundSetup(S) {
   if (S.cfg.burnout) burnBands(S);
 }
 
+const trainDur = S => Math.max(1, Math.floor(S.cfg.trainDuration || 1));
 /* ---------- Variant D: Burnout track ---------- */
 // Burnout (0 to burnMax) is a personal token. Printed bands: Energized (Burnout 0 and Culture high) pays Gold, Strained costs extra Hype at upkeep,
 // Burned out benches the most tired worker for the round, Meltdown makes a worker quit.
@@ -504,7 +505,10 @@ function roundEnd(S) {
   S.round++;
   upkeepPlayers(S);
   if (PHASE_OF_ROUND(S.round) !== S.phase) return beginPhase(S);
-  S.draft = { cards: [], per: 0, left: null }; roundSetup(S); startBid(S);
+  const n = S.cfg.draftMiniDelta ? Math.max(1, S.players.length + S.cfg.draftMiniDelta) : 0; // a small face-up draft every other round: one card fewer than players
+  S.draft = { cards: n ? drawDisc(S, n) : [], per: 1, left: null };
+  if (n) log(S, "REVEAL: " + n + " discipline cards dealt face up (one fewer than players: the last player in turn order gets none)");
+  roundSetup(S); startBid(S);
 }
 /* Publisher gates: a review at the end of each phase. Meet every requirement: funding tranche (+ VP). Miss: VP penalty. Best Progress among those who pass: bonus VP. */
 /* Publisher gates are drawn once per game, at the end of round 1: one review per phase, picked from the pool for that phase. */
@@ -635,7 +639,7 @@ function placementOptions(S, pi, w) {
   const p = P(S, pi); const out = [];
   if (w.placed) return [{ ok: false, reason: "Already placed this round" }];
   if (w.build) return [{ ok: false, reason: "Busy building " + w.build }];
-  if (w.training) return [{ ok: false, reason: "In training this round" }];
+  if (w.trainNow) return [{ ok: false, reason: "In training this round" }];
   if (w.benched) return [{ ok: false, reason: "Sitting out this round (" + (w.benched === "Training" ? "Training" : "Burned out") + ")" }];
   if (S.phase === 3 && p.flags.skipLaunch) return [{ ok: false, reason: "Skipped (Last-Minute Bug: Delay)" }];
   activeSpots(S).forEach(spot => { const u = spotUsableBy(S, pi, w, spot); out.push(Object.assign({ target: "spot:" + spot.id, label: spot.row, kind: "spot", spot }, u)); });
@@ -921,8 +925,8 @@ function stepAction(S, a, actor) {
         gain(S, pi, "gold", -cost); if (lvl === "Jr" && p.contract > 0) { p.contract--; log(S, p.name + " uses the Contract Team: free Junior"); } else if (p.hireDiscount > 0) p.hireDiscount--;
         const nw = { id: S.wid++, disc, lvl, fat: 0, placed: false, as: null }; p.workers.push(nw); S.discard.push(p.hand.splice(i, 1)[0]); p.rs.hires++;
         log(S, p.name + " hires " + lvl + " " + disc + " (" + cost + "G)");
-        if (a.train) { gain(S, pi, "gold", -S.cfg.trainCost); gain(S, pi, "culture", S.cfg.trainCulture); nw.training = true; nw.trained = 1; p.rs.trains = (p.rs.trains || 0) + 1; p.cs.trainings = (p.cs.trainings || 0) + 1;
-          log(S, p.name + " trains the new Junior " + dn(disc) + " (1/" + S.cfg.trainNeeded + "): -" + S.cfg.trainCost + "G, Culture +" + S.cfg.trainCulture + ". They sit out this round and the next"); }
+        if (a.train) { gain(S, pi, "gold", -S.cfg.trainCost); gain(S, pi, "culture", S.cfg.trainCulture); nw.training = true; nw.trainNow = true; nw.trainLeft = trainDur(S) - 1; nw.trained = 1; p.rs.trains = (p.rs.trains || 0) + 1; p.cs.trainings = (p.cs.trainings || 0) + 1;
+          log(S, p.name + " trains the new Junior " + dn(disc) + " (1/" + S.cfg.trainNeeded + "): -" + S.cfg.trainCost + "G, Culture +" + S.cfg.trainCulture + ". They sit out " + (trainDur(S) > 1 ? "this round and the next " + (trainDur(S) - 1) : "this round")); }
         return { ok: true };
       }
       return err("Invalid hire action");
@@ -1004,8 +1008,8 @@ function restAction(S, a, p) {
       if (w.training) return err("Already training");
       if ((p.rs.trains || 0) >= c.trainsPerRest) return err("Training limit reached this round");
       if (p.gold < c.trainCost) return err("Needs " + c.trainCost + "G");
-      gain(S, pi, "gold", -c.trainCost); gain(S, pi, "culture", c.trainCulture); w.training = true; w.trained = (w.trained || 0) + 1; p.rs.trains = (p.rs.trains || 0) + 1; p.cs.trainings = (p.cs.trainings || 0) + 1;
-      log(S, p.name + " trains a Junior " + dn(w.disc) + " (" + w.trained + "/" + c.trainNeeded + "): -" + c.trainCost + "G, Culture +" + c.trainCulture + ". They sit out next round"); return { ok: true };
+      gain(S, pi, "gold", -c.trainCost); gain(S, pi, "culture", c.trainCulture); w.training = true; w.trained = (w.trained || 0) + 1; { const early = S.step !== "rest"; if (early && !w.benched) w.trainNow = true; w.trainLeft = early ? trainDur(S) - 1 : trainDur(S); } p.rs.trains = (p.rs.trains || 0) + 1; p.cs.trainings = (p.cs.trainings || 0) + 1;
+      log(S, p.name + " trains a Junior " + dn(w.disc) + " (" + w.trained + "/" + c.trainNeeded + "): -" + c.trainCost + "G, Culture +" + c.trainCulture + (S.step !== "rest" ? ". They train for the rest of this round" + (trainDur(S) > 1 ? " and the next " + (trainDur(S) - 1) : "") : ". They sit out the next " + (trainDur(S) > 1 ? trainDur(S) + " rounds" : "round"))); return { ok: true };
     }
     case "fire": {
       if (c.train) return err("Workers cannot be released in these rules");

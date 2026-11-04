@@ -95,7 +95,7 @@ r("promote","Step 31 \u00b7 promote","Promote a Junior to Senior","",
 r("rest_nontrain","Rest · team management (without training)","Rest: team management","",
 "This step is also where you **promote** and **release** workers. Nothing is ready yet: Seniors unlock in Production.");
 r("rest_train","Rest · team management (with training)","Rest: team management","",
-"This step is also where you **train** Juniors. Training costs **{trainCost}G**, gives **+{trainCulture} Culture**, and the worker **sits out the next round**. A Junior who has trained **{trainNeeded} times** can be promoted to Senior for free (Seniors unlock in Production). You will try it later.");
+"This step is also where you **train** Juniors. Training costs **{trainCost}G**, gives **+{trainCulture} Culture**, and the worker **{trainAway}**. A Junior who has trained **{trainNeeded} times** can be promoted to Senior for free (Seniors unlock in Production). You will try it later.");
 r("promote_train","Step 31 \u00b7 train and promote","Train a Junior, then promote","",
 "Seniors are made by **training**. A Junior who **trains {trainNeeded} times** can be **promoted to Senior for free**. A Senior earns **{resSr} skills** instead of {resJr} and is the only worker who can **trigger your systems**.\n\nTraining costs **{trainCost}G**, gives **+{trainCulture} Culture**, and the worker **sits out next round**. For this lesson one of your Juniors has already trained once.\n\nClick that Junior in the Rest panel, press **Train**, then press **Promote**. Choose one whose role matches a system you built, so it can trigger it next round.");
 r("trigger","Step 32 \u00b7 trigger a system","A Senior triggers a system","",

@@ -213,9 +213,10 @@ function tokens(S) {
   const v2 = !!c.flowV2;
   t.phaseOrder = v2 ? "Crisis, Reveal" : "Crisis, Reveal, Bid, Draft";
   t.roundOrder = v2 ? "<b>Upkeep</b> (not in round 1), <b>Income</b>, a blind <b>Bid</b> for turn order, <b>Draft</b>, <b>Hire</b>, <b>Place</b>, <b>Build</b>, then one <b>Clean up</b> step (Rest and Milestones together)" : "a blind <b>Bid</b> for turn order, then <b>Income</b>, <b>Hire</b>, <b>Place</b>, <b>Build</b>, <b>Rest</b>, <b>Milestones</b>, <b>Upkeep</b>";
-  t.incomeNote = v2 ? "Next comes <b>Income</b>: every studio gets " + c.income + "G, so you have gold to bid with. The Recruitment pool is revealed after the Draft.\n\n" : "";
+  t.incomeNote = v2 ? "Next comes <b>Income</b>: every studio gets " + c.income + "G, so you have gold to bid with. The Recruitment pool is revealed after the Draft; in rounds with no Draft you see it while you bid.\n\n" : "";
   t.restMiles = v2 ? "\n\n<b>This is the Clean up step: Rest and Milestones together.</b> Your Milestones sit at the top, like your hand did in Hire. They are bonus goals, such as \"have 3 Seniors\". When one is met it shows <b>MET</b>: press <b>Cash in</b> to take the gold. A milestone can only be completed during its phase window." : "";
   t.upkeepV2 = v2 ? "\n\nFrom now on every round <b>opens with Upkeep</b>, before Income. There is no Upkeep in round 1." : "";
+  const td = c.trainDuration || 1; t.trainAway = td > 1 ? "sits out the next " + td + " rounds" : "sits out the next round";
   t.restTeam = fmt(rw(c.train ? "rest_train" : "rest_nontrain").text, t);
   ["burnStats", "burnRest", "burnUpkeep"].forEach(k => { t[k] = c.burnout ? fmt(rw("burn_" + k.slice(4).toLowerCase()).text, t) : ""; });
   t.gateResult = done ? fmt(rw(done.passed.includes(0) ? "gate_pass" : "gate_miss").text, t) : "";
