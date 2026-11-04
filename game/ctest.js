@@ -67,6 +67,15 @@ const SA=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:3});ok(!SA.cf
  let g2=0;while(g2++<200&&S.step!=='place'&&!S.over){const a=B.decide(S);if(!a)break;E.act(S,a)}
  ok(w.benched==='Training'&&E.placementOptions(S,pi,w)[0].ok===false,'a trainee sits out the next round');
  const C=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:11,config:{varC:1}});ok(!E.act(C,{type:'train',p:0,worker:1}).ok,'Env C: no training');}
+{ // Hire + Train at the Hire step: pay both costs, trainee sits out this round and next
+ const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:11,config:{varC:1,burnout:1,train:1}});let g=0;while(g++<4000&&!(S.round>=2&&S.step==='hire'&&!S.dq.length)){const a=B.decide(S);if(!a)break;E.act(S,a)}
+ const pi=E.currentActor(S),p=S.players[pi];if(!p.hand.length)p.hand.push({id:'t1',disc:'ENG'},{id:'t2',disc:'DES'},{id:'t3',disc:'ART'});p.rs.trains=0;p.culture=0;p.gold=S.cfg.jrCost+S.cfg.trainCost-1;
+ let r=E.act(S,{type:'hire',p:pi,card:p.hand[0].id,lvl:'Jr',train:true});ok(!r.ok,'hire+train refused without gold for both');
+ p.gold=10;const n=p.workers.length,cost=E.hireCost(S,pi,'Jr');r=E.act(S,{type:'hire',p:pi,card:p.hand[0].id,lvl:'Jr',train:true});const w=p.workers[p.workers.length-1];
+ ok(r.ok&&p.workers.length===n+1&&p.gold===10-cost-S.cfg.trainCost&&p.culture===S.cfg.trainCulture&&w.trained===1&&w.training,'hire+train: pays hire + training, +Culture, counts 1 session');
+ ok(E.placementOptions(S,pi,w)[0].ok===false,'a hire+train worker cannot be placed this round');
+ r=E.act(S,{type:'hire',p:pi,card:p.hand[0].id,lvl:'Jr',train:true});ok(r.ok,'second hire+train allowed up to the per-round limit');
+ r=E.act(S,{type:'hire',p:pi,card:p.hand[0].id,lvl:'Jr',train:true});ok(!r.ok,'hire+train respects the training limit per round');}
 { // Variant D: Insight is off the board at every player count
  for(const n of [2,3,4,5,6]){const seats=[];for(let i=0;i<n;i++)seats.push({name:'P'+i,bot:true});
   const D=E.newGame(seats,{seed:3,config:{varC:1,smallDrop:['insight'],smallMax:6}}); let any=false; for(let ph=0;ph<4;ph++){D.phase=ph; if(E.activeSpots(D).some(x=>x.id==='insight'))any=true}

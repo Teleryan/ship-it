@@ -605,6 +605,7 @@ function placementOptions(S, pi, w) {
   const p = P(S, pi); const out = [];
   if (w.placed) return [{ ok: false, reason: "Already placed this round" }];
   if (w.build) return [{ ok: false, reason: "Busy building " + w.build }];
+  if (w.training) return [{ ok: false, reason: "In training this round" }];
   if (w.benched) return [{ ok: false, reason: "Sitting out this round (" + (w.benched === "Training" ? "Training" : "Burned out") + ")" }];
   if (S.phase === 3 && p.flags.skipLaunch) return [{ ok: false, reason: "Skipped (Last-Minute Bug: Delay)" }];
   activeSpots(S).forEach(spot => { const u = spotUsableBy(S, pi, w, spot); out.push(Object.assign({ target: "spot:" + spot.id, label: spot.row, kind: "spot", spot }, u)); });
@@ -877,10 +878,21 @@ function stepAction(S, a, actor) {
         if (lvl === "Sr" && S.cfg.srPromoteOnly) return err("Senior workers are promoted, not hired");
         if (lvl === "Sr" && !srAllowed(S)) return err("No Senior workers in Concept");
         if (S.phase === 0 && disc === "QA" && !S.cfg.qaAllowedPreProd) return err("No Quality workers in Concept");
-        const cost = hireCost(S, pi, lvl); if (p.gold < cost) return err("Not enough gold");
+        const cost = hireCost(S, pi, lvl);
+        if (a.train) { // hire and train in one step: pay hire + training, the new Junior sits out this round and the next
+          if (!S.cfg.train) return err("Training is not part of these rules");
+          if (lvl !== "Jr") return err("Only Juniors train");
+          if (S.round >= PHASE_ENDS[3]) return err("The game ends this round: no time to train");
+          if ((p.rs.trains || 0) >= S.cfg.trainsPerRest) return err("Training limit reached this round");
+          if (p.gold < cost + S.cfg.trainCost) return err("Needs " + (cost + S.cfg.trainCost) + "G (hire " + cost + " + train " + S.cfg.trainCost + ")");
+        }
+        if (p.gold < cost) return err("Not enough gold");
         gain(S, pi, "gold", -cost); if (lvl === "Jr" && p.contract > 0) { p.contract--; log(S, p.name + " uses the Contract Team: free Junior"); } else if (p.hireDiscount > 0) p.hireDiscount--;
-        p.workers.push({ id: S.wid++, disc, lvl, fat: 0, placed: false, as: null }); S.discard.push(p.hand.splice(i, 1)[0]); p.rs.hires++;
-        log(S, p.name + " hires " + lvl + " " + disc + " (" + cost + "G)"); return { ok: true };
+        const nw = { id: S.wid++, disc, lvl, fat: 0, placed: false, as: null }; p.workers.push(nw); S.discard.push(p.hand.splice(i, 1)[0]); p.rs.hires++;
+        log(S, p.name + " hires " + lvl + " " + disc + " (" + cost + "G)");
+        if (a.train) { gain(S, pi, "gold", -S.cfg.trainCost); gain(S, pi, "culture", S.cfg.trainCulture); nw.training = true; nw.trained = 1; p.rs.trains = (p.rs.trains || 0) + 1; p.cs.trainings = (p.cs.trainings || 0) + 1;
+          log(S, p.name + " trains the new Junior " + dn(disc) + " (1/" + S.cfg.trainNeeded + "): -" + S.cfg.trainCost + "G, Culture +" + S.cfg.trainCulture + ". They sit out this round and the next"); }
+        return { ok: true };
       }
       return err("Invalid hire action");
     }

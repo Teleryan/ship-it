@@ -362,7 +362,7 @@ function actionArea(S) {
   if (S.step === "draft") return draftView(S);
   if (S.step === "hire") {
     const hp = P(vi);
-    h += `<div class="panel"><h3>Your hand: tap a card to hire (${hp.hand.length})</h3><div class="mute" style="margin:-2px 0 10px">${S.cfg.srPromoteOnly ? `Hiring costs gold. Hire a Junior for ${S.cfg.jrCost}G (Seniors are promoted from Juniors who have worked and rested)${S.cfg.hireDiscard ? `, or discard a card for +${S.cfg.discardGold}G` : ""}. You can also recruit during placement. Press Done when finished.` : "Hiring costs gold. Hire Junior 2G, Senior 5G once unlocked, or discard a card for +1G. Press Done when finished."}${hp.contract > 0 ? `<br><b style="color:var(--good)">Contract Team: your next Junior hire is free</b> (publisher support after a missed gate).` : ""}</div><div class="hand" data-tut="hand">${hp.hand.length ? hp.hand.map(c => handCard(S, c, vi, true)).join("") : '<span class="mute">No cards left to hire.</span>'}</div></div>`;
+    h += `<div class="panel"><h3>Your hand: tap a card to hire (${hp.hand.length})</h3><div class="mute" style="margin:-2px 0 10px">${S.cfg.srPromoteOnly ? `Hiring costs gold. Hire a Junior for ${S.cfg.jrCost}G (Seniors are promoted from Juniors who have worked and rested)${S.cfg.train ? `. Or <b>Hire + Train</b> for ${S.cfg.jrCost + S.cfg.trainCost}G (${S.cfg.jrCost}G hire + ${S.cfg.trainCost}G training): the Junior sits out this round and next, and you gain +${S.cfg.trainCulture} Culture` : ""}${S.cfg.hireDiscard ? `, or discard a card for +${S.cfg.discardGold}G` : ""}. You can also recruit during placement. Press Done when finished.` : "Hiring costs gold. Hire Junior 2G, Senior 5G once unlocked, or discard a card for +1G. Press Done when finished."}${hp.contract > 0 ? `<br><b style="color:var(--good)">Contract Team: your next Junior hire is free</b> (publisher support after a missed gate).` : ""}</div><div class="hand" data-tut="hand">${hp.hand.length ? hp.hand.map(c => handCard(S, c, vi, true)).join("") : '<span class="mute">No cards left to hire.</span>'}</div></div>`;
   }
   if (S.step === "build") {
     const free = a.freeBuilds > 0;
@@ -564,6 +564,7 @@ function detailModal() {
         const p = P(a), jc = E.hireCost(S, a, "Jr"), sc = E.hireCost(S, a, "Sr");
         const noSr = S.cfg.srPromoteOnly ? "Seniors are promoted, not hired" : !E.srAllowed(S) ? "Seniors unlock in Production" : "", noQA = (S.phase === 0 && c.disc === "QA" && !S.cfg.qaAllowedPreProd) ? "No Quality workers in Concept" : "", launch = S.phase === 3 ? "No hiring in Launch" : "";
         h += `<div class="col" style="margin-top:12px;gap:8px"><div class="row">${actBtn("Hire Junior · " + jc + "G", `data-act="hire" data-card="${c.id}" data-lvl="Jr"`, !!(p.gold < jc || noQA || launch), launch || noQA || (p.gold < jc ? "Not enough gold" : ""))}</div>
+        ${S.cfg.train ? (() => { const tc = S.cfg.trainCost, tot = jc + tc, tr = p.rs.trains || 0, why = launch || noQA || (S.round >= 12 ? "The game ends this round: no time to train" : tr >= S.cfg.trainsPerRest ? "Training limit reached this round" : p.gold < tot ? "Needs " + tot + "G" : ""); return `<div class="row">${actBtn("Hire + Train · " + tot + "G", `data-act="hire" data-card="${c.id}" data-lvl="Jr" data-train="1"`, !!why, why)}</div><div class="mute" style="font-size:12px">Hire ${jc}G + Train ${tc}G = ${tot}G. Culture +${S.cfg.trainCulture}. The new Junior sits out this round and next, and counts as training 1 of ${S.cfg.trainNeeded} toward Senior.</div>`; })() : ""}
         ${S.cfg.srPromoteOnly ? "" : `<div class="row">${actBtn("Hire Senior · " + sc + "G", `data-act="hire" data-card="${c.id}" data-lvl="Sr"`, !!(p.gold < sc || noSr || noQA || launch), launch || noSr || noQA || (p.gold < sc ? "Not enough gold" : ""), false)}</div>`}
         ${S.cfg.hireDiscard ? `<div class="row">${actBtn("Discard for +" + S.cfg.discardGold + "G", `data-act="discard" data-card="${c.id}"`, false, "", false)}</div>` : ""}</div>`;
       }
@@ -956,7 +957,7 @@ $root.addEventListener("click", e => {
   const pi = a;
   switch (t.dataset.act) {
     case "pick": act({ type: "pick", p: pi, idx: +t.dataset.i }); return;
-    case "hire": act({ type: "hire", p: pi, card: t.dataset.card, lvl: t.dataset.lvl }); return;
+    case "hire": act({ type: "hire", p: pi, card: t.dataset.card, lvl: t.dataset.lvl, train: !!t.dataset.train }); return;
     case "discard": act({ type: "discard", p: pi, card: t.dataset.card }); return;
     case "done": act({ type: "done", p: pi }); return;
     case "pass": act({ type: "pass", p: pi }); return;
