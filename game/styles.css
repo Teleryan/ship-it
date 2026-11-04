@@ -486,3 +486,33 @@ table.dt input.n{width:62px}
   .spot{min-height:92px}
   .brow{grid-template-columns:1fr}.brow .lab{font-size:13px;margin-top:4px}
 }
+
+/* ============ UI audit pass 3: panel copy, bid, results ============ */
+.panel>h3+.mute,.panel>h3+div.mute{font-size:13px;line-height:1.45;max-width:80ch}
+.bidlab{display:block;margin:2px 0 6px;font-weight:700}
+.wintag{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:var(--gold);color:#06121c;font:800 11px var(--font);letter-spacing:.06em;text-transform:uppercase;vertical-align:middle}
+.scoretbl th{font-size:11px;white-space:nowrap}
+.scoretbl td,.scoretbl th{padding:7px 8px}
+.win td{background:#3a3716}
+.scoretbl td:first-child{white-space:nowrap}
+@media (max-width:700px){
+  .scoretbl th:first-child,.scoretbl td:first-child{position:sticky;left:0;background:var(--panel);z-index:1}
+  .scoretbl .win td:first-child{background:#3a3716}
+  .scoretbl th:last-child,.scoretbl td:last-child{position:sticky;right:0;background:var(--panel2);z-index:1;box-shadow:-6px 0 8px -6px #000}
+  .scoretbl .win td:last-child{background:#3a3716}
+  .scroll-y{overflow:auto}
+}
+.crisis{border-radius:12px}
+.modal.crisisov{background:transparent;border:0;padding:0;min-width:0}
+.modal.crisisov .crisis{max-width:480px}
+.crisis .k{font-size:11px}
+.crisis .fl{color:var(--mute)}
+.wk{width:104px}
+.wk .whd{letter-spacing:.06em;white-space:nowrap}
+.wk[data-act="detail"]::after{top:auto;bottom:5px;right:5px}
+.stepgroup{flex-wrap:wrap}
+.top{max-width:100%}
+.modal.detail .x{text-shadow:0 0 4px rgba(0,0,0,.55)}
+/* the single grid column was sizing to the widest child (step tracker), making the phone page ~590-670px wide */
+.app{grid-template-columns:minmax(0,1fr)}
+@media (max-width:600px){.mgrid{grid-template-columns:1fr}}

@@ -382,7 +382,7 @@ function actionArea(S) {
   return h;
 }
 function draftView(S) {
-  if (S.step === "bid" && S.draft.cards.length) return `<div class="panel"><h3>Revealed for the draft (${S.draft.cards.length}). Bid knowing what is on offer. Drafting is free</h3><div class="hand" data-tut="draft">${S.draft.cards.map(c => discCardHtml(c.disc, "", `data-act="detail" data-k="draft" data-id="${c.id}"`, "")).join("")}</div></div>`;
+  if (S.step === "bid" && S.draft.cards.length) return `<div class="panel"><h3>Revealed for the draft (${S.draft.cards.length})</h3><p class="hint">Bid knowing what is on offer. Drafting is free; hiring costs gold later.</p><div class="hand" data-tut="draft">${S.draft.cards.map(c => discCardHtml(c.disc, "", `data-act="detail" data-k="draft" data-id="${c.id}"`, "")).join("")}</div></div>`;
   if (S.step !== "draft") return "";
   const a = actorName(S); const human = a && !a.bot;
   const drafted = `<div class="drafted" data-tut="drafted"><h3>Drafted so far</h3>${S.players.map((p, i) => `<div class="drow${E.currentActor(S) === i ? " cur" : ""}"><span class="dn">${esc(p.name)}</span>${p.hand.length ? p.hand.map(c => discCardHtml(c.disc, "mini", `data-act="detail" data-k="hand" data-id="${c.id}" data-p="${i}"`, "")).join("") : '<span class="mute">Nothing yet</span>'}</div>`).join("")}</div>`;
@@ -509,7 +509,7 @@ function decisionModal(S) {
       const isTurn = d.purpose === "turn";
       h += `<h3>${isTurn ? "Blind bid for turn order" : "Secret auction bid"}</h3><p class="mute">${isTurn ? "Highest bid goes first. <b>Everyone pays their bid.</b> Ties: fewer workers goes first." : "Winner pays their bid. Others keep their gold."} You have <b style="color:var(--gold)">${p.gold}G</b>.</p>
       ${isTurn && S.draft.cards.length ? `<div class="mute" style="margin:10px 0 4px">Face-up cards for this draft (click one to read it)</div><div class="hand" style="margin-bottom:12px">${S.draft.cards.map(c => discCardHtml(c.disc, "", `data-act="detail" data-k="draft" data-id="${c.id}"`, "")).join("")}</div>` : ""}
-      <div class="row"><input id="bid" type="number" min="0" max="${p.gold}" value="0" style="width:100px;font-size:20px"><button class="btn primary" data-tut="act" data-act="bid">Lock in bid</button></div>`; break; }
+      <label class="bidlab" for="bid">Your bid in Gold (0 to ${p.gold})</label><div class="row"><input id="bid" type="number" inputmode="numeric" min="0" max="${p.gold}" value="0" style="width:110px;font-size:22px;min-height:48px"><button class="btn primary" style="min-height:48px;padding:0 22px" data-tut="act" data-act="bid">Lock in bid</button></div>`; break; }
     case "choose": h += `<h3>Your choice</h3>` + d.options.map(o => `<button class="btn optbtn" data-act="choose" data-k="${o.k}" ${o.disabled ? "disabled" : ""} title="${esc(o.reason || "")}"><b>${o.k.length === 1 ? o.k + ")" : ""}</b> ${esc((S.cfg.poolScoring && ((S.data.crisis.find(cc => cc.id === d.card) || {}).options || []).find(x => x.k === o.k) || {}).poolLabel || o.label)}${o.disabled ? ' <span class="mute">(' + esc(o.reason || "") + ")</span>" : ""}</button>`).join(""); break;
     case "pickWorker": h += `<h3>Choose a worker to lose${d.srOnly ? " (Sr only)" : ""}</h3><div class="workers">${p.workers.map(w => `<div class="wk" data-act="pickw" data-w="${w.id}" style="${d.srOnly && w.lvl !== "Sr" ? "opacity:.3;pointer-events:none" : ""}"><div class="d" style="color:${dcol(w.disc)}">${w.disc}</div><div class="l">${w.lvl} · ${["Active","Tired","Over-Tired"][w.fat]}</div></div>`).join("")}</div>`; break;
     case "raidHire": {
@@ -673,7 +673,7 @@ function marketStrip(S) {
     const tiles = (S.market[cat] || []).map(n => { const d = E.sysDef(S, n); const ck = E.canBuild(S, vi, n, false, cr); return sysTile(d, ck.ok); }).join("") || '<span class="mute">Sold out</span>';
     return `<div class="mcol"><div class="lab" style="color:${catColor[cat]}">${cat}</div><div class="tiles">${tiles}</div></div>`;
   }).join("");
-  return `<div class="panel" data-tut="mstrip"><h3>Systems to Build <span class="mute" style="font-weight:400;font-size:11px">· ${p ? esc(p.name) : ""} · greyed = cannot build yet · tap for details</span></h3><div class="mgrid">${rows}</div></div>`;
+  return `<div class="panel" data-tut="mstrip"><h3>Systems to Build <span class="mute" style="font-weight:400;font-size:12px">${p ? esc(p.name) + " · " : ""}greyed = cannot build yet · tap a card for details</span></h3><div class="mgrid">${rows}</div></div>`;
 }
 function gameMenuModal() {
   return modalShell(`<h2>Menu</h2><div class="col" style="gap:8px;min-width:260px"><button class="btn primary" data-act="close">Resume game</button><button class="btn" data-act="rules">Rules and guides</button><button class="btn" data-act="save">Save game</button>${U.owner ? '<button class="btn" data-act="studio">Data Studio</button><button class="btn" data-act="master">Master and analytics</button>' : ""}<button class="btn" data-act="menu">Quit to main menu</button></div><p class="dim" style="margin:12px 0 0;font-size:12px">Quitting leaves this game. Save first if you want to continue later.${U.owner ? "" : " Data Studio and analytics need the owner login."}</p>`).replace('<div class="overlay"', '<div class="overlay rulesov" style="z-index:300"');
@@ -701,7 +701,7 @@ function marketModal() {
 function poolResults(S, rows) {
   const cell = (x, vp) => { const o = x.obj + x.syn; return `<td>${x.total} <span class="dim">(${Math.round(x.base)} base · ${Math.round(x.sys)} sys · ${Math.round(o)} obj${x.adj ? " · " + (x.adj > 0 ? "+" : "") + Math.round(x.adj) + " gates/events" : ""}${x.debt ? " · " + Math.round(x.debt) + " debt" : ""})</span></td><td><b>${vp.toFixed(1)}</b></td>`; };
   let h = `<h2>${esc(P(S.winner).name)} ships the best game!</h2><div class="scroll-y"><table class="scoretbl"><thead><tr><th>Studio</th><th>Progress pts</th><th>VP</th><th>Hype pts</th><th>VP</th><th>TOTAL</th></tr></thead><tbody>`;
-  rows.forEach(r => { h += `<tr class="${r.id === S.winner ? "win" : ""}"><td><span class="dot" style="background:${P(r.id).color};display:inline-block;margin-right:6px"></span>${esc(r.name)}</td>${cell(r.parts.pool.P, r.parts.prodShare)}${cell(r.parts.pool.H, r.parts.hypeStrength)}<td><b>${r.total.toFixed(0)}</b></td></tr>`; });
+  rows.forEach(r => { h += `<tr class="${r.id === S.winner ? "win" : ""}"><td><span class="dot" style="background:${P(r.id).color};display:inline-block;margin-right:6px"></span>${esc(r.name)}${r.id === S.winner ? ' <span class="wintag">Winner</span>' : ""}</td>${cell(r.parts.pool.P, r.parts.prodShare)}${cell(r.parts.pool.H, r.parts.hypeStrength)}<td><b>${r.total.toFixed(0)}</b></td></tr>`; });
   h += `</tbody></table>${U.tut || U.tutDone ? SI.tutScoreExplainer(S) : ""}</div><div class="row" style="margin-top:14px"><button class="btn primary" data-act="${U.net ? "online-again" : "start"}">${U.tut || U.tutDone ? "Start a real game" : "Play again"}</button><button class="btn" data-act="menu">Menu</button><button class="btn" data-act="close">Close</button></div>`;
   return modalShell(h, { wide: true });
 }
@@ -711,7 +711,7 @@ function resultsModal() {
   if (pool) return poolResults(S, rows);
   const cols = [["prodShare", race ? "Progress race" : "Progress %"]].concat(race ? [] : [["mktShare","Marketing %"]]).concat([["hypeStrength", race ? "Hype race" : "Hype"]]).concat(race ? [] : [["delivery","Deliv."]]).concat([["debtPenalty","Debt"],["culture","Culture"]]).concat(S.cfg.burnout ? [["burnout","Burnout"]] : []).concat([["objectives","Obj."],["synergy","Synergy"],["systems","Sys"]]).concat(race ? [] : [["launch","Launch"]]).concat([["reach","Reach"],["gold","Gold"],["crisis","Crisis/Gates"]]);
   let h = `<h2>${esc(P(S.winner).name)} ships the best game!</h2><div class="scroll-y"><table class="scoretbl"><thead><tr><th>Studio</th>${cols.map(c => `<th>${c[1]}</th>`).join("")}<th>TOTAL</th></tr></thead><tbody>`;
-  rows.forEach(r => { h += `<tr class="${r.id === S.winner ? "win" : ""}"><td><span class="dot" style="background:${P(r.id).color};display:inline-block;margin-right:6px"></span>${esc(r.name)} <span class="dim">${race ? "Debt " + P(r.id).debt + " · Mktg " + P(r.id).mktg : r.parts.threshold + " " + r.parts.debtPct + "%"}</span></td>${cols.map(c => `<td>${(+r.parts[c[0]]).toFixed(c[0].includes("Share") && !S.cfg.raceScoring ? 1 : 0)}</td>`).join("")}<td><b>${r.total.toFixed(0)}</b></td></tr>`; });
+  rows.forEach(r => { h += `<tr class="${r.id === S.winner ? "win" : ""}"><td><span class="dot" style="background:${P(r.id).color};display:inline-block;margin-right:6px"></span>${esc(r.name)}${r.id === S.winner ? ' <span class="wintag">Winner</span>' : ""} <span class="dim">${race ? "Debt " + P(r.id).debt + " · Mktg " + P(r.id).mktg : r.parts.threshold + " " + r.parts.debtPct + "%"}</span></td>${cols.map(c => `<td>${(+r.parts[c[0]]).toFixed(c[0].includes("Share") && !S.cfg.raceScoring ? 1 : 0)}</td>`).join("")}<td><b>${r.total.toFixed(0)}</b></td></tr>`; });
   h += `</tbody></table>${U.tut || U.tutDone ? SI.tutScoreExplainer(S) : ""}</div><div class="row" style="margin-top:14px"><button class="btn primary" data-act="${U.net ? "online-again" : "start"}">${U.tut || U.tutDone ? "Start a real game" : "Play again"}</button><button class="btn" data-act="menu">Menu</button><button class="btn" data-act="close">Close</button></div>`;
   return modalShell(h, { wide: true });
 }
@@ -721,7 +721,7 @@ function studioModal() {
   const h = `<h2>Data Studio <span class="mute" style="font-size:13px;font-weight:400">· ${D.version} · edits apply to new games</span></h2>` + SI.renderStudio(U.studio, U.tab, U.sim) + (U.S && U.screen === "game" ? `<div class="row" style="margin-top:12px"><button class="btn primary" data-act="restart">Restart game with these values</button></div>` : "");
   return modalShell(h, { wide: true });
 }
-function crisisIntroModal(c) { return modalShell(`<div style="display:flex;justify-content:center">${crisisCardHtml(c)}</div><div class="row" style="margin-top:14px;justify-content:center"><button class="btn primary" data-act="close">Continue</button></div>`); }
+function crisisIntroModal(c) { return modalShell(`<div style="display:flex;justify-content:center">${crisisCardHtml(c)}</div><div class="row" style="margin-top:14px;justify-content:center"><button class="btn primary" data-act="close">Continue</button></div>`, { cls: "crisisov" }); }
 
 /* ---------- copy overrides (Data Studio > Text): swap edited default wording in rendered HTML ---------- */
 SI.copyFix = function (html) {
