@@ -212,7 +212,7 @@ function topbar(S) {
   <div class="grow"></div>
   ${U.net ? `<span class="mute" title="Game code">${U.net.up ? "●" : "○ reconnecting"} Game ${esc(U.net.code)}</span>` : U.tut ? "" : `<button class="btn sm" data-act="undo" ${U.undo.length ? "" : "disabled"}>↶ Undo</button>`}
   <button class="btn sm" data-act="rules">Rules</button><button class="btn sm" data-act="milesref">Milestones</button><button class="btn sm" data-act="log">Log</button>${U.net ? "" : '<button class="btn sm" data-act="save">Save</button>'}
-  ${U.owner ? '<button class="btn sm" data-act="studio">Data Studio</button><button class="btn sm" data-act="master">Master</button>' : ""}${U.tut || (S && S.over) || (U.net && !U.net.host) ? "" : '<button class="btn sm" data-act="endgame">End game</button>'}<button class="btn sm" data-act="${U.net ? "menu" : "gamemenu"}">${U.net ? "Leave" : "Menu"}</button></div>`;
+  ${U.owner ? '<button class="btn sm" data-act="studio">Data Studio</button><button class="btn sm" data-act="master">Master</button>' : ""}${U.tut || (S && S.over) || (U.net && !U.net.host) ? "" : '<button class="btn sm danger" data-act="endgame">End game</button>'}<button class="btn sm" data-act="${U.net ? "menu" : "gamemenu"}">${U.net ? "Leave" : "Menu"}</button></div>`;
 }
 function prompt(S) {
   const d = S.dq[0]; const a = actorName(S);
@@ -224,7 +224,7 @@ function banner(S) {
   const a = actorName(S);
   if (S.over) return `<div class="turnbanner"><div class="who">Game over</div><button class="btn primary" data-act="results">View results</button></div>`;
   const col = a ? a.color : "#556";
-  return `<div class="turnbanner" style="border-left:6px solid ${col}"><div><div class="mute" style="font-size:11px;text-transform:uppercase;letter-spacing:.1em">${a && a.bot ? "Bot thinking" : "Your turn"}</div><div class="who" style="color:${col}">${a ? esc(a.name) : "…"}</div></div><div class="mute grow">${esc(prompt(S))}</div>
+  return `<div class="turnbanner" style="border-left:6px solid ${col}"><div><div class="mute kick">${a && a.bot ? "Bot thinking" : "Your turn"}</div><div class="who" style="color:${col}">${a ? esc(a.name) : "…"}</div></div><div class="grow prompt">${esc(prompt(S))}</div>
   ${S.step === "place" && a && !a.bot ? '<button class="btn" data-tut="pass" data-act="pass">Pass (done placing)</button>' : ""}
   ${["hire","build","rest","milestones"].includes(S.step) && a && !a.bot && !S.dq.length ? `<button class="btn primary" data-act="done">Done</button>` : ""}</div>`;
 }
@@ -243,6 +243,7 @@ function spotTile(S, spot, view) {
   const a = E.currentActor(S); const w = (U.sel != null && a >= 0 && S.step === "place") ? P(a).workers.find(x => x.id === U.sel) : null;
   if (w) { const o = E.placementOptions(S, a, w).find(x => x.target === "spot:" + spot.id); if (o && o.ok) cls += " ok"; else { cls += " no"; reason = o ? o.reason : ""; } }
   if ((spot.mode || "single") === "single" && occ.length) cls += " taken";
+  if (spot.debt) cls += " hasdebt";
   if (spot.mode === "shared" || ["team", "outsource", "workshop", "mentor", "crunch", "fundraise"].includes(spot.id)) cls += " shared-s";
   const mode = spot.mode === "shared" ? "SHARED" : spot.mode === "multi" ? "MULTI" : spot.excl ? "EXCL" : "";
   let fxh;
@@ -250,11 +251,11 @@ function spotTile(S, spot, view) {
   else { let fx = spot.fx || spot.tile || spot.note || ""; if (S.cfg.spotResOr && spot.r) fx = (spot.fx ? spot.fx + " · " : "") + "Earn skills" + (spot.r > 1 ? " ×" + spot.r : ""); fxh = esc(fx); }
   const m = S.phase === 3 && S.cfg.launchMult !== 1 ? ` ×${S.cfg.launchMult}` : "";
   return `<button class="${cls}" data-act="detail" data-k="spot" data-id="${spot.id}" data-spot="${spot.id}" title="${esc(reason || spot.note || "")}" ${cls.includes("ok") ? "" : 'aria-disabled="true"'}>
-    ${spot.debt ? `<span class="corner" title="Adds Tech Debt">+${spot.debt}</span>` : ""}
+    ${spot.debt ? `<span class="corner" title="Adds ${spot.debt} Tech Debt">+${spot.debt}${ic("debt")}</span>` : ""}
     ${S.cfg.varC && S.phase !== 3 && ["EARN", "PROGRESS", "HYPE", "CREW"].includes(spot.row) ? (mode ? `<div class="kind">${mode}</div>` : "") : `<div class="kind">${esc(spot.row)} ${mode ? "· " + mode : ""}</div>`}
     <div class="dc">${spot.crew ? crewChips(spot) : spot.discs.map(d => d === "ANY" ? '<span class="chip" style="background:#667">ANY</span>' : chip(d)).join("")}${spot.srOnly ? '<span class="chip" style="background:#a33">Sr</span>' : ""}</div>
     <div class="fx">${fxh}${m}</div>${spot.cost ? `<div class="note">${(spot.cost.res ? "Pay " + spot.cost.res + " skills" : "Pay " + spot.cost.gold + "G") + (JSON.stringify(spot.crew || []).includes("Any") ? " · 2 workers, different roles" : "")}</div>` : ""}
-    <div class="occ">${occ.map(i => `<i style="background:${P(i).color}" title="${esc(P(i).name)}"></i>`).join("")}</div></button>`;
+    ${cls.includes(" no") && reason ? `<div class="why">${esc(reason)}</div>` : ""}<div class="occ">${occ.map(i => `<i style="${fill(P(i).color)}" title="${esc(P(i).name)}">${i + 1}</i>`).join("")}</div></button>`;
 }
 function recruitPanel(S) {
   if (!S.cfg.varC || !S.recruit || !["bid", "draft", "hire", "place"].includes(S.step) || S.phase === 3) return "";
@@ -263,9 +264,9 @@ function recruitPanel(S) {
     const ck = me ? E.canRecruit(S, a, i) : { ok: false, reason: S.step === "place" ? "" : "Recruiting opens when placing starts (after the draft and hire steps)" };
     const taken = o.by != null;
     return `<div class="sys" style="width:190px;${taken ? "opacity:.55" : ""}"><div class="t" style="color:${dcol(o.disc)}">${esc(nameOf(o.disc))}</div><div class="meta">${esc(o.cat)} · Junior</div>
-    <div class="row" style="margin-top:4px;gap:6px">${taken ? `<span class="mute"><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${P(o.by).color}"></i> ${esc(P(o.by).name)}</span>` : `<button class="btn sm primary" data-act="recruit" data-i="${i}" ${ck.ok ? "" : "disabled"} title="${esc(ck.ok ? "" : ck.reason || "")}">Recruit · ${me ? E.recruitCost(S, a) : S.cfg.recruitCost}G</button>`}</div></div>`;
+    <div class="row" style="margin-top:6px;gap:6px;flex-wrap:wrap">${taken ? `<span class="mute"><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${P(o.by).color}"></i> ${esc(P(o.by).name)}</span>` : `<button class="btn sm primary" data-act="recruit" data-i="${i}" ${ck.ok ? "" : "disabled"} title="${esc(ck.ok ? "" : ck.reason || "")}">Recruit · ${me ? E.recruitCost(S, a) : S.cfg.recruitCost}G</button>`}</div>${!taken && !ck.ok && ck.reason ? `<div class="why">${esc(ck.reason)}</div>` : ""}</div>`;
   }).join("");
-  return `<div class="panel" data-tut="recruit"><h3>Recruitment <span class="mute" style="text-transform:none;letter-spacing:0">Pay ${S.cfg.recruitCost}G, no worker needed. A new Junior can be placed this round. One per player per round; the pool is shared and refreshes every round.</span></h3><div class="row wrap">${tiles}</div></div>`;
+  return `<div class="panel" data-tut="recruit"><h3>Recruitment</h3><p class="hint">Pay ${S.cfg.recruitCost}G, no worker needed. A new Junior can be placed this round. One per player per round; the pool is shared and refreshes every round.</p><div class="row wrap">${tiles}</div></div>`;
 }
 function buildingsList(S, p) {
   const b = p.building || []; if (!b.length) return "";
@@ -324,7 +325,7 @@ function playerPanel(S) {
   const sel = mine && S.step === "place" && !S.dq.length;
   let h = `<div class="panel"><h3><span style="color:${p.color}">${esc(p.name)}'s systems and goals</span><span class="mute" style="text-transform:none;letter-spacing:0">${p.systems.length} systems</span></h3>`;
   // systems
-  h += `<div style="margin:2px 0 4px" class="mute">Systems <span class="dim">(slots ${S.cfg.slotsPerCategory}/category)</span></div><div class="row wrap">`;
+  h += `<div class="sub">Systems <span class="dim">(slots ${S.cfg.slotsPerCategory}/category)</span></div><div class="row wrap">`;
   if (!p.systems.length) h += '<span class="mute">None built.</span>';
   p.systems.forEach((sy, i) => {
     const def = E.sysDef(S, sy.name); let cls = "sys";
@@ -333,11 +334,11 @@ function playerPanel(S) {
     h += `<button class="${cls}" style="border-color:${catColor[def.cat]}" data-act="detail" data-k="sys" data-id="${i}" data-p="${vi}" title="${esc(reason)}"><div class="t">${esc(def.name)} ${symTag(def)}</div><div class="meta">${def.cat} · trigger ${esc(fmtTrig(def.trig))}${sy.t ? " · <b>used</b>" : ""}</div><div class="e">${fxTxt(def.fx || def.each || "")}</div>${def.pas ? `<div class="e" style="color:var(--gold)">Passive: ${esc(def.pas)}</div>` : ""}<div class="vp">${def.vp} VP · synergy +${def.syn}</div></button>`;
   });
   h += "</div>";
-  if ((p.building || []).length) h += `<div style="margin:10px 0 4px" class="mute">Building (finishes later; no trigger, passive or score until ready)</div><div class="row wrap">${buildingsList(S, p)}</div>`;
+  if ((p.building || []).length) h += `<div class="sub">Building (finishes later; no trigger, passive or score until ready)</div><div class="row wrap">${buildingsList(S, p)}</div>`;
   if (priv(S, vi)) {
-    h += `<div style="margin:12px 0 4px" class="mute">Hand: discipline cards (${p.hand.length})</div><div class="hand" data-tut="hand">${p.hand.length ? p.hand.map(c => handCard(S, c, vi, mine)).join("") : '<span class="mute">Empty.</span>'}</div>`;
-    h += `<div style="margin:12px 0 4px" class="mute">Milestones (${p.miles.length}) · cash in when met</div><div class="row wrap" ${S.cfg.flowV2 && S.step === "rest" && mine ? "" : 'data-tut="miles"'}>${p.miles.map(id => mileCard(S, id, vi, mine)).join("") || '<span class="mute">None</span>'}</div>`;
-    h += `<div style="margin:12px 0 4px" class="mute">Objectives: scored at end</div><div class="row wrap">${p.objectives.map(id => objCard(S, id, vi, mine)).join("") || '<span class="mute">None</span>'}</div>`;
+    h += `<div class="sub">Hand: discipline cards (${p.hand.length})</div><div class="hand" data-tut="hand">${p.hand.length ? p.hand.map(c => handCard(S, c, vi, mine)).join("") : '<span class="mute">Empty.</span>'}</div>`;
+    h += `<div class="sub">Milestones (${p.miles.length}) · cash in when met</div><div class="row wrap" ${S.cfg.flowV2 && S.step === "rest" && mine ? "" : 'data-tut="miles"'}>${p.miles.map(id => mileCard(S, id, vi, mine)).join("") || '<span class="mute">None</span>'}</div>`;
+    h += `<div class="sub">Objectives: scored at end</div><div class="row wrap">${p.objectives.map(id => objCard(S, id, vi, mine)).join("") || '<span class="mute">None</span>'}</div>`;
   } else h += `<p class="mute" style="margin-top:12px">Hand, milestones and objectives are hidden until it is ${esc(p.name)}'s turn.</p>`;
   return h + "</div>";
 }
@@ -443,7 +444,7 @@ function racePanel(S) {
     const gate = tgt(title), mx = Math.max(20, gate + 4, ...rows.map(r => r.v + r.x)) * 1.08;
     let rank = 0, prev = null; const mx0 = rows.some(r => r.v + r.x > 0);
     const body = rows.map((r, i) => { if (r.v + r.x !== prev) rank = i + 1; prev = r.v + r.x; const pc = n => (n / mx * 100).toFixed(1) + "%";
-      return `<div class="lane" title="${esc(r.p.name)}: ${r.v}${r.x ? " + " + r.x + " Marketing" : ""}"><span class="rk">${mx0 ? rank : "–"}</span><span class="dot" style="background:${r.p.color}"></span><div class="bar"><i style="width:${pc(r.v)};background:${r.p.color}"></i>${r.x ? `<i class="x" style="left:${pc(r.v)};width:${pc(r.x)};background:${r.p.color}"></i>` : ""}${gate ? `<u style="left:${pc(gate)}"></u>` : ""}</div><b class="mono">${r.v + r.x}</b></div>`; }).join("");
+      return `<div class="lane" title="${esc(r.p.name)}: ${r.v}${r.x ? " + " + r.x + " Marketing" : ""}"><span class="rk">${mx0 ? rank : "–"}</span><span class="dot" style="background:${r.p.color}"></span><span class="ln">${esc(r.p.name)}</span><div class="bar"><i style="width:${pc(r.v)};background:${r.p.color}"></i>${r.x ? `<i class="x" style="left:${pc(r.v)};width:${pc(r.x)};background:${r.p.color}"></i>` : ""}${gate ? `<u style="left:${pc(gate)}"></u>` : ""}</div><b class="mono">${r.v + r.x}</b></div>`; }).join("");
     return `<div class="trk"><div class="th">${ic(key)}<b>${title}</b>${gate ? `<span class="mute">gate ${gate}+</span>` : ""}</div>${body}</div>`;
   };
   return `<div class="panel" data-tut="tracks"><h3>Race tracks <span class="mute" style="text-transform:none;letter-spacing:0">rank earns VP</span></h3>${lane("progress", "Progress", p => p.prod)}${lane("hype", "Hype", p => p.hype, p => Math.floor(p.mktg * (c.mergeMktg ? 0 : c.mktgToHype)))}</div>`;
@@ -455,9 +456,9 @@ function playersPanel(S) {
   return list.map(p => {
     const pos = S.order.indexOf(p.id); const cur = E.currentActor(S) === p.id; const vi = viewIndex(S) === p.id;
     return `<div class="pt ${cur ? "cur" : ""}" data-pid="${p.id}" data-act="view" data-v="${p.id}" style="cursor:pointer;${vi ? "background:var(--panel2)" : ""}"><div class="nm"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${p.bot ? ' <span class="tag">bot</span>' : ""}<span class="grow"></span>${ordered && pos >= 0 ? `<span class="ordbadge" title="Turn order for this phase, set by the blind bid">Turn order: ${pos + 1}</span>` : ""}</div>
-    <div class="stats big">${(S.cfg.burnout ? [["g", "gold", p.gold], ["k", "marketing", p.mktg]] : [["g", "gold", p.gold], ["p", "progress", p.prod], ["k", "marketing", p.mktg], ["h", "hype", p.hype]]).map(x => `<div class="st rs ${x[0]}" title="${ICN[x[1]]}">${ic(x[1])}<b>${x[2]}</b></div>`).join("")}
-    <div class="st rs d" title="Tech Debt (share of the Debt limit)">${ic("debt")}<b>${p.debt} <span class="dim">${Math.round(E.debtPct(S, p))}%</span></b></div><div class="st rs c" title="Culture">${ic("culture")}<b>${p.culture > 0 ? "+" : ""}${p.culture}</b></div>${S.cfg.burnout ? `<div class="st rs bo ${E.burnBand(S, p) === "Steady" ? "" : "hot"}" title="Burnout ${p.burnout} of ${S.cfg.burnMax}. ${E.burnBand(S, p)}">${ic("burnout")}<b>${p.burnout} <span class="dim">${E.burnBand(S, p)}</span></b></div>` : ""}</div>
-    <div class="stats res">${E.RES.map(k => `<div class="st rs" title="${E.RES_NAME[k]}: earned by placing a ${({ ideas: "Creative", code: "Development", process: "Operations", buzz: "Marketing" })[k]} role">${ic(k)}<b style="color:${RC[k]}">${p[k]}</b></div>`).join("")}</div>
+    <div class="stats big">${(S.cfg.burnout ? [["g", "gold", p.gold], ["k", "marketing", p.mktg]] : [["g", "gold", p.gold], ["p", "progress", p.prod], ["k", "marketing", p.mktg], ["h", "hype", p.hype]]).map(x => `<div class="st rs ${x[0]}" title="${ICN[x[1]]}">${ic(x[1])}<span class="sv"><small>${ICN[x[1]]}</small><b>${x[2]}</b></span></div>`).join("")}
+    <div class="st rs d" title="Tech Debt (share of the Debt limit)">${ic("debt")}<span class="sv"><small>Tech Debt</small><b>${p.debt} <span class="dim">${Math.round(E.debtPct(S, p))}%</span></b></span></div><div class="st rs c" title="Culture">${ic("culture")}<span class="sv"><small>Culture</small><b>${p.culture > 0 ? "+" : ""}${p.culture}</b></span></div>${S.cfg.burnout ? `<div class="st rs bo ${E.burnBand(S, p) === "Steady" ? "" : "hot"}" title="Burnout ${p.burnout} of ${S.cfg.burnMax}. ${E.burnBand(S, p)}">${ic("burnout")}<span class="sv"><small>Burnout</small><b>${p.burnout} <span class="dim">${E.burnBand(S, p)}</span></b></span></div>` : ""}</div>
+    <div class="stats res">${E.RES.map(k => `<div class="st rs" title="${E.RES_NAME[k]}: earned by placing a ${({ ideas: "Creative", code: "Development", process: "Operations", buzz: "Marketing" })[k]} role">${ic(k)}<span class="sv"><small>${ICN[k]}</small><b style="color:${RC[k]}">${p[k]}</b></span></div>`).join("")}</div>
     ${poolBars(S, p, live)}<div class="mute" style="font-size:11px;margin-top:4px">${p.workers.length} workers · ${p.systems.length} systems${(p.building || []).length ? " (+" + p.building.length + " building)" : ""}${p.vpAdj ? " · crisis VP " + (p.vpAdj > 0 ? "+" : "") + p.vpAdj : ""}</div></div>`;
   }).join("");
 }
@@ -469,8 +470,8 @@ function gameView() {
   const S = U.S;
   const crisis = S.crisisCard ? S.data.crisis.find(c => c.id === S.crisisCard) : null;
   return `<div class="app ${U.tut ? "tutmode" : ""}">${topbar(S)}<div class="main"><div class="left">${banner(S)}${actionArea(S)}${recruitPanel(S)}${S.step === "build" ? marketStrip(S) : ""}${workersPanel(S)}${boardView(S)}${S.step === "build" ? "" : marketStrip(S)}${playerPanel(S)}</div>
-  <div class="right"><div class="panel"><h3>Studios</h3><div class="col">${playersPanel(S)}</div></div>${racePanel(S)}${gatesPanel(S)}${crisis ? `<div class="panel" data-tut="crisis" data-act="detail" data-k="crisis" style="cursor:pointer"><h3>Active crisis</h3>${crisisCardHtml(crisis)}</div>` : ""}
-  <div class="panel"><h3>Game log <button class="btn sm" data-act="log">${U.logOpen ? "Hide" : "Show all"}</button></h3><div class="log" style="${U.logOpen ? "max-height:60vh" : ""}">${S.log.slice(U.logOpen ? -300 : -14).reverse().map(l => `<div><span class="r">R${l.r}</span> ${esc(l.m)}</div>`).join("")}</div></div></div></div></div>`;
+  <div class="right"><div class="panel pnl-studios"><h3>Studios</h3><div class="col studios">${playersPanel(S)}</div></div>${racePanel(S)}${gatesPanel(S)}${crisis ? `<div class="panel" data-tut="crisis" data-act="detail" data-k="crisis" style="cursor:pointer"><h3>Active crisis</h3>${crisisCardHtml(crisis)}</div>` : ""}
+  <div class="panel pnl-log"><h3>Game log <button class="btn sm" data-act="log">${U.logOpen ? "Hide" : "Show all"}</button></h3><div class="log" style="${U.logOpen ? "max-height:60vh" : ""}">${S.log.slice(U.logOpen ? -300 : -14).reverse().map(l => `<div><span class="r">R${l.r}</span> ${esc(l.m)}</div>`).join("")}</div></div></div></div></div>`;
 }
 
 /* ---------- modals ---------- */
