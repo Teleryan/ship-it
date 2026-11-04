@@ -22,7 +22,7 @@ const TITLE="<title>SHIP IT!: Hot-seat Prototype</title>";
 const out={
   a:env({}),
   b:env({data:[["poolScoring:0,","poolScoring:1,"],['envLabel:"",','envLabel:"ENV B · POOLS",'],[/poolDebtMult:[0-9.]*,/,"poolDebtMult:4,"]],html:[[TITLE,"<title>SHIP IT! (Env B: Pools)</title>"]]}),
-  d:env({data:[[" varC:0,"," varC:1,"],[" burnout:0,"," burnout:1,"],[" train:0,"," train:1,"],[" smallDrop:[],"," smallDrop:[\"insight\"],"],[/envLabel:"ENV C · PHASES"/g,'envLabel:"ENV D · BURNOUT"'],['envLabel:"",','envLabel:"ENV D · BURNOUT"' + ","]],html:[[TITLE,"<title>SHIP IT! (Env D: Burnout)</title>"]]}),
+  d:env({data:[[" varC:0,"," varC:1,"],[" burnout:0,"," burnout:1,"],[" train:0,"," train:1,"],[" smallDrop:[],"," smallDrop:[\"insight\"],"],[" hypeBank:0,"," hypeBank:3,"],[/envLabel:"ENV C · PHASES"/g,'envLabel:"ENV D · BURNOUT"'],['envLabel:"",','envLabel:"ENV D · BURNOUT"' + ","]],html:[[TITLE,"<title>SHIP IT! (Env D: Burnout)</title>"]]}),
   c:env({data:[[" varC:0,"," varC:1,"],['envLabel:"",','envLabel:"ENV C · PHASES"' + ","]],html:[[TITLE,"<title>SHIP IT! (Env C: Phases)</title>"]]}),
 };
 fs.unlinkSync(path.join(OUT,"_t.js"));

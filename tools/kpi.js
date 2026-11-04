@@ -7,7 +7,7 @@ const D = require(path.join(G, "data.js")), E = require(path.join(G, "engine.js"
 const games = +process.argv[2] || 200, skill = process.argv[3] === undefined ? "casual" : process.argv[3];
 const counts = (process.argv[4] || "2,3,4,5,6").split(",").map(Number), ov = JSON.parse(process.argv[5] || "{}");
 // shipped D rules: the build flips these flags on the C config
-const cfg = Object.assign({}, D.config, D.configC, { varC: 1, burnout: 1, train: 1, smallDrop: ["insight"], smallMax: 6 }, ov);
+const cfg = Object.assign({}, D.config, D.configC, { varC: 1, burnout: 1, train: 1, smallDrop: ["insight"], smallMax: 6, hypeBank: 3 }, ov);
 const PERS = ["", "crunch", "hype", "systems", "clean"];
 const avg = a => a.reduce((x, y) => x + y, 0) / (a.length || 1), med = a => { const b = a.slice().sort((x, y) => x - y); return b[b.length >> 1]; };
 for (const n of counts) {

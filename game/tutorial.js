@@ -205,7 +205,7 @@ function tokens(S) {
     crisisLine: crisis ? ": <b>" + esc(crisis.name) + "</b>. " + esc(crisis.text) : "",
     nPlayers: S.players.length, goldPerVP: c.goldPerVP || 3, raceFirst: (E.rankTable(c, S.players.length) || [])[0], raceLast: (E.rankTable(c, S.players.length) || []).slice(-1)[0],
     burnLine: c.burnout ? "<br><b>Burnout</b>: an exhausted studio loses VP at the end (" + [3, 4, 5, 6].map(k => k + ": " + (((c.burnVP || {})[k]) || 0)).join(", ") + ")." : "",
-    trainCost: c.trainCost, trainCulture: c.trainCulture, trainNeeded: c.trainNeeded,
+    hypeBank: c.hypeBank || 0, trainCost: c.trainCost, trainCulture: c.trainCulture, trainNeeded: c.trainNeeded,
     freeBuild: p.freeBuilds ? "<br><br><b>A free build is on the house this round.</b>" : "",
     burnMax: c.burnMax, burnOverStep: c.burnOverStep, burnOverMax: c.burnOverMax, burnUnpaidMin: c.burnUnpaidMin, burnRelief: c.burnRelief, burnTeamRelief: c.burnTeamRelief,
     energizedCulture: c.energizedCulture, energizedGold: c.energizedGold, burnStrainAt: c.burnStrainAt, burnStrainHype: c.burnStrainHype, burnBenchAt: c.burnBenchAt, burnQuitAt: c.burnQuitAt, burnQuitReset: c.burnQuitReset
@@ -281,6 +281,7 @@ const STEPS_C = [
   play("r3", { hl: () => null, done: S => S.round >= 4 }),
   /* ---- production ---- */
   softInfo("gateresult", { hl: () => "[data-tut=gates]" }),
+  softInfo("hype_bank", { hl: () => "[data-tut=tracks]", only: () => !!E.rawConfig().hypeBank }),
   softInfo("crisis", { hl: () => "[data-tut=crisis]" }),
   play("r4play", { hl: () => null, done: S => reachedRound(S, 4, "rest") }),
   doing("promote", { rv: () => (U().S && U().S.cfg.train) ? "promote_train" : "promote", hl: () => "[data-tut=rest]", done: S => me(S).workers.some(w => w.lvl === "Sr") || reachedRound(S, 4, "milestones"),
@@ -295,7 +296,7 @@ const STEPS_C = [
     allow: a => a.type === "pass" ? MSG("msg_convert") : null }),
   info("handover", { final: true, soft: true, hl: () => null, allow: () => null })
 ];
-STEPS = E.rawConfig().varC ? STEPS_C : STEPS_A;
+STEPS = (E.rawConfig().varC ? STEPS_C : STEPS_A).filter(s => !s.only || s.only());
 
 /* ---------- lifecycle ---------- */
 SI.tutNew = function () {
