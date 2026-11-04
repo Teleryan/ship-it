@@ -871,6 +871,7 @@ function stepAction(S, a, actor) {
     }
     case "hire": {
       if (a.type === "done") { S.cur++; return { ok: true }; }
+      if (a.type === "train") return restAction(S, a, p);
       if (a.type === "discard" && !S.cfg.hireDiscard) return err("Discarding cards is not part of this version");
       if (a.type === "discard") {
         const i = p.hand.findIndex(c => c.id === a.card); if (i < 0) return err("Not in hand");
@@ -909,6 +910,7 @@ function stepAction(S, a, actor) {
         o.by = pi; p.workers.push({ id: S.wid++, disc: o.disc, lvl: "Jr", fat: 0, placed: false, as: null, worked: false }); p.recruited = (p.recruited || 0) + 1; p.rs.hires++; p.cs.recruits = (p.cs.recruits || 0) + 1;
         log(S, p.name + " recruits a Junior " + dn(o.disc) + " (" + c.cost + "G)"); bumpPlace(S); return { ok: true };
       }
+      if (a.type === "train") return restAction(S, a, p);
       if (a.type !== "place") return err("Place a worker or pass");
       const r = doPlace(S, pi, a.worker, a.target, a); if (r.ok) bumpPlace(S); return r;
     }

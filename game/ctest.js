@@ -76,6 +76,10 @@ const SA=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:3});ok(!SA.cf
  ok(E.placementOptions(S,pi,w)[0].ok===false,'a hire+train worker cannot be placed this round');
  r=E.act(S,{type:'hire',p:pi,card:p.hand[0].id,lvl:'Jr',train:true});ok(r.ok,'second hire+train allowed up to the per-round limit');
  r=E.act(S,{type:'hire',p:pi,card:p.hand[0].id,lvl:'Jr',train:true});ok(!r.ok,'hire+train respects the training limit per round');}
+{ // Train is also available during Place (e.g. for a worker who is already sitting out)
+ const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:11,config:{varC:1,burnout:1,train:1}});let g=0;while(g++<4000&&!(S.round>=3&&S.step==='place'&&!S.dq.length)){const a=B.decide(S);if(!a)break;E.act(S,a)}
+ const pi=E.currentActor(S),p=S.players[pi];const w=p.workers.find(x=>x.lvl==='Jr'&&!x.placed&&!x.build);p.rs.trains=0;p.gold=5;
+ if(w){w.benched='Training';w.trained=1;w.training=false;const r=E.act(S,{type:'train',p:pi,worker:w.id});ok(r.ok&&w.trained===2&&w.training&&p.gold===4,'Train during Place works for a worker already sitting out (2nd training)');ok(E.currentActor(S)===pi,'training does not use up the placement turn');}}
 { // Variant D: Insight is off the board at every player count
  for(const n of [2,3,4,5,6]){const seats=[];for(let i=0;i<n;i++)seats.push({name:'P'+i,bot:true});
   const D=E.newGame(seats,{seed:3,config:{varC:1,smallDrop:['insight'],smallMax:6}}); let any=false; for(let ph=0;ph<4;ph++){D.phase=ph; if(E.activeSpots(D).some(x=>x.id==='insight'))any=true}
