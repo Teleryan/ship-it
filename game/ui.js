@@ -248,10 +248,10 @@ function spotTile(S, spot, view) {
     <div class="occ">${occ.map(i => `<i style="background:${P(i).color}" title="${esc(P(i).name)}"></i>`).join("")}</div></button>`;
 }
 function recruitPanel(S) {
-  if (!S.cfg.varC || !S.recruit || !["hire", "place"].includes(S.step) || S.phase === 3) return "";
+  if (!S.cfg.varC || !S.recruit || !["bid", "draft", "hire", "place"].includes(S.step) || S.phase === 3) return "";
   const a = E.currentActor(S), me = a >= 0 && !S.players[a].bot && S.step === "place" && !S.dq.length;
   const tiles = S.recruit.map((o, i) => {
-    const ck = me ? E.canRecruit(S, a, i) : { ok: false, reason: S.step === "place" ? "" : "Recruiting opens when placing starts" };
+    const ck = me ? E.canRecruit(S, a, i) : { ok: false, reason: S.step === "place" ? "" : "Recruiting opens when placing starts (after the draft and hire steps)" };
     const taken = o.by != null;
     return `<div class="sys" style="width:190px;${taken ? "opacity:.55" : ""}"><div class="t" style="color:${dcol(o.disc)}">${esc(nameOf(o.disc))}</div><div class="meta">${esc(o.cat)} · Junior</div>
     <div class="row" style="margin-top:4px;gap:6px">${taken ? `<span class="mute"><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${P(o.by).color}"></i> ${esc(P(o.by).name)}</span>` : `<button class="btn sm primary" data-act="recruit" data-i="${i}" ${ck.ok ? "" : "disabled"} title="${esc(ck.ok ? "" : ck.reason || "")}">Recruit · ${me ? E.recruitCost(S, a) : S.cfg.recruitCost}G</button>`}</div></div>`;

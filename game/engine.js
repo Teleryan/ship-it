@@ -287,7 +287,7 @@ function afterCrisis(S) {
   // draftPool > 0: a fixed-size face-up pool that refills after every pick; otherwise deal exactly per x players cards
   S.draft = { cards: picks ? drawDisc(S, pool || picks) : [], per, left: pool ? picks : null };
   log(S, "REVEAL: " + S.draft.cards.length + " discipline cards dealt face up" + (pool ? " (pool refills to " + pool + " after each pick)" : ""));
-  S.step = "bid"; S.bids = {};
+  S.step = "bid"; S.bids = {}; if (S.cfg.varC) rollRecruit(S);
   S.order.forEach(pi => S.dq.push({ t: "bid", p: pi, purpose: "turn" }));
   S.dq.push({ t: "auto", fn: "turnOrder" });
 }
@@ -364,11 +364,16 @@ function completeBuilds(S) {
     });
   });
 }
-E.recruitSize = function (S) { const n = S.players.length, c = S.cfg; return n <= 2 ? (c.recruitSize2 || 2) : n <= 4 ? (c.recruitSize34 || 3) : (c.recruitSize56 || 4); };
+E.recruitSize = function (S) { const n = S.players.length, c = S.cfg; if (c.recruitDelta) return Math.max(1, Math.min(n + c.recruitDelta, 8)); if (c.recruitScale) return Math.min(n * c.recruitScale, 8); return n <= 2 ? (c.recruitSize2 || 2) : n <= 4 ? (c.recruitSize34 || 3) : (c.recruitSize56 || 4); };
 // A fresh shared pool every round: some categories, one random discipline from each. Take one by paying Gold (no worker needed).
 function rollRecruit(S) {
-  const cats = shuffle(S, Object.keys(D0.categories)).slice(0, E.recruitSize(S));
-  S.recruit = cats.map(cat => { const ds = D0.categories[cat].discs.filter(d => !(S.phase === 0 && d === "QA" && !S.cfg.qaAllowedPreProd)); return { cat, disc: ds[rint(S, ds.length)], by: null }; });
+  if (S.recruitRound === S.round) return; S.recruitRound = S.round;
+  const size = E.recruitSize(S), cats = shuffle(S, Object.keys(D0.categories));
+  const left = {}; cats.forEach(cat => { left[cat] = D0.categories[cat].discs.filter(d => !(S.phase === 0 && d === "QA" && !S.cfg.qaAllowedPreProd)); });
+  S.recruit = [];
+  if (S.cfg.recruitScale || S.cfg.recruitDelta) { // one offer per player: cycle the categories, a different discipline each time
+    let guard = 0; while (S.recruit.length < size && guard++ < 40) { const cat = cats[(guard - 1) % cats.length]; const ds = left[cat]; if (!ds.length) continue; const d = ds.splice(rint(S, ds.length), 1)[0]; S.recruit.push({ cat, disc: d, by: null }); }
+  } else cats.slice(0, size).forEach(cat => { const ds = left[cat]; S.recruit.push({ cat, disc: ds[rint(S, ds.length)], by: null }); });
   log(S, "RECRUITMENT: " + S.recruit.map(o => dn(o.disc)).join(", ") + " available");
 }
 E.recruitCost = function (S, pi) { const p = P(S, pi); return Math.max(0, (S.cfg.recruitCost == null ? 3 : S.cfg.recruitCost) - Math.min(p.hireDiscount || 0, 1)); };
@@ -473,7 +478,7 @@ function upkeep(S) {
   if (S.round >= PHASE_ENDS[3]) return endGame(S);
   S.round++;
   if (PHASE_OF_ROUND(S.round) !== S.phase) beginPhase(S);
-  else if (S.cfg.bidEveryRound) { S.draft = { cards: [], per: 0, left: null }; S.step = "bid"; S.bids = {}; S.order.forEach(pi => S.dq.push({ t: "bid", p: pi, purpose: "turn" })); S.dq.push({ t: "auto", fn: "turnOrder" }); }
+  else if (S.cfg.bidEveryRound) { S.draft = { cards: [], per: 0, left: null }; S.step = "bid"; S.bids = {}; if (S.cfg.varC) rollRecruit(S); S.order.forEach(pi => S.dq.push({ t: "bid", p: pi, purpose: "turn" })); S.dq.push({ t: "auto", fn: "turnOrder" }); }
   else { S.step = "x"; beginRound(S); }
 }
 /* Publisher gates: a review at the end of each phase. Meet every requirement: funding tranche (+ VP). Miss: VP penalty. Best Progress among those who pass: bonus VP. */
