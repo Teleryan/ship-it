@@ -1,5 +1,5 @@
 :root{
-  --bg:#0f1720; --panel:#17212d; --panel2:#1d2a39; --line:#2a3a4d; --ink:#e8eef5; --mute:#8fa3b8; --dim:#5d7189;
+  --bg:#0f1720; --panel:#17212d; --panel2:#1d2a39; --line:#2a3a4d; --ink:#e8eef5; --mute:#a3b4c7; --dim:#8a9db3;
   --pre:#9b59b6; --prod:#3498db; --pol:#27ae60; --launch:#e74c3c; --gold:#f5c542; --good:#2ecc71; --bad:#ff6b5e; --warn:#f39c12;
   --mom:#7ad7f0; --ideas:#c38ae6; --code:#6db6f0; --process:#3fd3b0; --buzz:#ffa94d; --hype:#ff7eb6; --mk:#ffa94d; --pr:#7aa7ff;
   --radius:10px; --font:'Archivo',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
@@ -7,7 +7,7 @@
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;-webkit-font-smoothing:antialiased}
 button{font:inherit;color:inherit;cursor:pointer}
-button:disabled{cursor:not-allowed;opacity:.38}
+button:disabled{cursor:not-allowed;opacity:.5}
 input,select,textarea{font:inherit;color:var(--ink);background:#0c131b;border:1px solid var(--line);border-radius:6px;padding:5px 8px}
 input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--prod);outline-offset:1px}
 h1,h2,h3,h4{margin:0;font-weight:700;letter-spacing:.01em}
@@ -380,3 +380,34 @@ table.dt input.n{width:62px}
 .detail .dsec + .dsec{border-top:1px solid var(--line);padding-top:10px}
 .detail .drow{display:grid;grid-template-columns:92px 1fr;gap:8px;margin:4px 0;font-size:13px}.detail .drow .dk{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);padding-top:2px}
 .detail .dvp{float:right;font-size:13px;color:var(--gold);font-family:var(--mono)}
+
+/* ============ UI audit pass 1: contrast, type floor, touch targets, feedback ============ */
+/* --dim #5d7189 was 3.0:1 on the panel colour; now 5.9:1. --mute 7.7:1 */
+.btn{min-height:36px}
+.btn.sm{min-height:32px;padding:4px 10px;font-size:13px}
+.btn:active:not(:disabled){transform:translateY(1px);filter:brightness(.92)}
+.btn.danger:hover:not(:disabled){background:rgba(255,107,94,.12)}
+.btn:disabled{border-style:dashed}
+:where(.spot,.wk,.sys,.sys2,.dcard,.pt):focus-visible{outline:2px solid var(--prod);outline-offset:2px}
+.spot:active,.wk:active,.sys2:active,.sys:active,.dcard:active{filter:brightness(1.15)}
+.step{font-size:12px;padding:4px 10px}
+.step.done::before{content:"\2713\00a0";opacity:.7}
+.stepgroup>span.lab{font-size:12px}
+.modal .x{width:40px;height:40px;display:flex;align-items:center;justify-content:center;padding:0;font-size:26px}
+.modal.detail.hashead .x{width:46px}
+.panel h3{font-size:13px;flex-wrap:wrap;gap:2px 14px}
+.panel h3 .mute{font-weight:500}
+/* type floor: nothing below 11px, card body text 12px */
+.st small,.spot .kind,.sys2 .sr .k,.wk .whd,.dcard .foot .more,.coach .cp,.crisis .k,.sys2 .pas b,.detail .dsec h4,.detail .drow .dk{font-size:11px}
+.wk .fl,.wk .as,.spot .note,.dcard .hint,.sys2 .trg,.sys2 .roles,.sys .meta,.sys .vp,.sys2 .vp,.lane,.log{font-size:12px}
+.wk .whd{padding:4px}
+.sys2 .sr .k{padding-top:1px}
+.log{line-height:1.5}
+.cfg small,.kpi small,.kpi span,.ch-leg{font-size:12px}
+.tag{font-size:12px}
+@media (pointer:coarse){
+  .btn{min-height:44px}.btn.sm{min-height:40px;padding:6px 12px}
+  .step{padding:6px 10px}
+  .wk .wi{padding:10px 0}
+  .tab{min-height:44px}
+}

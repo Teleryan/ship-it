@@ -17,6 +17,9 @@ const U = SI.U = {
 const PH = D.phases;
 const catOf = d => (D.disciplines[d] && D.categories[D.disciplines[d].cat]) || { color: "#667" };
 const dcol = d => catOf(d).color;
+// text colour for a category-coloured fill: white fails AA on the orange and teal categories, so pick whichever of white / near-black contrasts more
+const onCol = hex => { const m = /^#?([0-9a-f]{6})$/i.exec(hex || ""); if (!m) return "#fff"; const c = [0, 2, 4].map(i => parseInt(m[1].substr(i, 2), 16) / 255).map(v => v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4)); const L = .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; return 1.05 / (L + .05) >= (L + .05) / .0553 ? "#fff" : "#06121c"; };
+const fill = hex => `background:${hex};color:${onCol(hex)}`;
 const dcat = d => D.disciplines[d] ? D.disciplines[d].cat : "";
 const FAT = ["Active", "Tired", "Over-Tired"];
 const nameOf = t => { const k = String(t).toUpperCase(); return D.disciplines[k] ? D.disciplines[k].name : t; };
@@ -57,9 +60,9 @@ function fxHtml(str) {
     return `<span class="fx1 t">${esc(part)}</span>`;
   }).join("");
 }
-const crewChips = spot => (spot.crew || []).map(alt => alt.map(c => `<span class="chip" style="background:${(D.categories[c] || {}).color || "#667"}">${c}</span>`).join("+")).join(' <span class="mute">or</span> ');
+const crewChips = spot => (spot.crew || []).map(alt => alt.map(c => `<span class="chip" style="${fill((D.categories[c] || {}).color || "#666677")}">${c}</span>`).join("+")).join(' <span class="mute">or</span> ');
 const fmtBuild = s => { const p = String(s).split("+"); const m = p[0].match(/^(\d+)([MG])$/); if (!m) return s; let head; if (m[2] === "M") { const need = E.buildNeed(E.parseBuild(s)), tot = E.RES.reduce((t, k) => t + need[k], 0), gp = U.S && U.S.cfg.sysGoldMult ? Math.round(tot * U.S.cfg.sysGoldMult) : 0; head = E.resText(need) + (gp ? " + " + gp + " Gold" : ""); } else head = m[1] + "G"; return head + (p.length > 1 ? " · needs " + p.slice(1).map(nameOf).join(" and ") + " workers" : ""); };
-const chip = (d, extra) => `<span class="chip" style="background:${dcol(d)}" title="${esc(D.disciplines[d] ? D.disciplines[d].name : d)}">${esc(D.disciplines[d] ? D.disciplines[d].name : d)}${extra || ""}</span>`;
+const chip = (d, extra) => `<span class="chip" style="${fill(dcol(d))}" title="${esc(D.disciplines[d] ? D.disciplines[d].name : d)}">${esc(D.disciplines[d] ? D.disciplines[d].name : d)}${extra || ""}</span>`;
 const symTag = x => { if (U.S && U.S.cfg.varC) { const k = x.res || (x.build ? E.sysMainRes(x) : null); return k ? ic(k) : ""; } return symHtml(x.sym); };
 const symLine = x => { if (U.S && U.S.cfg.varC) return ""; return `<p class="mute">${(x.sym || []).map(s => D.symbols[s].glyph + " " + D.symbols[s].meaning).join(" · ")}</p>`; };
 const symHtml = a => (a || []).map(s => `<span class="sym" style="color:${D.symbols[s].color}" title="${D.symbols[s].meaning}">${D.symbols[s].glyph}</span>`).join("");
@@ -307,7 +310,7 @@ function workerCard(S, w, vi, selectable) {
   const sel = U.sel === w.id; const lvl = w.lvl === "Sr" ? "Senior" : "Junior";
   const pick = !!selectable && S.step === "place" && !S.dq.length && !w.placed && !w.build && !w.benched;
   return `<div class="wk ${sel ? "sel" : ""} ${w.placed || w.build ? "placed" : ""} ${pick ? "pick" : ""}" ${pick ? `data-act="sel-worker" data-id="${w.id}" title="Click to ${sel ? "deselect" : "select"} for placing"` : `data-act="detail" data-k="worker" data-id="${w.id}" data-p="${vi}"`}>
-   <div class="whd" style="background:${dcol(w.disc)}">${esc(dcat(w.disc))}</div>
+   <div class="whd" style="${fill(dcol(w.disc))}">${esc(dcat(w.disc))}</div>
    <div class="wbd"><div class="d">${esc(D.disciplines[w.disc].name)}</div>${w.as ? `<div class="as">acts as ${nameOf(w.as)}</div>` : ""}<div class="l ${w.lvl === "Sr" ? "sr" : ""}">${lvl}</div><div class="fat f${w.fat}" title="${FAT[w.fat]}"><i></i></div><div class="fl">${w.build ? "Building" : w.benched === "Training" ? "Training" : w.training ? "Training next round" : w.placed ? "Placed" : FAT[w.fat]}</div></div>${pick ? `<button class="wi" data-act="detail" data-k="worker" data-id="${w.id}" data-p="${vi}" aria-label="Worker details">Details</button>` : ""}</div>`;
 }
 // the studio's workers sit above the main board so the worker you place is next to the spot you place it on
@@ -342,7 +345,7 @@ const noSw = () => !!(U.S ? U.S.cfg.noSwaps : (E.rawConfig && E.rawConfig().noSw
 const discTag = disc => { const d = D.disciplines[disc]; return noSw() && d.alt ? d.alt : d.short; };
 function discCardHtml(disc, cls, attrs, hint, foot) {
   const d = D.disciplines[disc];
-  return `<div class="dcard ${cls || ""}" ${attrs || ""}><div class="hd" style="background:${dcol(disc)}">${esc(d.cat)}</div><div class="bd"><div class="code">${esc(d.name)}</div><div class="sm"><span class="dtag">${esc(discTag(disc))}</span></div>${hint ? `<div class="hint">${esc(hint)}</div>` : ""}${foot ? `<div class="foot">${foot}</div>` : ""}</div></div>`;
+  return `<div class="dcard ${cls || ""}" ${attrs || ""}><div class="hd" style="${fill(dcol(disc))}">${esc(d.cat)}</div><div class="bd"><div class="code">${esc(d.name)}</div><div class="sm"><span class="dtag">${esc(discTag(disc))}</span></div>${hint ? `<div class="hint">${esc(hint)}</div>` : ""}${foot ? `<div class="foot">${foot}</div>` : ""}</div></div>`;
 }
 function handCard(S, c, vi, mine) {
   const hint = mine && S.step === "hire" && !S.dq.length ? "Click to hire" : "";
@@ -530,7 +533,7 @@ function coverView(S) {
 function actBtn(label, attrs, disabled, reason, primary) {
   return `<button class="btn ${primary === false ? "" : "primary"}" data-tut="act" ${attrs} ${disabled ? "disabled" : ""} title="${esc(reason || "")}">${esc(label)}</button>${disabled && reason ? `<span class="mute" style="font-size:12px;margin-left:6px">${esc(reason)}</span>` : ""}`;
 }
-function discHead(disc) { const d = D.disciplines[disc]; return `<div class="dhead" style="background:${dcol(disc)}"><span>${esc(d.cat)}</span></div>`; }
+function discHead(disc) { const d = D.disciplines[disc]; return `<div class="dhead" style="${fill(dcol(disc))}"><span>${esc(d.cat)}</span></div>`; }
 const dname = d => (D.disciplines[d] || {}).name || d;
 function lines(items) { return `<ul class="dl">${items.filter(Boolean).map(s => `<li>${s}</li>`).join("")}</ul>`; }
 function sec(title, items) { return `<div class="dsec"><h4>${esc(title)}</h4>${lines(items)}</div>`; }
@@ -616,7 +619,7 @@ function detailModal() {
       let def, idx = null;
       if (d.k === "sys") { idx = +d.id; const sy = P(+d.p).systems[idx]; if (!sy) return closeOnly(); def = E.sysDef(S, sy.name); } else { def = S.data.systems.find(x => x.name === d.id); if (!def) return closeOnly(); }
       const busyD = S.cfg.varC ? E.buildRounds(S, P(viewIndex(S)), U.crunch, def) : 0, dl = (k, v) => `<div class="drow"><span class="dk">${k}</span><span>${v}</span></div>`;
-      h += `<div class="dhead" style="background:${catColor[def.cat]}"><span>${def.cat}</span></div><div class="dtitle">${esc(def.name)} ${symTag(def)} <span class="dvp">${def.vp} VP</span></div>
+      h += `<div class="dhead" style="${fill(catColor[def.cat])}"><span>${def.cat}</span></div><div class="dtitle">${esc(def.name)} ${symTag(def)} <span class="dvp">${def.vp} VP</span></div>
       <div class="dsec"><h4>Cost to build</h4><div class="c" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:15px">${buildChips(def.build)}</div>${busyD ? dl("Crew busy", busyD + " round" + (busyD === 1 ? "" : "s") + " while it is built") : ""}${def.debt ? dl("Tech Debt", `<b class="bad">+${def.debt}</b> when built`) : ""}</div>
       <div class="dsec"><h4>Reward when triggered</h4>${dl("Trigger", "place " + esc(fmtTrig(def.trig)) + " worker here")}${def.fx ? dl("Gives", "<b>" + fxTxt(def.fx) + "</b>") : ""}${def.once ? dl("On build", esc(def.once)) : ""}${def.each ? dl("Each time", esc(def.each)) : ""}</div>
       <div class="dsec"><h4>Benefit</h4>${def.pas ? dl("Passive", `<span style="color:var(--gold)">${esc(def.pas)}</span> (always on)`) : ""}${dl("End of game", def.vp + " VP, plus " + def.syn + " synergy VP if it shares " + (U.S.cfg.varC ? "its main skill (" + ICN[E.sysMainRes(def)] + ")" : "a symbol") + " with a completed objective")}</div>
