@@ -73,4 +73,15 @@ const SA=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:3});ok(!SA.cf
   ok(!any,'Variant D: Insight removed at '+n+' players');
   const C=E.newGame(seats,{seed:3,config:{varC:1}}); C.phase=1; ok(E.activeSpots(C).some(x=>x.id==='insight'),'Env C keeps Insight at '+n+' players');}
  const T=E.newGame([{name:'A',bot:true},{name:'B',bot:true},{name:'C',bot:true}],{seed:3,config:{varC:1,smallDrop:['insight'],smallMax:2}}); T.phase=1; ok(E.activeSpots(T).some(x=>x.id==='insight'),'smallMax limits the removal by player count'); }
+{ // gate difficulty
+ const mk=(lv)=>{const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:21,config:{varC:1,gateLevels:lv}}); let g=0; while(!S.over&&!S.gateSet&&g++<4000){const r=require('./bot.js').step(S); if(!r.ok)break} return S;};
+ const M=mk(null), H=mk(['H','H','H','H']), Z=mk(['E','M','H','E']);
+ ok(M.gateSet&&M.gateSet.every(g=>!g.lvl||g.lvl==='M'),'no gateLevels: gates are Medium as printed');
+ ok(H.gateSet.every(g=>g.lvl==='H'),'Hard on every phase');
+ const sum=S=>S.gateSet.reduce((t,g)=>t+(g.fund||0)+(g.vp||0),0), pen=S=>S.gateSet.reduce((t,g)=>t+g.penalty,0);
+ ok(pen(H)>pen(M),'Hard gates have bigger miss penalties'); ok(sum(H)>=sum(M),'Hard gates pay at least as much');
+ ok(Z.gateSet.map(g=>g.lvl).join('')==='EMHE','levels follow the phase order given');
+ const num=g=>g.reqs.map(r=>+((r.match(/^(\d+)\+/)||[])[1]||0)).reduce((a,b)=>a+b,0);
+ ok(H.gateSet.reduce((t,g)=>t+num(g),0)>M.gateSet.reduce((t,g)=>t+num(g),0),'Hard gates have higher targets');
+ const dm=H.gateSet.concat(M.gateSet).map(g=>g.reqs.join('|')); ok(dm.every(x=>!/Debt < (0|100)/.test(x)),'Debt limits stay in range'); }
 console.log('fails',fails);

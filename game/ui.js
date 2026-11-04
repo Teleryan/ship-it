@@ -113,7 +113,8 @@ function scheduleBots() {
 function newGame() {
   const seats = U.seats.map((s, i) => ({ name: s.name || ("Player " + (i + 1)), bot: s.bot }));
   const st = U.active || U.studio; U.tutDone = false;
-  U.S = E.newGame(seats, { config: E.clone(st.config), data: E.clone(st.data) });
+  const cfgG = E.clone(st.config), gl = resolveGateLevels(); if (gl) cfgG.gateLevels = gl;
+  U.S = E.newGame(seats, { config: cfgG, data: E.clone(st.data) });
   if (U.botSkill) U.S.players.forEach(p => { if (p.bot) p.profile = U.botSkill; });
   SI.an.abandon(U.prev); U.prev = null;
   SI.an.begin(U.S, { mode: "hotseat", site: SI.net.site(), hash: SI.hashOf(st), tuned: U.tuned, test: U.testEnv, seats: [] }); U.prev = U.S;
@@ -143,12 +144,37 @@ function gateView() {
   <p class="dim" style="margin:16px 0 0;font-size:12px">${esc(D.gate.note)}</p></div></div>`;
 }
 
+/* ---------- gate difficulty (set before the game starts; same gates for every studio) ---------- */
+const GS_LV = [["E", "Easy"], ["M", "Medium"], ["H", "Hard"]];
+function gsState() { return U.gs || (U.gs = { mode: "std", E: 0, H: 0, order: "random", ph: ["M", "M", "M", "M"] }); }
+function resolveGateLevels() { // an array of four codes (one per phase), or null for the standard all-Medium gates
+  const g = gsState(); if (g.mode === "std") return null;
+  if (g.mode === "phase") return g.ph.slice();
+  const a = [].concat(Array(g.E).fill("E"), Array(Math.max(0, 4 - g.E - g.H)).fill("M"), Array(g.H).fill("H"));
+  if (g.order === "fall") a.reverse(); else if (g.order === "random") for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+function gatePanel() {
+  if (!(D.config && D.config.varC)) return "";
+  const g = gsState(), PN = ["Concept", "Production", "Polish", "Launch"], sel = (attr, opts, cur) => `<select ${attr}>${opts.map(o => `<option value="${o[0]}" ${String(o[0]) === String(cur) ? "selected" : ""}>${o[1]}</option>`).join("")}</select>`;
+  let body = "";
+  if (g.mode === "mix") body = `<div class="row wrap" style="margin-top:6px;gap:8px"><label class="mute">Easy ${sel('data-gs="E"', [0, 1, 2, 3, 4].filter(k => k + g.H <= 4).map(k => [k, k]), g.E)}</label><label class="mute">Hard ${sel('data-gs="H"', [0, 1, 2, 3, 4].filter(k => k + g.E <= 4).map(k => [k, k]), g.H)}</label><span class="mute">Medium ${4 - g.E - g.H}</span><label class="mute">Order ${sel('data-gs="order"', [["random", "Random"], ["rise", "Easy to hard"], ["fall", "Hard to easy"]], g.order)}</label></div>`;
+  else if (g.mode === "phase") body = `<div class="row wrap" style="margin-top:6px;gap:8px">${PN.map((n, i) => `<label class="mute">${n} ${sel('data-gs="ph' + i + '"', GS_LV, g.ph[i])}</label>`).join("")}</div>`;
+  return `<div style="margin:10px 0;padding:10px;border:1px solid var(--line,#2b3350);border-radius:10px"><div class="row wrap" style="gap:8px"><b>Publisher gates</b>${sel('data-gs="mode"', [["std", "Standard (all Medium)"], ["mix", "Choose how many of each"], ["phase", "Choose phase by phase"]], g.mode)}</div>${body}<div class="dim" style="font-size:12px;margin-top:6px">Every studio faces the same gates. Easy: lower targets, smaller funding and smaller miss penalty. Hard: higher targets, bigger funding and bigger miss penalty.</div></div>`;
+}
+function gsChange(t) { // returns true when handled
+  if (t.dataset.gs == null) return false;
+  const g = gsState(), k = t.dataset.gs, v = t.value;
+  if (k === "mode" || k === "order") g[k] = v; else if (k === "E" || k === "H") g[k] = +v; else if (/^ph\d$/.test(k)) g.ph[+k[2]] = v;
+  render(); return true;
+}
 /* ---------- menu ---------- */
 function menuView() {
   const n = U.seats.length; const ver = /^\/a(\/|$)/.test(root.location.pathname) ? "a" : /^\/b(\/|$)/.test(root.location.pathname) ? "b" : /^\/c(\/|$)/.test(root.location.pathname) ? "c" : "d";
   return `<div class="center-screen"><div class="card-box">
   <div class="logo">SHIP <b>IT!</b>${D.config && D.config.envLabel ? ` <span style="font-size:.4em;color:var(--gold);letter-spacing:.08em">${D.config.envLabel}</span>` : ""}</div><p class="mute" style="margin:6px 0 16px">12 rounds · 4 phases · ${D.version}</p>
   <div class="row"><label class="mute">Bot skill</label><select data-botskill>${(root.ShipItBot ? root.ShipItBot.profileNames : [["", "Standard"]]).map(o => `<option value="${o[0]}" ${(U.botSkill || "") === o[0] ? "selected" : ""}>${o[1]}</option>`).join("")}</select> <label class="mute" style="margin-left:10px">Players</label><select data-seatn>${[2,3,4,5,6].map(k => `<option ${k === n ? "selected" : ""}>${k}</option>`).join("")}</select></div>
+  ${gatePanel()}
   <div style="margin:10px 0">${U.seats.map((s, i) => `<div class="seat"><span class="dot" style="background:${["#e74c3c","#3498db","#27ae60","#f39c12","#9b59b6","#16a085"][i]}"></span><input data-seatname="${i}" value="${esc(s.name)}"><select data-seatbot="${i}"><option value="0" ${!s.bot ? "selected" : ""}>Human</option><option value="1" ${s.bot ? "selected" : ""}>Bot</option></select></div>`).join("")}</div>
   <div class="row wrap"><button class="btn primary" data-act="tutorial">Learn to play</button><button class="btn" data-act="start">Start new game</button>${hasSave() ? '<button class="btn" data-act="resume">Resume saved game</button>' : ""}${U.owner ? '<button class="btn" data-act="studio">Data Studio</button><button class="btn" data-act="master">Master</button>' : ""}</div>
   ${U.hosted ? `<div style="margin:16px 0 0;padding:12px;border:1px solid var(--line,#2b3350);border-radius:10px"><div class="mute" style="margin-bottom:8px">Play online with friends on their own devices</div>
@@ -379,7 +405,7 @@ function gatesPanel(S) {
     if (done) { const ok = done.passed.includes(vi); state = ok ? `<b style="color:var(--good)">Passed</b>${done.best === vi ? " ★ favorite" : ""}` : `<b style="color:var(--bad)">Missed</b>`; }
     else if (now) state = `<span class="mute">due end of round ${last}</span>`; else state = `<span class="mute">round ${last}</span>`;
     const reqs = done || !now ? g.reqs.map(r => wordIcons(r)).join(", ") : g.reqs.map(r => { const ok = E.reqOk(S, vi, r); return `<span style="color:${ok ? "var(--good)" : "var(--bad)"}">${ok ? "✓" : "✗"} ${wordIcons(r)}</span>`; }).join(" · ");
-    return `<div style="padding:6px 8px;margin-bottom:4px;border-radius:8px;border:1px solid ${now ? "var(--gold)" : "var(--line)"};${now ? "background:rgba(245,197,66,.07)" : ""}"><div class="row" style="justify-content:space-between"><b>${esc(g.name)}</b>${state}</div><div style="font-size:12px;margin-top:2px">${reqs}</div><div class="mute" style="font-size:11px;margin-top:2px">${g.fund ? "Pass: +" + g.fund + ic("gold") : ""}${S.cfg.poolScoring ? (S.cfg.poolPassPts === 0 ? "" : (g.fund ? ", " : "Pass: ") + "+" + Math.round(g.pts * (S.cfg.poolGateMult == null ? 1 : S.cfg.poolGateMult)) + " " + gateTrackLabel(g)) : (g.vp ? (g.fund ? ", " : "Pass: ") + "+" + g.vp + " VP" : "")} · Miss: −${S.cfg.poolScoring ? Math.round(g.pts * (S.cfg.poolGateMult == null ? 1 : S.cfg.poolGateMult)) + " " + gateTrackLabel(g) : g.penalty + " VP"}</div></div>`;
+    return `<div style="padding:6px 8px;margin-bottom:4px;border-radius:8px;border:1px solid ${now ? "var(--gold)" : "var(--line)"};${now ? "background:rgba(245,197,66,.07)" : ""}"><div class="row" style="justify-content:space-between"><b>${esc(g.name)}${g.lvl && g.lvl !== "M" ? ` <span style="font-size:11px;font-weight:700;color:${g.lvl === "H" ? "var(--bad)" : "var(--good)"}">${g.lvlName}</span>` : ""}</b>${state}</div><div style="font-size:12px;margin-top:2px">${reqs}</div><div class="mute" style="font-size:11px;margin-top:2px">${g.fund ? "Pass: +" + g.fund + ic("gold") : ""}${S.cfg.poolScoring ? (S.cfg.poolPassPts === 0 ? "" : (g.fund ? ", " : "Pass: ") + "+" + Math.round(g.pts * (S.cfg.poolGateMult == null ? 1 : S.cfg.poolGateMult)) + " " + gateTrackLabel(g)) : (g.vp ? (g.fund ? ", " : "Pass: ") + "+" + g.vp + " VP" : "")} · Miss: −${S.cfg.poolScoring ? Math.round(g.pts * (S.cfg.poolGateMult == null ? 1 : S.cfg.poolGateMult)) + " " + gateTrackLabel(g) : g.penalty + " VP"}</div></div>`;
   }).join("");
   let hor = "";
   if (S.cfg.crisisEnabled && S.phase < 3 && S.decks.crisis[S.phase] && S.decks.crisis[S.phase].length) { const id = S.decks.crisis[S.phase][S.decks.crisis[S.phase].length - 1]; const c = S.data.crisis.find(x => x.id === id); if (c) hor = `<div class="mute" style="margin-top:6px;font-size:12px"><b>On the horizon</b> (next phase): ${esc(c.name)}</div>`; }
@@ -822,6 +848,7 @@ function lobbyView() {
   <div style="font-size:44px;font-weight:900;letter-spacing:.2em;margin:0 0 4px">${esc(M.code)}</div>
   <p class="dim" style="margin:0 0 14px;font-size:13px">Friends open this same page, choose <b>Play online</b> and enter the code. ${host ? "You are the host." : "Waiting for the host to start."}</p>
   ${host ? `<div class="row"><label class="mute">Players</label><select data-lcount>${[2, 3, 4, 5, 6].map(k => `<option ${k === seats.length ? "selected" : ""}>${k}</option>`).join("")}</select></div>` : ""}
+  ${host ? gatePanel() : ""}
   <div style="margin:10px 0">${rows}</div>
   ${U.lobbyErr ? `<p style="color:var(--bad)">${esc(U.lobbyErr)}</p>` : ""}
   <div class="row wrap">${host ? `<button class="btn primary" data-act="lobby-start" ${ready ? "" : "disabled"}>Start game</button>` : ""}<button class="btn" data-act="lobby-exit">Leave</button>${U.owner ? '<button class="btn" data-act="studio">Data Studio</button>' : ""}</div>
@@ -831,7 +858,8 @@ function lobbySend() { // host pushes the seat layout
   const M = U.net.meta; N.send({ t: "cfg", seats: M.seats.map(s => ({ name: s.name, kind: s.kind, persona: s.persona })) });
 }
 function lobbyStart() {
-  const ovr = JSON.stringify(SI.diffOf(U.active || U.studio));
+  const df = SI.diffOf(U.active || U.studio), gl = resolveGateLevels(); if (gl) { df.config = Object.assign({}, df.config, { gateLevels: gl }); }
+  const ovr = JSON.stringify(df);
   if (ovr.length > 85000) { U.lobbyErr = "Your tuning changes are too large to share with the room"; render(); return; }
   U.lobbyErr = null; N.send({ t: "start", seed: (Math.random() * 2 ** 31) | 0, ovr: ovr === '{"config":{},"data":{}}' ? "" : ovr });
 }
@@ -980,6 +1008,7 @@ $root.addEventListener("change", e => {
   if (t.dataset.pname != null) { setName(t.value); return; }
   if (t.dataset.seatname != null) { U.seats[+t.dataset.seatname].name = t.value; return; }
   if (t.dataset.botskill != null) { U.botSkill = t.value; return; }
+  if (gsChange(t)) return;
   if (t.dataset.seatbot != null) { U.seats[+t.dataset.seatbot].bot = t.value === "1"; return; }
   if (t.dataset.cfg || t.dataset.cfgjson || t.dataset.path || t.dataset.mpath) { if (SI.stu2) SI.stu2.snap(U.studio); const r = SI.studioChange(U.studio, t); if (r !== true) { toast(r || "Invalid value"); } SI.saveDraft(U.studio); (t.dataset.mpath ? t.closest(".mchk") || t : t.type === "checkbox" ? t.closest("label") || t : t).classList.add("dirty"); if (t.type === "checkbox" && t.dataset.cfg) { const lb = t.closest("label"); if (lb) lb.lastChild.textContent = t.checked ? " On" : " Off"; } if (SI.stu2) SI.stu2.refresh(); return; }
 });

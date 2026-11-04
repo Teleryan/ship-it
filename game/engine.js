@@ -473,9 +473,29 @@ function upkeep(S) {
 function drawGates(S) {
   if (!S.cfg.gatesEnabled || S.gateSet) return;
   const pool = S.data.gatePool || [];
-  if (!S.cfg.gatesRandom || !pool.length) { S.gateSet = (S.data.publisherGates || []).slice(); return; }
+  if (!S.cfg.gatesRandom || !pool.length) { S.gateSet = (S.data.publisherGates || []).slice(); applyGateLevels(S); return; }
   S.gateSet = [0, 1, 2, 3].map(ph => { const opts = pool.filter(x => x.phase === ph); return opts.length ? opts[rint(S, opts.length)] : (S.data.publisherGates || []).find(x => x.phase === ph); }).filter(Boolean);
-  log(S, "PUBLISHER GATES revealed: " + S.gateSet.map(g => g.name).join(" > "));
+  applyGateLevels(S);
+  log(S, "PUBLISHER GATES revealed: " + S.gateSet.map(g => g.name + (g.lvl && g.lvl !== "M" ? " (" + g.lvlName + ")" : "")).join(" > "));
+}
+/* Gate difficulty: the table picks a level (E/M/H) for each phase's gate at setup (cfg.gateLevels, one code per phase). Medium is the gate as printed.
+   Easy and Hard scale the numeric targets (Progress, Marketing, Hype up with level; Debt limits tighten with level) and the funding, VP and miss penalty. */
+function scaleReq(r, thr) {
+  let m; const sc = n => Math.max(1, thr < 1 ? Math.floor(n * thr) : Math.ceil(n * thr));
+  if ((m = r.match(/^(\d+)\+(\s*(?:Progress|Product|Marketing|Mktg)(?: value)?)$/))) return sc(+m[1]) + "+" + m[2];
+  if ((m = r.match(/^(\d+)\+(\s*Hype(?: at Launch)?)$/))) return sc(+m[1]) + "+" + m[2];
+  if ((m = r.match(/^Debt\s*<\s*(\d+)%$/))) return "Debt < " + Math.max(5, Math.min(95, Math.round(+m[1] / thr))) + "%";
+  return r;
+}
+E.GATE_LEVELS = { E: "Easy", M: "Medium", H: "Hard" };
+function applyGateLevels(S) {
+  const lv = S.cfg.gateLevels; if (!lv || !lv.length) return;
+  const defs = S.cfg.gateLevelDefs || {};
+  S.gateSet = S.gateSet.map(g => {
+    const L = lv[g.phase] || "M", d = defs[L]; if (!d || L === "M") return Object.assign({}, g, { lvl: "M", lvlName: "Medium" });
+    const rnd = (v, k) => v ? Math.max(1, Math.round(v * (k == null ? 1 : k))) : v;
+    return Object.assign({}, g, { lvl: L, lvlName: E.GATE_LEVELS[L], reqs: g.reqs.map(r => scaleReq(r, d.thr || 1)), fund: rnd(g.fund, d.reward), vp: rnd(g.vp, d.reward), penalty: rnd(g.penalty, d.penalty) });
+  });
 }
 E.gateList = function (S) { return S.gateSet || (S.cfg.gatesRandom && (S.data.gatePool || []).length ? null : (S.data.publisherGates || [])); };
 function resolveGate(S) {
@@ -494,7 +514,7 @@ function resolveGate(S) {
   }
   let best = null;
   if (passed.length) { const mx = Math.max.apply(null, passed.map(id => P(S, id).prod)); const tops = passed.filter(id => P(S, id).prod === mx); if (tops.length === 1 && S.cfg.gateBestVP) { best = tops[0]; adjTrack(S, best, "P", S.cfg.poolScoring ? S.cfg.poolFavPts : S.cfg.gateBestVP); } }
-  S.gates.push({ phase: S.phase, name: g.name, passed, failed, best });
+  S.gates.push({ phase: S.phase, name: g.name, lvl: g.lvl || "M", passed, failed, best });
   log(S, "GATE: " + g.name + " (" + g.reqs.join(", ") + "). Passed: " + (passed.map(id => P(S, id).name).join(", ") || "nobody") + (best != null ? ". Publisher's favorite: " + P(S, best).name : "") + (failed.length ? ". Missed (-" + (S.cfg.poolScoring ? (g.pts + " pts") : (g.penalty + " VP")) + "): " + failed.map(id => P(S, id).name).join(", ") : ""));
 }
 function refillMarket(S) {
