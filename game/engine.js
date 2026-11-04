@@ -865,6 +865,7 @@ function stepAction(S, a, actor) {
     }
     case "hire": {
       if (a.type === "done") { S.cur++; return { ok: true }; }
+      if (a.type === "discard" && !S.cfg.hireDiscard) return err("Discarding cards is not part of this version");
       if (a.type === "discard") {
         const i = p.hand.findIndex(c => c.id === a.card); if (i < 0) return err("Not in hand");
         S.discard.push(p.hand.splice(i, 1)[0]); gain(S, pi, "gold", S.cfg.discardGold); p.rs.discards++; return { ok: true };
@@ -1214,6 +1215,7 @@ const MILE_CHECK = {
   "Production Surge": (S, p) => p.rs.spentRes >= 5,
   "Bootstrapped": (S, p) => p.cs.noGoldBuilds >= 3,
   "Liquidation": (S, p) => p.rs.discards >= 2,
+  "Double Recruit": (S, p) => p.recruited >= 2,
   "Milestone Hunter": (S, p) => (p.cs.cashedTotal || 0) >= 3,
   "Foundation": (S, p) => nSys(p) >= 1,
   "Category Focus": (S, p) => CATS.some(c => sysCount(p, c) >= 3),

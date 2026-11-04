@@ -314,6 +314,7 @@ D.config = {
     srCost:["Sr hire cost","Gold (Production / Launch)"],
     srCostPolish:["Sr hire cost (Polish)","Discount phase"],
     talentWarAdd:["-","(set by crisis card)"],
+    hireDiscard:["Discard unhired cards","1 = a studio may discard an unhired discipline card for Gold in the Hire step. Variant D turns this off."],
     discardGold:["Discard-card gold","Gold for discarding an unhired discipline card"],
     srAllowedPreProd:["Sr/promotion allowed in Concept","1 = yes, 0 = no (rules: no Seniors in Concept)"],
     qaAllowedPreProd:["Quality workers allowed in Concept","1 = yes, 0 = no (rules: no Quality workers)"],
@@ -364,7 +365,7 @@ D.config = {
     deliveredBonus:["Delivery: delivered VP",""],
     synergyOn:["Synergy scoring on","1/0"]
   },
-  startGold:15, income:4, salaryJr:1, salarySr:2, sysGoldMult:0.75, reachFade:1, maxSystems:6, marketSize:2, marketRefreshGold:1, marketRefreshesPerRound:1, headhuntCatchUp:1, gateLossCap:3, objPartial:1, gateContract:1, gatesEnabled:1, gateBestVP:1, reachMajorVP:5, srBuildDiscount:0, sysVPMult:1.5, synergyMult:0.5, jrCost:2, srCost:5, srCostPolish:4, discardGold:1,
+  hireDiscard:1, startGold:15, income:4, salaryJr:1, salarySr:2, sysGoldMult:0.75, reachFade:1, maxSystems:6, marketSize:2, marketRefreshGold:1, marketRefreshesPerRound:1, headhuntCatchUp:1, gateLossCap:3, objPartial:1, gateContract:1, gatesEnabled:1, gateBestVP:1, reachMajorVP:5, srBuildDiscount:0, sysVPMult:1.5, synergyMult:0.5, jrCost:2, srCost:5, srCostPolish:4, discardGold:1,
   srAllowedPreProd:0, qaAllowedPreProd:0,
   resJr:1, resSr:2, resOver:0, resCap:10, crewPartnerCap:1, sysCostMult:1.1, objVPMult:0.9, resSubGold:2, resSubMax:2, srBonus:1,
   handSize:3, objDraw:2, objKeep:1,

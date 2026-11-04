@@ -6,8 +6,9 @@ const path = require("path"), G = path.join(__dirname, "..", "game");
 const D = require(path.join(G, "data.js")), E = require(path.join(G, "engine.js")), B = require(path.join(G, "bot.js"));
 const games = +process.argv[2] || 200, skill = process.argv[3] === undefined ? "casual" : process.argv[3];
 const counts = (process.argv[4] || "2,3,4,5,6").split(",").map(Number), ov = JSON.parse(process.argv[5] || "{}");
+D.milestones = D.milestones.map(m => m.name === "Liquidation" ? { cat: "Workforce", gold: 4, name: "Double Recruit", text: "Recruit 2 workers from the shared pool in one round", phases: [1, 2] } : m); // as the Variant D build does
 // shipped D rules: the build flips these flags on the C config
-const cfg = Object.assign({}, D.config, D.configC, { varC: 1, burnout: 1, train: 1, smallDrop: ["insight"], smallMax: 6, hypeBank: 3 }, ov);
+const cfg = Object.assign({}, D.config, D.configC, { varC: 1, burnout: 1, train: 1, smallDrop: ["insight"], smallMax: 6, hypeBank: 3, hireDiscard: 0 }, ov);
 const PERS = ["", "crunch", "hype", "systems", "clean"];
 const avg = a => a.reduce((x, y) => x + y, 0) / (a.length || 1), med = a => { const b = a.slice().sort((x, y) => x - y); return b[b.length >> 1]; };
 for (const n of counts) {

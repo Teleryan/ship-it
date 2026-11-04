@@ -362,7 +362,7 @@ function actionArea(S) {
   if (S.step === "draft") return draftView(S);
   if (S.step === "hire") {
     const hp = P(vi);
-    h += `<div class="panel"><h3>Your hand: tap a card to hire (${hp.hand.length})</h3><div class="mute" style="margin:-2px 0 10px">${S.cfg.srPromoteOnly ? `Hiring costs gold. Hire a Junior for ${S.cfg.jrCost}G (Seniors are promoted from Juniors who have worked and rested), or discard a card for +${S.cfg.discardGold}G. You can also recruit during placement. Press Done when finished.` : "Hiring costs gold. Hire Junior 2G, Senior 5G once unlocked, or discard a card for +1G. Press Done when finished."}${hp.contract > 0 ? `<br><b style="color:var(--good)">Contract Team: your next Junior hire is free</b> (publisher support after a missed gate).` : ""}</div><div class="hand" data-tut="hand">${hp.hand.length ? hp.hand.map(c => handCard(S, c, vi, true)).join("") : '<span class="mute">No cards left to hire.</span>'}</div></div>`;
+    h += `<div class="panel"><h3>Your hand: tap a card to hire (${hp.hand.length})</h3><div class="mute" style="margin:-2px 0 10px">${S.cfg.srPromoteOnly ? `Hiring costs gold. Hire a Junior for ${S.cfg.jrCost}G (Seniors are promoted from Juniors who have worked and rested)${S.cfg.hireDiscard ? `, or discard a card for +${S.cfg.discardGold}G` : ""}. You can also recruit during placement. Press Done when finished.` : "Hiring costs gold. Hire Junior 2G, Senior 5G once unlocked, or discard a card for +1G. Press Done when finished."}${hp.contract > 0 ? `<br><b style="color:var(--good)">Contract Team: your next Junior hire is free</b> (publisher support after a missed gate).` : ""}</div><div class="hand" data-tut="hand">${hp.hand.length ? hp.hand.map(c => handCard(S, c, vi, true)).join("") : '<span class="mute">No cards left to hire.</span>'}</div></div>`;
   }
   if (S.step === "build") {
     const free = a.freeBuilds > 0;
@@ -565,7 +565,7 @@ function detailModal() {
         const noSr = S.cfg.srPromoteOnly ? "Seniors are promoted, not hired" : !E.srAllowed(S) ? "Seniors unlock in Production" : "", noQA = (S.phase === 0 && c.disc === "QA" && !S.cfg.qaAllowedPreProd) ? "No Quality workers in Concept" : "", launch = S.phase === 3 ? "No hiring in Launch" : "";
         h += `<div class="col" style="margin-top:12px;gap:8px"><div class="row">${actBtn("Hire Junior · " + jc + "G", `data-act="hire" data-card="${c.id}" data-lvl="Jr"`, !!(p.gold < jc || noQA || launch), launch || noQA || (p.gold < jc ? "Not enough gold" : ""))}</div>
         ${S.cfg.srPromoteOnly ? "" : `<div class="row">${actBtn("Hire Senior · " + sc + "G", `data-act="hire" data-card="${c.id}" data-lvl="Sr"`, !!(p.gold < sc || noSr || noQA || launch), launch || noSr || noQA || (p.gold < sc ? "Not enough gold" : ""), false)}</div>`}
-        <div class="row">${actBtn("Discard for +" + S.cfg.discardGold + "G", `data-act="discard" data-card="${c.id}"`, false, "", false)}</div></div>`;
+        ${S.cfg.hireDiscard ? `<div class="row">${actBtn("Discard for +" + S.cfg.discardGold + "G", `data-act="discard" data-card="${c.id}"`, false, "", false)}</div>` : ""}</div>`;
       }
       break; }
     case "worker": {

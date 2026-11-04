@@ -159,8 +159,8 @@ function hire(S, p) {
       if (p.gold - E.hireCost(S, p.id, lvl) >= reserve) return { type: "hire", p: p.id, card: c.id, lvl };
     }
   }
-  if (p.hand.length && (S.phase === 3 || p.workers.length >= maxW || p.gold < 3)) return { type: "discard", p: p.id, card: p.hand[0].id };
-  if (S.phase === 3 && p.hand.length) return { type: "discard", p: p.id, card: p.hand[0].id };
+  if (S.cfg.hireDiscard && p.hand.length && (S.phase === 3 || p.workers.length >= maxW || p.gold < 3)) return { type: "discard", p: p.id, card: p.hand[0].id };
+  if (S.cfg.hireDiscard && S.phase === 3 && p.hand.length) return { type: "discard", p: p.id, card: p.hand[0].id };
   return { type: "done", p: p.id };
 }
 

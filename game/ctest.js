@@ -84,4 +84,9 @@ const SA=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:3});ok(!SA.cf
  const num=g=>g.reqs.map(r=>+((r.match(/^(\d+)\+/)||[])[1]||0)).reduce((a,b)=>a+b,0);
  ok(H.gateSet.reduce((t,g)=>t+num(g),0)>M.gateSet.reduce((t,g)=>t+num(g),0),'Hard gates have higher targets');
  const dm=H.gateSet.concat(M.gateSet).map(g=>g.reqs.join('|')); ok(dm.every(x=>!/Debt < (0|100)/.test(x)),'Debt limits stay in range'); }
+{ // Variant D: no discarding unhired cards
+ const mk=cfg=>{const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:9,config:Object.assign({varC:1},cfg)}); return S;};
+ const stepTo=S=>{let g=0;while(!S.over&&g++<4000){const p0=S.players[0]; if(S.step==='hire'&&p0.hand.length)return true; if(!require('./bot.js').step(S).ok)break}return false};
+ const D0=mk({hireDiscard:0}); if(stepTo(D0)){const p=D0.players[E.currentActor(D0)]; const r=E.act(D0,{type:'discard',p:p.id,card:p.hand[0].id}); ok(!r.ok,'Variant D: discarding a card is refused');}
+ const C0=mk({hireDiscard:1}); if(stepTo(C0)){const p=C0.players[E.currentActor(C0)]; ok(E.act(C0,{type:'discard',p:p.id,card:p.hand[0].id}).ok,'other variants can still discard');} }
 console.log('fails',fails);
