@@ -439,9 +439,12 @@ function tutHighlight0(rootEl) {
   if (u.detail) { const acts = rootEl.querySelectorAll('.modal [data-tut=act]:not([disabled])'); if (acts.length) { acts.forEach(el => el.classList.add('tut-hl')); return; } }
   const sel = st.hl(u.S); if (!sel) return;
   try {
-    const els = rootEl.querySelectorAll(sel); els.forEach(el => el.classList.add("tut-hl")); if (els.length && !u.detail) spotSel = sel;
+    // a worker is selected during Place: unmask the spots it can use too, so the player can see where to put it
+    const extra = (u.sel != null && u.S && u.S.step === "place" && sel.indexOf(".spot.ok") < 0 && rootEl.querySelector(".spot.ok")) ? ".spot.ok" : null;
+    const all = extra ? sel + "," + extra : sel;
+    const els = rootEl.querySelectorAll(all); els.forEach(el => el.classList.add("tut-hl")); if (els.length && !u.detail) spotSel = all;
     // bring the highlighted area into view (above the coach box): the page itself or, on desktop, the .left/.right column that scrolls
-    const el = els[0]; if (el && el.getBoundingClientRect && !u.detail) {
+    const el = extra ? rootEl.querySelector(extra) : els[0]; if (el && el.getBoundingClientRect && !u.detail) {
       const coach = rootEl.querySelector(".coach"), cr = coach ? coach.getBoundingClientRect() : null;
       const sc = el.closest(".left,.right"), scrolls = sc && sc.scrollHeight > sc.clientHeight + 2 && getComputedStyle(sc).overflowY !== "visible";
       const box = scrolls ? sc.getBoundingClientRect() : { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth };
