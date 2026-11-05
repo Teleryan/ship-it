@@ -7,6 +7,8 @@ const E = require(path.join(SRC, "engine.js")), D = require(path.join(SRC, "data
 // Variant D (Burnout) is the default game: Burnout and Training on, Insight off the board
 D.milestones = D.milestones.map(m => m.name === "Liquidation" ? { cat: "Workforce", gold: 4, name: "Double Recruit", text: "Recruit 2 workers from the shared pool in one round", phases: [1, 2] } : m.name === "Hiring Spree" ? Object.assign({}, m, { text: "Have 6+ workers at the same time" }) : m); // as the Variant D build does
 const c = Object.assign(E.defaultConfig(), D.config);
+// Variant D constants (these keys were removed from the config; the reference text below still branches on them)
+Object.assign(c, { flowV2: 1, catchUpOrder: 1, recruitOnly: 1, leanRound: 1, cultureFold: 1, promoFree: 1 });
 const bv = c.burnVP || {}, bvTxt = [3, 4, 5, 6].map(k => k + ": " + (bv[k] || 0) + " VP").join(", ");
 const esc = s => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
