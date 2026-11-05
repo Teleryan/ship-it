@@ -1,175 +1,209 @@
-// Variant C rule checks. Run: node ctest.js
-global.window=undefined;const E=require('./engine.js'),B=require('./bot.js'),D=require('./data.js');
-let fails=0;const ok=(c,m)=>{if(!c){fails++;console.log('FAIL',m)}else console.log('ok  ',m)};
-function toStep(S,step,minRound){let n=0;while(!S.over&&n++<20000&&!(S.step===step&&S.round>=(minRound||1)&&!S.dq.length)){const a=B.decide(S);if(!a||!E.act(S,a).ok)break}return S}
-const mk=seed=>E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed,config:{varC:1}});
-// phases
-let S=mk(3);ok(JSON.stringify(D.phases.map(p=>p.rounds))==='[[1,3],[4,8],[9,11],[12,12]]','phase rounds 3/5/3/1');
-// recruitment: one per player per round, shared pool
-toStep(S,'place',1);const a=E.currentActor(S),p=S.players[a],b=S.players[1-a];
-const g0=p.gold,n0=p.workers.length;let r=E.act(S,{type:'recruit',p:a,idx:0});ok(r.ok&&p.workers.length===n0+1&&p.gold===g0-3,'recruit costs 3G and adds a Junior');
-ok(p.workers[p.workers.length-1].lvl==='Jr'&&!p.workers[p.workers.length-1].placed,'recruit is a Jr and can be placed this round');
-ok(S.recruit[0].by===a,'offer marked taken');
-ok(!E.canRecruit(S,a,1).ok,'second hire same round refused');
-ok(!E.canRecruit(S,1-a,0).ok,'taken offer unavailable to others');
-// Sr cannot be hired
-S=mk(4);toStep(S,'hire',1);let pi=E.currentActor(S);S.players[pi].hand.push({id:'X1',disc:'ENG'});r=E.act(S,{type:'hire',p:pi,card:'X1',lvl:'Sr'});ok(!r.ok,'Sr hire refused');
-// Jr cannot trigger system
-S=mk(5);toStep(S,'place',4);pi=E.currentActor(S);let q=S.players[pi];q.systems=[{name:'Unit Tests',cat:'Stability',t:false}];q.workers.push({id:999,disc:'QA',lvl:'Jr',fat:0,placed:false,as:null,worked:false});
-let o=E.placementOptions(S,pi,q.workers.find(w=>w.id===999)).find(x=>x.target==='sys:0');ok(o&&!o.ok&&/Senior/.test(o.reason),'Jr cannot trigger a system');
-q.workers.push({id:1000,disc:'QA',lvl:'Sr',fat:0,placed:false,as:null,worked:false});o=E.placementOptions(S,pi,q.workers.find(w=>w.id===1000)).find(x=>x.target==='sys:0');ok(o&&o.ok,'Sr can trigger a system');
-// build time and crunch
-S=mk(6);toStep(S,'build',4);pi=E.currentActor(S);q=S.players[pi];q.rd=false;const sysDef=D.systems.find(s=>s.name==='Version Control');
-q.gold=40;['ideas','code','process','buzz'].forEach(k=>q[k]=10);q.workers=[{id:901,disc:'ENG',lvl:'Jr',fat:0,placed:false,as:null,worked:false}];
-const rd0=S.round,s0=q.systems.length;S.sysAvail['Version Control']=true;S.market.Stability=['Version Control'];
-r=E.act(S,{type:'build',p:pi,name:'Version Control'});ok(r.ok&&q.building.length===1&&q.building[0].rdy===rd0+2&&q.systems.length===s0,'normal build ready in 2 rounds');
-S=mk(6);toStep(S,'build',4);pi=E.currentActor(S);q=S.players[pi];q.rd=false;q.gold=40;['ideas','code','process','buzz'].forEach(k=>q[k]=10);q.workers=[{id:901,disc:'ENG',lvl:'Jr',fat:0,placed:false,as:null,worked:false}];S.market.Stability=['Version Control'];S.sysAvail['Version Control']=true;
-const g1=q.gold;r=E.act(S,{type:'build',p:pi,name:'Version Control',crunch:'gold'});ok(r.ok&&q.building[0].rdy===S.round+1&&q.gold<g1,'crunch with Gold: ready next round, costs extra');
-// completion
-let rr=S.round;while((S.round===rr||S.step==='bid')&&!S.over){const x=B.decide(S);if(!x||!E.act(S,x).ok)break}
-ok(q.systems.some(s=>s.name==='Version Control')||q.building.length===0,'rushed system finished at the next round');
-// late builds blocked
-S=mk(7);toStep(S,'build',11);pi=E.currentActor(S);ok(S.round===11,'reached round 11 build step');q=S.players[pi];q.systems=[];q.building=[];q.gold=40;['ideas','code','process','buzz'].forEach(k=>q[k]=10);q.workers=[{id:901,disc:'ENG',lvl:'Jr',fat:0,placed:false,as:null,worked:false}];S.market.Stability=['Version Control'];S.sysAvail['Version Control']=true;
-ok(!E.canBuild(S,pi,'Version Control',false,undefined).ok,'normal build blocked in round 11');ok(E.canBuild(S,pi,'Version Control',false,'gold').ok,'crunched build allowed in round 11');
-// conversion
-S=mk(8);toStep(S,'place',12);pi=E.currentActor(S);q=S.players[pi];q.ideas=7;q.workers.push({id:902,disc:'ART',lvl:'Jr',fat:0,placed:false,as:null,worked:false});const pr0=q.prod;
-r=E.act(S,{type:'place',p:pi,worker:902,target:'spot:convert',conv:'prod'});ok(r.ok&&q.ideas===1&&q.prod===pr0+2,'convert 6 Ideas into 2 Progress (3:1)');
-// R&D rush
-S=mk(9);toStep(S,'place',4);pi=E.currentActor(S);q=S.players[pi];q.rd=true;
-ok(E.buildDelay(S,q,undefined)===1,'R&D makes the build a free rush');
-// promotion
-S=mk(10);toStep(S,'rest',4);pi=E.currentActor(S);q=S.players[pi];q.workers.push({id:903,disc:'ENG',lvl:'Jr',fat:1,placed:false,as:null,worked:true},{id:904,disc:'ENG',lvl:'Jr',fat:0,placed:false,as:null,worked:false});
-q.gold=10;r=E.act(S,{type:'promote',p:pi,worker:904});ok(!r.ok,'cannot promote a worker who has not worked');r=E.act(S,{type:'promote',p:pi,worker:903});ok(r.ok&&q.gold===10,'free promotion of a rested worker who has worked');
-// A/B untouched
-const SA=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:3});ok(!SA.cfg.varC&&D.phases[0].rounds[1]===2,'Env A rules unchanged (phase 1 ends round 2)');
+// Rule checks for the shipped game ("Variant D", config baked into data.js). Run: node ctest.js
+global.window = undefined;
+const E = require('./engine.js'), B = require('./bot.js'), D = require('./data.js');
+let fails = 0; const ok = (c, m) => { if (!c) { fails++; console.log('FAIL', m) } else console.log('ok  ', m) };
+const mk = (seed, n) => E.newGame(Array.from({ length: n || 2 }, (_, i) => ({ name: 'P' + i, bot: true })), { seed });
+const RES = ['ideas', 'code', 'process', 'buzz'];
+const W = (id, disc, lvl) => ({ id, disc, lvl: lvl || 'Jr', fat: 0, placed: false, as: null, worked: false });
+// advance with the bot until the predicate holds (no pending decisions)
+function until(S, f) { let n = 0; while (!S.over && n++ < 20000 && !(f(S) && !S.dq.length)) { const a = B.decide(S); if (!a || !E.act(S, a).ok) break } return S }
+const toStep = (S, step, round) => until(S, s => s.step === step && s.round >= (round || 1));
+const rich = q => { q.gold = 40; RES.forEach(k => q[k] = 10) };
 
-// Variant D: Burnout
-{const mkD=(n,seed)=>E.newGame(Array.from({length:n},(_,i)=>({name:'P'+i,bot:true})),{seed,config:{varC:1,burnout:1}});
- let allOk=true,seen=0;for(const n of [2,4,6]){for(let sd=1;sd<=6;sd++){const S=mkD(n,sd);B.run(S,40000);if(!S.over)allOk=false;S.players.forEach(p=>{if(p.burnout<0||p.burnout>6)allOk=false;seen+=p.burnout});if(!(S.scores||E.score(S)).every(x=>typeof x.parts.burnout==='number'))allOk=false}}
- ok(allOk&&seen>0,'Env D: bot games finish, Burnout stays on the track and is scored');
- const C=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:2,config:{varC:1}});B.run(C,40000);ok(C.players.every(p=>p.burnout===0)&&C.cfg.burnout===0,'Env C: Burnout stays off');
- const S=mkD(2,5);const p=S.players[0];p.burnout=0;p.culture=2;ok(E.burnBand(S,p)==='Energized','band: Energized at Burnout 0 and Culture 2');p.culture=0;ok(E.burnBand(S,p)==='Steady','band: Steady');p.burnout=3;ok(E.burnBand(S,p)==='Strained','band: Strained at 3');p.burnout=5;ok(E.burnBand(S,p)==='Burned out','band: Burned out at 5');p.burnout=6;ok(E.burnBand(S,p)==='Meltdown','band: Meltdown at 6');
- E.statChange(S,0,'burnout',99);ok(p.burnout===6,'Burnout is capped at the top of the track');E.statChange(S,0,'burnout',-99);ok(p.burnout===0,'Burnout cannot go below 0');}
+// ---- shape of the game ----
+let S = mk(3);
+ok(JSON.stringify(D.phases.map(p => p.rounds)) === '[[1,2],[3,8],[9,11],[12,12]]', 'phases: rounds 1-2, 3-8, 9-11, 12');
+ok(S.players.every(p => p.hand === undefined) && S.draft === undefined, 'no hand and no draft');
+ok(E.hireCost === undefined, 'no hire cost');
+{ const seen = new Set(); const T = mk(4, 3); let g = 0; while (!T.over && g++ < 30000) { seen.add(T.step); const a = B.decide(T); if (!a || !E.act(T, a).ok) break }
+  ok(T.over && [...seen].every(s => ['setup', 'crisis', 'place', 'rest'].includes(s)), 'steps are only setup, crisis, place, rest (saw ' + [...seen].join(',') + ')'); }
+S = toStep(mk(5), 'place', 1);
+{ const a = E.currentActor(S);
+  ok(!E.act(S, { type: 'hire', p: a, card: 'x', lvl: 'Jr' }).ok && !E.act(S, { type: 'discard', p: a, card: 'x' }).ok && !E.act(S, { type: 'pick', p: a, card: 'x' }).ok, 'hire, discard and pick actions are gone'); }
+ok(S.players.every(p => p.workers.length === S.cfg.startWorkers), 'every studio opens with ' + S.cfg.startWorkers + ' Juniors');
 
-// Variant D: Training
-{const mk=()=>E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:11,config:{varC:1,burnout:1,train:1,trainNeeded:2}});
- const S=mk();let g=0;while(g++<4000&&!(S.round>=4&&S.step==='rest'&&!S.dq.length)){const a=B.decide(S);if(!a)break;E.act(S,a)}
- const pi=E.currentActor(S),p=S.players[pi];p.workers.forEach(w=>{w.placed=false;w.build=null;w.lvl='Jr';w.trained=0;w.training=false});p.rs.trains=0;p.promos=0;p.gold=10;p.culture=0;
- const w=p.workers[0];let r=E.act(S,{type:'promote',p:pi,worker:w.id});ok(!r.ok,'cannot promote an untrained Junior');
- r=E.act(S,{type:'train',p:pi,worker:w.id});ok(r.ok&&p.gold===9&&p.culture===1&&w.trained===1&&w.training,'train: costs 1G, +1 Culture, counts one session');
- r=E.act(S,{type:'train',p:pi,worker:w.id});ok(!r.ok,'a worker already training cannot train again');
- r=E.act(S,{type:'promote',p:pi,worker:w.id});ok(!r.ok,'one training is not enough to promote');
- const w2=p.workers[1];w2.trained=1;r=E.act(S,{type:'train',p:pi,worker:w2.id});ok(r.ok&&w2.trained===2,'second training');
- r=E.act(S,{type:'train',p:pi,worker:p.workers[2].id});ok(!r.ok,'training limit per round');
- r=E.act(S,{type:'promote',p:pi,worker:w2.id});ok(r.ok&&w2.lvl==='Sr'&&w2.trained===0,'promote after two trainings');
- r=E.act(S,{type:'fire',p:pi,worker:p.workers[3].id});ok(!r.ok,'releasing workers is removed in Variant D');
- while(S.step==='rest'&&!S.over){const q=E.currentActor(S);E.act(S,{type:'done',p:q})}
- let g2=0;while(g2++<200&&S.step!=='place'&&!S.over){const a=B.decide(S);if(!a)break;E.act(S,a)}
- ok(w.benched==='Training'&&E.placementOptions(S,pi,w)[0].ok===false,'a trainee sits out the next round');
- const C=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:11,config:{varC:1}});ok(!E.act(C,{type:'train',p:0,worker:1}).ok,'Env C: no training');}
-{ // Hire + Train at the Hire step: pay both costs, trainee sits out this round and next
- const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:11,config:{varC:1,burnout:1,train:1}});let g=0;while(g++<4000&&!(S.round>=2&&S.step==='hire'&&!S.dq.length)){const a=B.decide(S);if(!a)break;E.act(S,a)}
- const pi=E.currentActor(S),p=S.players[pi];p.hand=[{id:'t1',disc:'ENG'},{id:'t2',disc:'DES'},{id:'t3',disc:'ART'},{id:'t4',disc:'ENG'}];p.rs.trains=0;p.culture=0;p.gold=E.hireCost(S,pi,'Jr')+S.cfg.trainCost-1;
- let r=E.act(S,{type:'hire',p:pi,card:p.hand[0].id,lvl:'Jr',train:true});ok(!r.ok,'hire+train refused without gold for both');
- p.gold=10;const n=p.workers.length,cost=E.hireCost(S,pi,'Jr');r=E.act(S,{type:'hire',p:pi,card:p.hand[0].id,lvl:'Jr',train:true});const w=p.workers[p.workers.length-1];
- ok(r.ok&&p.workers.length===n+1&&p.gold===10-cost-S.cfg.trainCost&&p.culture===S.cfg.trainCulture&&w.trained===1&&w.training,'hire+train: pays hire + training, +Culture, counts 1 session');
- ok(E.placementOptions(S,pi,w)[0].ok===false,'a hire+train worker cannot be placed this round');
- r=E.act(S,{type:'hire',p:pi,card:p.hand[0].id,lvl:'Jr',train:true});ok(r.ok,'second hire+train allowed up to the per-round limit');
- r=E.act(S,{type:'hire',p:pi,card:p.hand[0].id,lvl:'Jr',train:true});ok(!r.ok,'hire+train respects the training limit per round');}
-{ // Train is also available during Place (e.g. for a worker who is already sitting out)
- const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:11,config:{varC:1,burnout:1,train:1}});let g=0;while(g++<4000&&!(S.round>=3&&S.step==='place'&&!S.dq.length)){const a=B.decide(S);if(!a)break;E.act(S,a)}
- const pi=E.currentActor(S),p=S.players[pi];const w=p.workers.find(x=>x.lvl==='Jr'&&!x.placed&&!x.build);p.rs.trains=0;p.gold=5;
- if(w){w.benched='Training';w.trained=1;w.training=false;const r=E.act(S,{type:'train',p:pi,worker:w.id});ok(r.ok&&w.trained===2&&w.training&&p.gold===4,'Train during Place works for a worker already sitting out (2nd training)');ok(E.currentActor(S)===pi,'training does not use up the placement turn');}}
-{ // flowV2: Upkeep opens each round (not round 1), Income, then Bid; Rest and Milestones are one step
- const cfg={varC:1,burnout:1,train:1,flowV2:1};const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:9,config:cfg});const seen=[];let last='',g=0;
- while(g++<9000&&!S.over&&S.round<4){const k=S.round+':'+S.step;if(k!==last){seen.push(k);last=k}const a=B.decide(S);if(!a)break;const r=E.act(S,a);if(!r.ok)break}
- ok(seen.slice(0,8).join(' ')==='1:setup 1:bid 1:draft 1:hire 1:place 1:build 1:rest 2:bid','flowV2 round 1: bid, draft, hire, place, build, rest, then round 2 opens at the bid');
- ok(!seen.some(k=>/:milestones/.test(k)),'flowV2: no separate Milestones step');
- const L=S.log.map(l=>l.m),iU=L.findIndex(m=>/^UPKEEP/.test(m)),iI=L.findIndex(m=>/^INCOME/.test(m)),iI2=L.findIndex((m,i)=>i>iI&&/^INCOME/.test(m));
- ok(iU>iI&&iU<iI2,'flowV2: no Upkeep in round 1; the first Upkeep comes before round 2 Income');
- const bidAfterInc=L.findIndex((m,i)=>i>iI2&&/^BLIND BID/.test(m));ok(bidAfterInc>iI2,'flowV2: Income comes before the Bid');
- const T=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:9,config:cfg});let g2=0;while(g2++<9000&&!(T.round>=2&&T.step==='rest'&&!T.dq.length)){const a=B.decide(T);if(!a)break;E.act(T,a)}
- const pq=E.currentActor(T);ok(!E.act(T,{type:'claim',p:pq,mile:-1}).ok,'flowV2: claim is accepted by the Rest step handler (bad id refused)');
- const O=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:9,config:{varC:1}});let g3=0,seenO=[],lo='';while(g3++<9000&&!O.over&&O.round<3){const k=O.round+':'+O.step;if(k!==lo){seenO.push(k);lo=k}const a=B.decide(O);if(!a)break;E.act(O,a)}
- ok(seenO.some(k=>/:milestones/.test(k)),'older order keeps its Milestones step when flowV2 is off');}
-{ // training settings: defaults 1 and 1; duration 2 keeps a trainee out for two rounds
- const def=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:3,config:{varC:1,burnout:1,train:1}});ok(def.cfg.trainNeeded===1&&def.cfg.trainDuration===1,'training defaults: 1 training to promote, 1 round long');
- const mk=d=>{const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:11,config:{varC:1,burnout:1,train:1,trainDuration:d}});let g=0;while(g++<4000&&!(S.round>=4&&S.step==='rest'&&!S.dq.length)){const a=B.decide(S);if(!a)break;E.act(S,a)}return S};
- for(const d of [1,2]){const S=mk(d),pi=E.currentActor(S),p=S.players[pi];p.workers.forEach(w=>{w.placed=false;w.build=null;w.lvl='Jr';w.trained=0;w.training=false;w.trainLeft=0;w.benched=false});p.rs.trains=0;p.gold=10;
-  const w=p.workers[0];const r=E.act(S,{type:'train',p:pi,worker:w.id});ok(r.ok&&w.trainLeft===d,'Rest training sets '+d+' round(s) away');
-  const p1=E.act(S,{type:'promote',p:pi,worker:w.id});ok(p1.ok&&w.lvl==='Sr','one training promotes at the default (trainNeeded 1), duration '+d);
-  const T=mk(d),pj=E.currentActor(T),q=T.players[pj];q.workers.forEach(x=>{x.placed=false;x.build=null;x.trainLeft=0;x.benched=false});}
- {const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:11,config:{varC:1,burnout:1,train:1,trainDuration:2,flowV2:1}});let g=0;while(g++<4000&&!(S.round>=2&&S.step==='hire'&&!S.dq.length)){const a=B.decide(S);if(!a)break;E.act(S,a)}
-  const pi=E.currentActor(S),p=S.players[pi];p.hand=[{id:'x1',disc:'ENG'}];p.gold=10;p.rs.trains=0;E.act(S,{type:'hire',p:pi,card:'x1',lvl:'Jr',train:true});const nw=p.workers[p.workers.length-1];
-  ok(nw.trainNow&&nw.trainLeft===1,'Hire + Train with duration 2: out this round and one more');}
- {const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:11,config:{varC:1,burnout:1,train:1,trainDuration:1,flowV2:1}});let g=0;while(g++<4000&&!(S.round>=2&&S.step==='hire'&&!S.dq.length)){const a=B.decide(S);if(!a)break;E.act(S,a)}
-  const pi=E.currentActor(S),p=S.players[pi];p.hand=[{id:'x1',disc:'ENG'}];p.gold=10;p.rs.trains=0;E.act(S,{type:'hire',p:pi,card:'x1',lvl:'Jr',train:true});const nw=p.workers[p.workers.length-1];
-  ok(nw.trainNow&&nw.trainLeft===0,'Hire + Train with duration 1: out for this round only');}}
-{ // mini draft every round that does not start a phase
- const cfg={varC:1,burnout:1,train:1,flowV2:1,draftMiniDelta:-1};const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true},{name:'C',bot:true}],{seed:5,config:cfg});let g=0,sizes=[];
- while(g++<9000&&!S.over&&S.round<6){if(S.step==='bid'&&S.dq[0]&&S.dq[0].t==='bid'&&sizes.every(x=>x[0]!==S.round))sizes.push([S.round,S.draft.cards.length]);const a=B.decide(S);if(!a)break;E.act(S,a)}
- const mid=sizes.find(x=>x[0]===2);ok(mid&&mid[1]===2,'round 2 bid shows a face-up draft of players - 1 cards (3 players -> 2)');}
-{ // promote after resting (promoByRest): worked, then sat out a round, at most Tired
- const mk=f=>{const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:11,config:{varC:1,burnout:1,train:1,promoByRest:f}});let g=0;while(g++<4000&&!(S.round>=4&&S.step==='rest'&&!S.dq.length)){const a=B.decide(S);if(!a)break;E.act(S,a)}return S};
- for(const f of [0,1]){const S=mk(f),pi=E.currentActor(S),p=S.players[pi];p.workers.forEach(w=>{w.lvl='Jr';w.trained=0;w.placed=false;w.build=null;w.training=false;w.trainNow=false;w.worked=true;w.fat=1});p.promos=0;p.gold=10;
-  const w=p.workers[0];const r=E.act(S,{type:'promote',p:pi,worker:w.id});ok(r.ok===!!f,'promoByRest '+f+': a Tired Junior who worked and sat out '+(f?'can':'cannot')+' be promoted');
-  if(f){const w2=p.workers[1];w2.fat=2;const r2=E.act(S,{type:'promote',p:pi,worker:w2.id});ok(!r2.ok||p.promos>0,'rule still respects the promotion limit');p.promos=0;const w3=p.workers[2];w3.fat=2;ok(!E.act(S,{type:'promote',p:pi,worker:w3.id}).ok,'an Over-Tired Junior needs more rest first');}}}
-{ // Variant D: Insight is off the board at every player count
- for(const n of [2,3,4,5,6]){const seats=[];for(let i=0;i<n;i++)seats.push({name:'P'+i,bot:true});
-  const D=E.newGame(seats,{seed:3,config:{varC:1,smallDrop:['insight'],smallMax:6}}); let any=false; for(let ph=0;ph<4;ph++){D.phase=ph; if(E.activeSpots(D).some(x=>x.id==='insight'))any=true}
-  ok(!any,'Variant D: Insight removed at '+n+' players');
-  const C=E.newGame(seats,{seed:3,config:{varC:1}}); C.phase=1; ok(E.activeSpots(C).some(x=>x.id==='insight'),'Env C keeps Insight at '+n+' players');}
- const T=E.newGame([{name:'A',bot:true},{name:'B',bot:true},{name:'C',bot:true}],{seed:3,config:{varC:1,smallDrop:['insight'],smallMax:2}}); T.phase=1; ok(E.activeSpots(T).some(x=>x.id==='insight'),'smallMax limits the removal by player count'); }
-{ // gate difficulty
- const mk=(lv)=>{const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:21,config:{varC:1,gateLevels:lv}}); let g=0; while(!S.over&&!S.gateSet&&g++<4000){const r=require('./bot.js').step(S); if(!r.ok)break} return S;};
- const M=mk(null), H=mk(['H','H','H','H']), Z=mk(['E','M','H','E']);
- ok(M.gateSet&&M.gateSet.every(g=>!g.lvl||g.lvl==='M'),'no gateLevels: gates are Medium as printed');
- ok(H.gateSet.every(g=>g.lvl==='H'),'Hard on every phase');
- const sum=S=>S.gateSet.reduce((t,g)=>t+(g.fund||0)+(g.vp||0),0), pen=S=>S.gateSet.reduce((t,g)=>t+g.penalty,0);
- ok(pen(H)>pen(M),'Hard gates have bigger miss penalties'); ok(sum(H)>=sum(M),'Hard gates pay at least as much');
- ok(Z.gateSet.map(g=>g.lvl).join('')==='EMHE','levels follow the phase order given');
- const num=g=>g.reqs.map(r=>+((r.match(/^(\d+)\+/)||[])[1]||0)).reduce((a,b)=>a+b,0);
- ok(H.gateSet.reduce((t,g)=>t+num(g),0)>M.gateSet.reduce((t,g)=>t+num(g),0),'Hard gates have higher targets');
- const dm=H.gateSet.concat(M.gateSet).map(g=>g.reqs.join('|')); ok(dm.every(x=>!/Debt < (0|100)/.test(x)),'Debt limits stay in range'); }
-{ // Variant D: no discarding unhired cards
- const mk=cfg=>{const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:9,config:Object.assign({varC:1},cfg)}); return S;};
- const stepTo=S=>{let g=0;while(!S.over&&g++<4000){const p0=S.players[0]; if(S.step==='hire'&&p0.hand.length)return true; if(!require('./bot.js').step(S).ok)break}return false};
- const D0=mk({hireDiscard:0}); if(stepTo(D0)){const p=D0.players[E.currentActor(D0)]; const r=E.act(D0,{type:'discard',p:p.id,card:p.hand[0].id}); ok(!r.ok,'Variant D: discarding a card is refused');}
- const C0=mk({hireDiscard:1}); if(stepTo(C0)){const p=C0.players[E.currentActor(C0)]; ok(E.act(C0,{type:'discard',p:p.id,card:p.hand[0].id}).ok,'other variants can still discard');} }
-{ // v2 audit layer
- const base={varC:1,burnout:1,train:1,flowV2:1,v2:1,recruitDelta:-1,qaAllowedPreProd:1,hireDiscard:0,promoByRest:1,recruitOnly:0,recruitLadder:0,leanRound:0,cultureFold:0,recruitCost:3};
- const run=(n,cfg,seed)=>{const S=E.newGame(Array.from({length:n},(_,i)=>({name:'P'+i,bot:true})),{seed:seed||11,config:Object.assign({},base,cfg||{})});return S;};
- let S2=run(2); ok(S2.cfg.goldPerVP===4&&S2.cfg.catchUpOrder===1,'v2: layer applies (goldPerVP 4, catch-up order)');
- ok(S2.players.every(p=>p.miles.length===2),'v2: milestone hand is 2 at 2P'); ok(run(4).players.every(p=>p.miles.length===3),'v2: milestone hand stays 3 at 4P');
- { // closures, extra spots
-   const T=run(2,{closeByN:{2:6}},5); let g=0; while(!(T.step==='place'&&T.round>=2)&&g++<8000){if(!B.step(T).ok)break}
-   const closed=Object.keys(T.closed||{}); ok(closed.length===6,'v2: Industry News (when switched on) closes 6 spots ('+closed.length+')');
-   const p=T.players[E.currentActor(T)]; const bad=p.workers.map(w=>E.placementOptions(T,p.id,w)).flat().filter(o=>o.target&&o.target.startsWith('spot:')&&T.closed[o.target.slice(5)]&&o.ok); ok(bad.length===0,'v2: closed spots cannot be used');
-   const n2=E.activeSpots(run(2)).length, n4=E.activeSpots(run(4)).length; ok(n2<n4&&!E.activeSpots(run(2)).some(s=>s.id==='code2'),'v2: 2P plays on a smaller board ('+n2+' vs '+n4+' spots in Concept)');
-   ok(run(6).data.spots.filter(s=>/_b$/.test(s.id)).length===6&&run(5).data.spots.filter(s=>/_b$/.test(s.id)).length===4&&run(4).data.spots.filter(s=>/_b$/.test(s.id)).length===0,'v2: 4 extra spots at 5P, 6 at 6P'); }
- { // catch-up order: lowest score first; no bid step
-   const T=run(3,null,7); let g=0; while(!(T.step==='draft'&&T.round>=4)&&!T.over&&g++<12000){if(!B.step(T).ok)break}
-   if(!T.over){const sc=E.score(T).map(x=>x.total);ok(sc[T.order[0]]<=sc[T.order[T.order.length-1]],'v2: catch-up order puts the lowest score first'); ok(!T.dq.some(d=>d.t==='bid'),'v2: no bid step');} }
- { // Train only in Clean up
-   const T=run(2,null,9); let g=0; while(!(T.step==='hire')&&g++<4000){if(!B.step(T).ok)break}
-   const p=T.players[E.currentActor(T)]; p.hand.push({id:'XT',disc:'ENG'}); p.gold=20; ok(!E.act(T,{type:'hire',p:p.id,card:'XT',lvl:'Jr',train:true}).ok,'v2: Hire + Train is refused');
-   let w=p.workers.find(x=>x.lvl==='Jr'&&!x.placed); if(!w){w={id:777,disc:'ENG',lvl:'Jr',fat:0,placed:false,as:null,worked:false};p.workers.push(w)} ok(!E.act(T,{type:'train',p:p.id,worker:w.id}).ok,'v2: Train is refused outside Clean up'); }
- ok(run(2).promoGold===undefined&&E.promoGold(run(2))===2&&E.promoGold(run(4))===0,'v2: promotion costs 2G at 2-3P only');
- { // Talent unavailable with an empty pool
-   const T=run(2,null,13); let g=0; while(!(T.step==='place'&&T.round>=2)&&g++<8000){if(!B.step(T).ok)break}
-   T.recruit.forEach(o=>{o.by=0}); const p=T.players[E.currentActor(T)], w=p.workers.find(x=>!x.placed&&x.fat<2); const o=E.placementOptions(T,p.id,w).find(x=>x.target==='spot:talent1'); ok(!o||!o.ok,'v2: Talent is unavailable when the recruitment pool is empty'); }
+// ---- recruit, price ladder ----
+S = toStep(mk(3, 3), 'place', 3);
+{ const a = E.currentActor(S), p = S.players[a], o = S.players[(a + 1) % 3];
+  p.gold = 20; o.gold = 20; const cost = E.recruitCost(S, a), n0 = p.workers.length;
+  let r = E.act(S, { type: 'recruit', p: a, idx: 0 });
+  ok(r.ok && p.workers.length === n0 + 1 && p.gold === 20 - cost, 'recruit costs ' + cost + 'G and adds a worker');
+  const nw = p.workers[p.workers.length - 1]; ok(nw.lvl === 'Jr' && !nw.placed, 'recruit is a Jr, can be placed this round');
+  ok(S.recruit[0].by === a, 'offer marked taken');
+  ok(!E.canRecruit(S, a, 1).ok, 'second hire in the same round refused');
+  const b = E.currentActor(S); ok(b !== a, 'recruiting uses the turn');
+  ok(!E.canRecruit(S, b, 0).ok, 'taken offer unavailable to others');
+  ok(E.canRecruit(S, b, 1).ok && E.recruitCost(S, b) === cost + 1, 'price ladder: next recruit costs 1G more'); }
+
+// ---- Senior-only systems, strike teams, spots ----
+S = toStep(mk(5), 'place', 4);
+{ const pi = E.currentActor(S), q = S.players[pi];
+  q.systems = [{ name: 'Unit Tests', cat: 'Stability', t: false }]; q.workers.push(W(999, 'QA', 'Jr'), W(1000, 'QA', 'Sr'));
+  let o = E.placementOptions(S, pi, q.workers.find(w => w.id === 999)).find(x => x.target === 'sys:0');
+  ok(o && !o.ok && /Senior/.test(o.reason), 'Jr cannot trigger a system');
+  o = E.placementOptions(S, pi, q.workers.find(w => w.id === 1000)).find(x => x.target === 'sys:0'); ok(o && o.ok, 'Sr can trigger a system'); }
+{ // strike team: needs the right rested categories
+  const T = toStep(mk(6, 4), 'place', 3); const pi = E.currentActor(T), q = T.players[pi];
+  const spot = E.activeSpots(T).find(s => s.crew && s.crew.length === 1 && s.crew[0].length === 2 && s.crew[0].every(c => c !== 'Any') && !T.occ[s.id] && (s.phases || []).includes(T.phase));
+  ok(!!spot, 'a two-category strike team spot is on the board');
+  if (spot) {
+    const [c1, c2] = spot.crew[0], disc = c => D.categories[c].discs.find(d => d !== 'QA');
+    q.workers = [W(901, disc(c1)), W(902, disc(c2))]; q.ws = 9; q.wsUsed = 0;
+    let o = E.placementOptions(T, pi, q.workers[0]).find(x => x.target === 'spot:' + spot.id);
+    ok(o && o.ok && o.plans && o.plans[0].ids.join() === '902', 'strike team forms from a rested worker of the other category');
+    q.workers[1].placed = true; o = E.placementOptions(T, pi, q.workers[0]).find(x => x.target === 'spot:' + spot.id);
+    ok(o && !o.ok && /strike team/i.test(o.reason), 'strike team refused when the partner already worked');
+    q.workers[1].placed = false; const r = E.act(T, { type: 'place', p: pi, worker: 901, target: 'spot:' + spot.id });
+    ok(r.ok && q.workers[0].placed && q.workers[0].fat === 1 && q.workers[1].fat === 1 && T.occ[spot.id].includes(pi), 'strike team placement tires both workers and occupies the spot'); } }
+{ // single spots are exclusive
+  const T = toStep(mk(7, 2), 'place', 3); const pi = E.currentActor(T), q = T.players[pi], oth = T.players.find(p => p.id !== pi);
+  const spot = E.activeSpots(T).find(s => (s.mode || 'single') === 'single' && !s.crew && !s.special && s.discs.includes('ENG') && (s.phases || []).includes(T.phase));
+  if (spot) { T.occ[spot.id] = [oth.id]; q.workers.push(W(950, 'ENG')); const o = E.placementOptions(T, pi, q.workers.find(w => w.id === 950)).find(x => x.target === 'spot:' + spot.id);
+    ok(o && !o.ok && /Occupied/.test(o.reason), 'an occupied single spot is refused'); } else ok(false, 'found a single ENG spot'); }
+
+// ---- build: delay, crunch, completion, limits (build lives in the Rest step) ----
+const VC = () => D.systems.find(s => s.name === 'Version Control');
+const mkBuild = (seed, round) => { const T = toStep(mk(seed), 'rest', round || 4); const pi = E.currentActor(T), q = T.players[pi]; q.rd = false; q.systems = []; q.building = []; q.builds = 0; q.freeBuilds = 0; rich(q);
+  q.workers = [W(901, 'ENG'), W(902, 'QA')]; T.sysAvail['Version Control'] = true; T.market.Stability = ['Version Control']; return { T, pi, q } };
+{ const { T, pi, q } = mkBuild(6); const rd0 = T.round;
+  let r = E.act(T, { type: 'build', p: pi, name: 'Version Control' });
+  ok(r.ok && q.building.length === 1 && q.building[0].rdy === rd0 + 2 && q.systems.length === 0, 'normal build is ready in 2 rounds');
+  ok(q.workers.find(w => w.id === 901).build === 'Version Control', 'build commits its crew worker');
+  ok(!E.canBuild(T, pi, 'Version Control').ok, 'a built tile leaves the market'); }
+{ const { T, pi, q } = mkBuild(6); const g1 = q.gold, base = E.buildCost(T, q, VC(), false).gold;
+  const r = E.act(T, { type: 'build', p: pi, name: 'Version Control', crunch: 'gold' });
+  ok(r.ok && q.building[0].rdy === T.round + 1 && q.gold === g1 - base - T.cfg.crunchGold, 'crunch with Gold: ready next round, costs ' + T.cfg.crunchGold + 'G extra');
+  const rr = T.round; until(T, s => s.round > rr);
+  ok(q.systems.some(s => s.name === 'Version Control') && q.building.length === 0, 'the rushed system joins the studio at the next round'); }
+{ const { T, pi, q } = mkBuild(6);
+  const r = E.act(T, { type: 'build', p: pi, name: 'Version Control', crunch: 'fat' }); ok(r.ok && q.building[0].rdy === T.round + 1 && q.workers.some(w => w.fat > 0), 'crunch with fatigue: ready next round, a worker is more tired'); }
+{ const { T, pi, q } = mkBuild(6); q.rd = true; ok(E.buildDelay(T, q, undefined, VC()) === 1, 'R&D makes the build a free rush'); }
+{ const { T, pi, q } = mkBuild(6); q.workers = [W(901, 'ART')]; ok(!E.canBuild(T, pi, 'Version Control').ok, 'build needs the right crew'); }
+{ const { T, pi, q } = mkBuild(6); q.builds = T.cfg.buildsPerRound; ok(!E.canBuild(T, pi, 'Version Control').ok, 'build limit per round'); }
+{ const { T, pi, q } = mkBuild(6); q.gold = 0; RES.forEach(k => q[k] = 0); ok(!E.canBuild(T, pi, 'Version Control').ok, 'build needs skills and Gold'); }
+{ const { T, pi, q } = mkBuild(7, 11); ok(T.round === 11, 'reached round 11');
+  ok(!E.canBuild(T, pi, 'Version Control', false, undefined).ok, 'normal build blocked in round 11'); ok(E.canBuild(T, pi, 'Version Control', false, 'gold').ok, 'crunched build allowed in round 11'); }
+
+// ---- convert (Launch) ----
+S = toStep(mk(8), 'place', 12);
+{ const pi = E.currentActor(S), q = S.players[pi]; q.ideas = 7; q.workers.push(W(902, 'ART')); q.ws = 9; const pr0 = q.prod;
+  const r = E.act(S, { type: 'place', p: pi, worker: 902, target: 'spot:convert', conv: 'prod' });
+  ok(r.ok && q.ideas === 1 && q.prod === pr0 + 2, 'convert 6 Ideas into 2 Progress (3:1)'); }
+
+// ---- rest: promote, train ----
+const mkRest = seed => { const T = mk(seed); toStep(T, 'rest', 4); const pi = E.currentActor(T), p = T.players[pi];
+  p.workers.forEach(w => { w.placed = false; w.build = null; w.lvl = 'Jr'; w.trained = 0; w.training = false; w.trainNow = false; w.trainLeft = 0; w.benched = false; w.worked = false; w.fat = 0 });
+  p.rs.trains = 0; p.promos = 0; p.gold = 10; p.culture = 0; return { T, pi, p } };
+{ const { T, pi, p } = mkRest(10); const [w1, w2] = p.workers;
+  w1.worked = true; w1.fat = 1;
+  let r = E.act(T, { type: 'promote', p: pi, worker: w2.id }); ok(!r.ok, 'cannot promote a worker who has not worked');
+  const g = p.gold, pg = E.promoGold(T); r = E.act(T, { type: 'promote', p: pi, worker: w1.id }); ok(r.ok && w1.lvl === 'Sr' && p.gold === g - pg, 'promote a rested worker who has worked (' + pg + 'G at this player count)');
+  w2.worked = true; w2.fat = 1; r = E.act(T, { type: 'promote', p: pi, worker: w2.id }); ok(!r.ok, 'promotion limit per Rest'); }
+{ const { T, pi, p } = mkRest(10); const w = p.workers[0]; w.worked = true; w.fat = 2;
+  ok(!E.act(T, { type: 'promote', p: pi, worker: w.id }).ok, 'an Over-Tired worker needs more rest before promotion'); }
+{ const { T, pi, p } = mkRest(11); const w = p.workers[0], g0 = p.gold, b0 = p.burnout;
+  let r = E.act(T, { type: 'train', p: pi, worker: w.id });
+  ok(r.ok && p.gold === g0 - T.cfg.trainCost && p.burnout === Math.max(0, b0 - T.cfg.trainCulture) && w.training && w.trained === 1 && w.trainLeft >= 1, 'train: costs ' + T.cfg.trainCost + 'G, eases Burnout, trainee sits out next round');
+  ok(!E.act(T, { type: 'train', p: pi, worker: w.id }).ok, 'a worker already training cannot train again');
+  ok(E.act(T, { type: 'promote', p: pi, worker: w.id }).ok && w.lvl === 'Sr', 'one training is enough to promote (trainNeeded ' + T.cfg.trainNeeded + ')');
+  ok(!E.act(T, { type: 'fire', p: pi, worker: p.workers[1].id }).ok, 'releasing workers is not possible');
+  p.workers[1].placed = true; ok(!E.act(T, { type: 'train', p: pi, worker: p.workers[1].id }).ok, 'a worker who worked this round cannot train');
+  p.workers[1].placed = false; p.gold = 0; ok(!E.act(T, { type: 'train', p: pi, worker: p.workers[1].id }).ok, 'training needs Gold');
+  p.gold = 10; p.rs.trains = T.cfg.trainsPerRest; ok(!E.act(T, { type: 'train', p: pi, worker: p.workers[1].id }).ok, 'training limit per round');
+  p.rs.trains = 0; const tw = p.workers[2]; E.act(T, { type: 'train', p: pi, worker: tw.id });
+  const rr = T.round; until(T, s => s.round > rr && s.step === 'place');
+  ok(tw.benched === 'Training' && E.placementOptions(T, T.players.indexOf(p), tw)[0].ok === false, 'a trainee sits out the next round'); }
+{ const { T, pi } = mkRest(12); ok(!E.act(T, { type: 'recruit', p: pi, idx: 0 }).ok, 'recruiting is a Place action, not a Rest action'); }
+
+// ---- burnout ----
+{ let allOk = true, seen = 0;
+  for (const n of [2, 4, 6]) for (let sd = 1; sd <= 6; sd++) { const T = mk(sd, n); B.run(T, 40000); if (!T.over) allOk = false; T.players.forEach(p => { if (p.burnout < 0 || p.burnout > T.cfg.burnMax) allOk = false; seen += p.burnout }); if (!T.scores.every(x => typeof x.parts.burnout === 'number')) allOk = false }
+  ok(allOk && seen > 0, 'bot games finish, Burnout stays on the track and is scored');
+  const T = mk(5), p = T.players[0]; p.burnout = 0; p.culture = 2;
+  ok(E.burnBand(T, p) === 'Energized', 'band: Energized at Burnout 0'); p.burnout = 2; ok(E.burnBand(T, p) === 'Steady', 'band: Steady');
+  p.burnout = T.cfg.burnStrainAt; ok(E.burnBand(T, p) === 'Strained', 'band: Strained'); p.burnout = T.cfg.burnBenchAt; ok(E.burnBand(T, p) === 'Burned out', 'band: Burned out'); p.burnout = T.cfg.burnQuitAt; ok(E.burnBand(T, p) === 'Meltdown', 'band: Meltdown');
+  E.statChange(T, 0, 'burnout', 99); ok(p.burnout === T.cfg.burnMax, 'Burnout is capped at the top of the track'); E.statChange(T, 0, 'burnout', -99); ok(p.burnout === 0, 'Burnout cannot go below 0');
+  const b = p.burnout; E.statChange(T, 0, 'culture', -1); ok(p.burnout === b + 1, 'a Culture loss adds Burnout'); E.statChange(T, 0, 'culture', 2); ok(p.burnout === Math.max(0, b + 1 - 2), 'a Culture gain eases Burnout');
+  p.burnout = 0; ok(E.cultureOf(T, p) === T.cfg.cultureFoldBase, 'Culture reads as base minus Burnout'); p.burnout = 4; ok(E.cultureOf(T, p) === T.cfg.cultureFoldBase - 4, 'Burnout 4 reads as lower Culture'); }
+{ // Burned out benches the most tired worker at Income
+  const T = toStep(mk(13), 'rest', 3); const p = T.players[0]; p.burnout = T.cfg.burnBenchAt; p.workers.forEach(w => { w.fat = 0; w.build = null }); p.workers[1].fat = 1;
+  const rr = T.round; until(T, s => s.round > rr && s.step === 'place');
+  ok(T.players[0].workers.some(w => w.benched === 'Burned out') || T.players[0].burnout < T.cfg.burnBenchAt, 'Burned out benches a worker (or a calm round eased it first)'); }
+{ const T = toStep(mk(13), 'rest', 3); const p = T.players[0]; p.burnout = T.cfg.burnQuitAt; p.workers.forEach(w => { w.build = null }); const n = p.workers.length;
+  const rr = T.round; until(T, s => s.round > rr && s.step === 'place'); ok(T.players[0].workers.length <= n, 'Meltdown never adds workers'); }
+
+// ---- milestones ----
+{ const T = toStep(mk(14), 'rest', 4); const pi = E.currentActor(T), p = T.players[pi];
+  ok(p.miles.length > 0, 'players hold a milestone hand');
+  ok(!E.act(T, { type: 'claim', p: pi, mile: -1 }).ok, 'claim with a bad id is refused');
+  const idx2 = T.data.milestones.findIndex(m => m.name === 'First Promotion'); ok(idx2 >= 0, 'test milestone exists');
+  if (!p.miles.includes(idx2)) p.miles.push(idx2); p.cs.promotions = 0;
+  ok(!E.act(T, { type: 'claim', p: pi, mile: idx2 }).ok, 'milestone refused when the requirement is not met');
+  p.cs.promotions = 1; const m = T.data.milestones[idx2], g0 = p.gold, nc = p.claimed.length, inWin = !m.phases || !m.phases.length || m.phases.includes(T.phase);
+  const r = E.act(T, { type: 'claim', p: pi, mile: idx2 });
+  ok(inWin ? (r.ok && p.gold === g0 + m.gold && p.claimed.length === nc + 1 && !p.miles.includes(idx2)) : !r.ok, 'milestone pays its Gold once the requirement is met inside its phase window'); }
+{ const T = mk(14); T.phase = 0; const m = T.data.milestones.find(m => m.phases && m.phases.length && !m.phases.includes(0));
+  ok(E.mileWindow(T, m) !== 'open', 'a milestone outside its phase window is not open'); }
+
+// ---- gates ----
+{ const T = mk(21); let g = 0;
+  while (!T.over && !T.gateSet && g++ < 4000) if (!B.step(T).ok) break;
+  ok(T.gateSet && T.gateSet.length === 4 && T.gateSet.every((x, i) => x.phase === i), 'one publisher gate per phase is drawn after round 1'); }
+{ const mkG = lv => { const T = E.newGame([{ name: 'A', bot: true }, { name: 'B', bot: true }], { seed: 21, config: { gateLevels: lv } }); let g = 0; while (!T.over && !T.gateSet && g++ < 4000) if (!B.step(T).ok) break; return T };
+  const M = mkG(null), H = mkG(['H', 'H', 'H', 'H']), Z = mkG(['E', 'M', 'H', 'E']);
+  ok(M.gateSet.every(g => !g.lvl || g.lvl === 'M'), 'no gateLevels: gates are Medium as printed');
+  ok(H.gateSet.every(g => g.lvl === 'H'), 'Hard on every phase');
+  const pen = S => S.gateSet.reduce((t, g) => t + g.penalty, 0), sum = S => S.gateSet.reduce((t, g) => t + (g.fund || 0) + (g.vp || 0), 0);
+  ok(pen(H) > pen(M), 'Hard gates have bigger miss penalties'); ok(sum(H) >= sum(M), 'Hard gates pay at least as much');
+  ok(Z.gateSet.map(g => g.lvl).join('') === 'EMHE', 'levels follow the phase order given');
+  const num = g => g.reqs.map(r => +((r.match(/^(\d+)\+/) || [])[1] || 0)).reduce((a, b) => a + b, 0);
+  ok(H.gateSet.reduce((t, g) => t + num(g), 0) > M.gateSet.reduce((t, g) => t + num(g), 0), 'Hard gates have higher targets');
+  ok(H.gateSet.concat(M.gateSet).every(g => g.reqs.every(x => !/Debt < (0|100)/.test(x))), 'Debt limits stay in range'); }
+{ // a gate pays funding to a studio that meets it and costs VP when missed
+  const T = mk(22); let g = 0; while (!T.over && !T.gateSet && g++ < 4000) if (!B.step(T).ok) break;
+  const gate = T.gateSet[T.phase]; ok(!!gate && T.round === 2, 'reached the first gate (round 2)');
+  const need = parseInt(gate.reqs[0], 10), p0 = T.players[0], p1 = T.players[1]; p0.prod = need + 5; p1.prod = 0; p0.debt = 0; p1.debt = 0;
+  const gold0 = p0.gold, vp1 = p1.vpAdj, n = (T.gates || []).length; let h = 0; while (!T.over && (T.gates || []).length === n && h++ < 4000) if (!B.step(T).ok) break;
+  const res = T.gates[n]; ok(res && res.passed.includes(0) && res.failed.includes(1), 'gate: the studio at target passes, the one below fails');
+  ok(p1.vpAdj <= vp1 - Math.min(gate.penalty, 1) + 0 || p1.vpAdj < vp1 || gate.penalty === 0, 'a missed gate costs VP'); }
+
+// ---- crisis cards, incl. auctions ----
+function crisisGame(card, seed, n) {
+  const T = mk(seed, n || 3), deck = T.data.crisis.find(c => c.id === card).deck; T.decks.crisis[deck].push(card); // top of the deck
+  const round = [3, 9, 12][deck]; let g = 0;
+  while (!T.over && g++ < 30000 && !(T.step === 'crisis' && T.crisisCard === card)) { const a = B.decide(T); if (!a || !E.act(T, a).ok) break }
+  return T;
 }
-{ // lean loop: recruit-only, price ladder, lean round, culture fold
- const base={varC:1,burnout:1,train:1,flowV2:1,v2:1,recruitDelta:-1,qaAllowedPreProd:1,hireDiscard:0,promoByRest:1};
- const run=(n,cfg,seed)=>E.newGame(Array.from({length:n},(_,i)=>({name:'P'+i,bot:true})),{seed:seed||21,config:Object.assign({},base,cfg||{})});
- { const T=run(3); ok(T.cfg.recruitOnly===1&&T.cfg.leanRound===1&&T.cfg.cultureFold===1,'lean: flags on in the v2 layer');
-   let g=0,saw={draft:0,hire:0,build:0},manage=0; while(!T.over&&g++<20000){ if(saw[T.step]!==undefined)saw[T.step]++; if(!B.step(T).ok)break } ok(T.over&&!saw.draft&&!saw.hire&&!saw.build,'lean: no Draft, Hire or Build step ever occurs ('+JSON.stringify(saw)+')'); }
- { const T=run(4,null,22); let g=0; while(!(T.step==='place'&&T.round>=2)&&g++<8000){if(!B.step(T).ok)break}
-   const ids=[0,1,2].map(i=>E.recruitCost(T,T.order[0])); T.players.forEach(p=>p.gold=20); E.act(T,{type:'recruit',p:E.currentActor(T),idx:0});
-   const c2=E.recruitCost(T,T.order[1]); ok(c2===ids[0]+1,'lean: second recruit in the round costs 1G more ('+ids[0]+' -> '+c2+')'); }
- { const T=run(2,null,23); const p=T.players[0]; const b=p.burnout; E.statChange(T,0,'culture',-1); ok(p.burnout===b+1&&p.culture===0,'fold: Culture loss adds Burnout'); E.statChange(T,0,'culture',2); ok(p.burnout===Math.max(0,b+1-2),'fold: Culture gain eases Burnout');
-   p.burnout=0; ok(E.cultureOf(T,p)===5,'fold: virtual Culture reads base minus Burnout'); p.burnout=4; ok(E.cultureOf(T,p)===1,'fold: Burnout 4 reads as Culture 1'); }
- { const T=run(2,null,24); let g=0; while(T.step!=='rest'&&!T.over&&g++<8000){if(!B.step(T).ok)break}
-   ok(T.step==='rest','lean: Place goes straight to the Manage step'); const p=T.players[E.currentActor(T)]; const r=E.act(T,{type:'build',p:p.id,name:'__none__'}); ok(!r.ok&&/Unknown/.test(r.error||''),'lean: build actions are routed in the Manage step'); }
-}
-console.log('fails',fails);
+for (const [card, seed] of [['earlyaccess', 31], ['breakthrough', 32], ['viral', 33]]) {
+  const T = crisisGame(card, seed, 3);
+  if (T.crisisCard !== card) { ok(false, card + ' reached'); continue }
+  ok(T.dq.filter(d => d.t === 'bid').length === 3 && T.dq.some(d => d.t === 'auto' && d.fn === 'auction'), card + ': every studio bids, then the auction resolves');
+  T.players.forEach(p => { p.gold = 20; p.hype = 0 }); T.players.forEach(p => p.freeBuilds = 0);
+  const bids = [3, 7, 1]; let i = 0; while (T.dq.length && T.dq[0].t === 'bid') { const pi = T.dq[0].p; if (i === 0) { ok(!E.act(T, { type: 'bid', p: pi, amount: 9999 }).ok, card + ': a bid above your Gold is refused'); ok(!E.act(T, { type: 'bid', p: pi, amount: -1 }).ok, card + ': a negative bid is refused'); } const r = E.act(T, { type: 'bid', p: pi, amount: bids[pi] }); if (!r.ok) break; i++ }
+  ok(i === 3 && !T.dq.some(d => d.t === 'auto'), card + ': bids accepted and the auction resolved');
+  const w = T.players[1];
+  if (card === 'breakthrough') ok(w.freeBuilds === 1 && w.gold === 13 && T.players[0].freeBuilds === 0 && T.players[0].gold === 20, 'Tech Breakthrough: the high bidder pays his bid and gets a free build');
+  if (card === 'viral') ok(w.hype > 0 && w.gold === 13 && T.players[0].gold === 20, 'Viral Moment: the high bidder pays his bid and gains Hype');
+  if (card === 'earlyaccess') ok(w.hype > 0 && w.gold > 13 - 1 && T.players[0].gold > 20, 'Early Access: the winner pays and gets Gold and Hype, the runner-up gets Gold'); }
+for (const card of ['platform', 'creep', 'buyout', 'bug', 'patch', 'raid', 'departure', 'burnout', 'conference', 'award', 'investor', 'talentwar']) {
+  const T = crisisGame(card, 40 + card.length, 3); if (T.crisisCard !== card) { ok(false, card + ' reached'); continue }
+  const done = until(T, s => s.step === 'place' || s.over); ok(done.step === 'place' || done.over, 'crisis ' + card + ' resolves and play continues'); }
+
+// ---- scoring by rank ----
+{ const T = mk(50, 3); T.players.forEach(p => { p.prod = 0; p.hype = 0; p.mktg = 0; p.debt = 0; p.gold = 0; p.vpAdj = 0; p.burnout = 0; p.objectives = []; p.systems = [] });
+  T.players[0].prod = 30; T.players[1].prod = 20; T.players[2].prod = 10; const s = E.score(T), tab = E.rankTable(T.cfg, 3);
+  ok(s[0].parts.prodShare > s[1].parts.prodShare && s[1].parts.prodShare > s[2].parts.prodShare, 'Progress is scored by rank');
+  ok(s[0].parts.prodShare - Math.floor(30 / T.cfg.raceLinDiv) === tab[0] && s[1].parts.prodShare - Math.floor(20 / T.cfg.raceLinDiv) === tab[1], 'rank table pays first and second place');
+  T.players[1].prod = 30; const s2 = E.score(T); ok(s2[0].parts.prodShare === s2[1].parts.prodShare, 'a tie splits (and rounds down) the rank VP');
+  T.players[2].debt = 6; T.players[2].prod = 10; const s3 = E.score(T); ok(s3[2].parts.debtPenalty <= s3[0].parts.debtPenalty, 'the studio with most Debt takes the biggest Debt penalty');
+  T.players[0].hype = 9; ok(E.score(T)[0].parts.hypeStrength > E.score(T)[1].parts.hypeStrength, 'Hype is scored by rank');
+  T.players[0].gold = 20; ok(E.score(T)[0].parts.gold === Math.floor(20 / T.cfg.goldPerVP), 'leftover Gold converts to VP');
+  T.players[0].burnout = 5; ok(E.score(T)[0].parts.burnout === (T.cfg.burnVP['5'] || 0), 'Burnout VP follows the printed track'); }
+
+// ---- 2-6 players ----
+for (const n of [2, 3, 4, 5, 6]) { const T = mk(60 + n, n); const R = mk(60 + n, n); const spots = E.activeSpots(T).length; B.run(T, 40000);
+  ok(T.over && T.scores.length === n && T.winner != null && T.players.every(p => p.workers.length >= 1), n + ' players: a bot game finishes with scores and a winner');
+  ok(spots > 0, n + ' players: board has spots (' + spots + ')');
+  ok(R.recruit.length === E.recruitSize(R), n + ' players: recruitment pool size ' + R.recruit.length); }
+{ const cnt = n => { const T = mk(3, n); T.phase = 1; return E.activeSpots(T).length }; ok(cnt(2) < cnt(4) && cnt(4) <= cnt(6), 'smaller tables play on a smaller board (' + [2, 4, 6].map(cnt).join('/') + ' spots)'); }
+console.log('fails', fails);
