@@ -46,7 +46,7 @@ function gateFactors(S, p) { // gate pressure, then the press-buzz (Hype leader)
 }
 function gateFactors0(S, p) {
   GF = { prod: 1, hype: 1 };
-  if (!S.cfg.varC || !S.gateSet) return;
+  if (!S.gateSet) return;
   const g = S.gateSet.find(x => x.phase === S.phase); if (!g) return;
   const end = (S.cfg.phaseEnds || [])[S.phase] || S.round, rl = Math.max(1, end - S.round + 1);
   g.reqs.forEach(r => { const m = /^(\d+)\+ (Progress|Hype)/.exec(r); if (!m) return; const k = m[2] === "Progress" ? "prod" : "hype", def = +m[1] - (k === "prod" ? p.prod : p.hype);
@@ -66,24 +66,12 @@ B.decide = function (S) {
   gateFactors(S, p);
   if (d) return decision(S, p, d);
   switch (S.step) {
-    case "draft": return draft(S, p);
-    case "hire": return hire(S, p);
     case "place": return place(S, p);
-    case "build": return build(S, p);
-    case "rest": if (S.cfg.leanRound) { const b = build(S, p); if (b.type === "build") return b; } if (S.cfg.flowV2) { const m = mile(S, p); if (m.type === "claim") return m; } return rest(S, p);
-    case "milestones": return mile(S, p);
+    case "rest": { const b = build(S, p); if (b.type === "build") return b; const m = mile(S, p); if (m.type === "claim") return m; return rest(S, p); }
   }
   return null;
 };
 
-// bid for turn order by what going first is worth: more free workers and richer rivals mean more contested spots
-function humanBid(S, p, room) {
-  if (PF.bidMode === "random") return Math.min(room, E.rint(S, 4));
-  const rivals = S.players.filter(q => q.id !== p.id), rich = rivals.filter(q => q.gold >= 6).length / Math.max(1, rivals.length);
-  const tempo = Math.min(5, p.workers.filter(w => !w.building).length), draftBonus = S.draft && S.draft.cards.length ? 1.3 : 1;
-  const base = (PF.bidScale == null ? 0.25 : PF.bidScale) * (0.4 + 0.4 * tempo) * (0.5 + rich) * draftBonus * W.bid * (p.gold >= 14 ? 1.2 : p.gold <= 8 ? 0.6 : 1);
-  return Math.min(room, Math.max(0, Math.round(base * (1 + (E.rnd(S) - 0.5) * 2 * PF.bidNoise))));
-}
 function decision(S, p, d) {
   const rint = n => E.rint(S, n);
   switch (d.t) {
@@ -94,10 +82,9 @@ function decision(S, p, d) {
       });
       return { type: "keepObj", p: p.id, picks };
     }
-    case "bid": {
+    case "bid": { // crisis auctions
       const room = Math.max(0, p.gold - 4);
-      if (d.purpose === "turn" && PF && PF.bidMode) { const amt = humanBid(S, p, room); return { type: "bid", p: p.id, amount: Math.max(0, Math.min(p.gold, amt)) }; }
-      const amt = d.purpose === "turn" ? Math.min(room, Math.round(rint(4) * W.bid * (S.draft && S.draft.cards.length ? 1 : 0.5))) : Math.min(p.gold, Math.min(room, 1 + rint(4)));
+      const amt = Math.min(p.gold, Math.min(room, 1 + rint(4)));
       return { type: "bid", p: p.id, amount: Math.max(0, Math.min(p.gold, amt)) };
     }
     case "choose": {
@@ -135,35 +122,6 @@ function decision(S, p, d) {
   return null;
 }
 
-function draft(S, p) {
-  const have = {}; p.workers.forEach(w => have[w.disc] = (have[w.disc] || 0) + 1); p.hand.forEach(c => have[c.disc] = (have[c.disc] || 0) + 1);
-  let best = 0, bs = -1e9;
-  S.draft.cards.forEach((c, i) => {
-    let sc = -(have[c.disc] || 0) * 2 + E.rnd(S);
-    if (c.disc === "PM" || c.disc === "PROD") sc -= 1.5;
-    if (S.phase === 0 && c.disc === "QA") sc -= 4;
-    if (["ENG","DES","ART","ADV","PX"].includes(c.disc)) sc += 1;
-    if (sc > bs) { bs = sc; best = i; }
-  });
-  return { type: "pick", p: p.id, idx: best };
-}
-
-function hire(S, p) {
-  const reserve = S.phase === 3 ? 0 : 2;
-  const maxW = (S.phase === 0 ? 4 : S.phase === 1 ? 8 : 9) + W.workers;
-  if (S.phase < 3 && p.workers.length < maxW) {
-    const cards = p.hand.slice().sort(() => E.rnd(S) - 0.5);
-    for (const c of cards) {
-      if (S.phase === 0 && c.disc === "QA") continue;
-      const lvl = (!S.cfg.srPromoteOnly && E.srAllowed(S) && p.gold >= E.hireCost(S, p.id, "Sr") + 6 && p.workers.filter(w => w.lvl === "Sr").length < 3) ? "Sr" : "Jr";
-      if (p.gold - E.hireCost(S, p.id, lvl) >= reserve) return { type: "hire", p: p.id, card: c.id, lvl };
-    }
-  }
-  if (S.cfg.hireDiscard && p.hand.length && (S.phase === 3 || p.workers.length >= maxW || p.gold < 3)) return { type: "discard", p: p.id, card: p.hand[0].id };
-  if (S.cfg.hireDiscard && S.phase === 3 && p.hand.length) return { type: "discard", p: p.id, card: p.hand[0].id };
-  return { type: "done", p: p.id };
-}
-
 function bestPlan(S, p, plans) {
   const worth = pl => pl.ids.reduce((t, id) => { const x = p.workers.find(y => y.id === id); return t + (x.lvl === "Sr" ? 2 : 0) + x.fat; }, 0);
   return plans.slice().sort((a, b) => worth(a) - worth(b))[0];
@@ -176,15 +134,15 @@ function fxScore(S, p, w, o) {
   }
   const spot = o.spot; const fx = E.parseEffect(spot.fx); let v;
   if (fx.choice) v = Math.max(val(fx.choice[0]), val(fx.choice[1])); else v = val(fx);
-  const rmul = S.cfg.spotResOr ? (spot.r || 0) : 1, resVal = S.cfg.varC ? W.resVal : 1;
+  const rmul = spot.r || 0, resVal = W.resVal;
   const mom = (w.fat >= 2 ? S.cfg.resOver : (w.lvl === "Sr" ? S.cfg.resSr : S.cfg.resJr)) * rmul; v += mom * W.res * resVal + (w.lvl === "Sr" ? W.srVal : 0);
-  v -= (spot.debt || 0) * W.spotDebt; if (w.fat >= 1) v -= 0.8; if (w.fat >= 2) v -= 2.5 + (S.cfg.burnout ? 1.2 + (p.burnout || 0) * 0.9 : 0);
+  v -= (spot.debt || 0) * W.spotDebt; if (w.fat >= 1) v -= 0.8; if (w.fat >= 2) v -= 2.5 + (1.2 + (p.burnout || 0) * 0.9);
   if (fx.stats && fx.stats.debt < 0) { v += p.debt > 3 ? 2 + Math.min(-fx.stats.debt * 1.5, p.debt) : -4; }
-  if (spot.special === "talent") v = S.cfg.varC ? 2.2 : 1.2; if (spot.special === "team") v = p.culture < 0 ? 4 : 0.5; if (spot.special === "outsource") v = (w.lvl === "Sr" ? 5 : 3) * 0.9 - (p.gold < 4 ? -2 : 0);
+  if (spot.special === "talent") v = 2.2; if (spot.special === "team") v = p.culture < 0 ? 4 : 0.5; if (spot.special === "outsource") v = (w.lvl === "Sr" ? 5 : 3) * 0.9 - (p.gold < 4 ? -2 : 0);
   if (spot.special === "rd") v = E.resTotal(p) >= 3 ? 2.4 + W.crewCost : 0.1 + W.crewCost; if (spot.special === "workshop") v = E.resTotal(p) >= 8 ? v + 1 : 0.2; if (spot.special === "mentor") v = 4; if (spot.id === "insight") v = 1.8;
   if (spot.special === "convert") v = convGain(S, p, o) * 1.15 * W.convHold;
-  if (S.cfg.varC && spot.special === "rd") v = (p.rdBuild || E.resTotal(p) >= 6) ? 2.6 + W.crewCost : 0.2 + W.crewCost;
-  if (o.plans) { const pl = bestPlan(S, p, o.plans); v += pl.ids.reduce((t, id) => t + (S.cfg.varC ? (S.cfg.spotResOr && !spot.r ? 0 : Math.min(p.workers.find(x => x.id === id).lvl === "Sr" ? S.cfg.resSr : S.cfg.resJr, S.cfg.crewPartnerCap == null ? 9 : S.cfg.crewPartnerCap)) * resVal : (p.workers.find(x => x.id === id).lvl === "Sr" ? S.cfg.resSr : S.cfg.resJr)) * W.res, 0) - pl.ids.length * W.crewCost; }
+  if (spot.special === "rd") v = (p.rdBuild || E.resTotal(p) >= 6) ? 2.6 + W.crewCost : 0.2 + W.crewCost;
+  if (o.plans) { const pl = bestPlan(S, p, o.plans); v += pl.ids.reduce((t, id) => t + (!spot.r ? 0 : Math.min(p.workers.find(x => x.id === id).lvl === "Sr" ? S.cfg.resSr : S.cfg.resJr, S.cfg.crewPartnerCap == null ? 9 : S.cfg.crewPartnerCap)) * resVal * W.res, 0) - pl.ids.length * W.crewCost; }
   if (spot.id === "crunch") v -= 1; return v + E.rnd(S) * 0.5;
 }
 // how much the best rival would value a spot that is still free: taking it away is worth part of that
@@ -195,7 +153,7 @@ function rivalWant(S, p, target) {
 }
 function convGain(S, p, o) { const rk = E.RES_OF[E.CAT_OF(o.as[0])], rate = S.cfg.convertRate || 3; return Math.floor((p[rk] || 0) / rate); }
 function recruitPick(S, p, bs) {
-  if (!S.cfg.varC || !S.recruit) return null;
+  if (!S.recruit) return null;
   const maxW = (S.phase === 0 ? 5 : S.phase === 1 ? 8 : 9) + W.workers + W.recMax, reserve = (S.phase >= 2 ? 3 : 2) + W.recReserve - 2;
   if (p.workers.length >= maxW) return null;
   const have = {}; p.workers.forEach(w => have[w.disc] = (have[w.disc] || 0) + 1);
@@ -234,14 +192,14 @@ function place(S, p) {
 
 function buildScore(S, p, d) {
   const b = E.parseBuild(d.build); const fx = E.parseEffect(d.fx || d.each || ""); let v = val(fx) + d.vp * 1.2 + d.syn * 0.8 - d.debt * 1.8 * W.debt - b.cost * (b.cur === "G" ? 0.35 : 0.25) - E.buildGold(S, d, p) * 0.3;
-  if (d.pas) v += 3.5; if (d.inc) v += d.inc * Math.max(0, 12 - S.round - (S.cfg.varC ? E.buildDelay(S, p, null, d) : 0)) * 0.8; if (d.cat === "Stability") v += p.debt > 3 ? 2 : -1; if (d.cat === "Revenue") v += 0.5; v += W.buildBias + (W.cat[d.cat] || 0);
+  if (d.pas) v += 3.5; if (d.inc) v += d.inc * Math.max(0, 12 - S.round - E.buildDelay(S, p, null, d)) * 0.8; if (d.cat === "Stability") v += p.debt > 3 ? 2 : -1; if (d.cat === "Revenue") v += 0.5; v += W.buildBias + (W.cat[d.cat] || 0);
   // synergy with held objectives
-  p.objectives.forEach(id => { const o = S.data.objectives[id]; if (S.cfg.varC ? (o.res && E.sysMainRes(d) === o.res) : d.sym.some(s => o.sym.includes(s))) v += 1.5; });
+  p.objectives.forEach(id => { const o = S.data.objectives[id]; if (o.res && E.sysMainRes(d) === o.res) v += 1.5; });
   return v + E.rnd(S);
 }
 // Variant C: normal builds finish two rounds later; rush when the clock is short (or the Gold is plentiful)
 function bcrunch(S, p, d, free) {
-  if (!S.cfg.varC || (p.rd && S.cfg.rdCrunch)) return undefined;
+  if (p.rd && S.cfg.rdCrunch) return undefined;
   const need = S.round + (S.cfg.buildDelay || 2) > 12, late = S.round >= W.crunchRound, rich = p.gold >= W.crunchGold;
   if (!(need || late || rich)) return undefined;
   const cg = S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold, bg = free ? 0 : E.buildGold(S, d, p);
@@ -257,7 +215,7 @@ function build(S, p) {
     const b = E.parseBuild(d.build);
     if (b.cur === "G" && p.gold - b.cost < 3) return;
     const bgd = free ? 0 : E.buildGold(S, d, p); if (bgd && p.gold - bgd < 2) return;
-    let s = buildScore(S, p, d) * (S.cfg.varC ? W.buildScale : 1); if (PF && PF.commit && (p.systems.length + (p.building || []).length) > 0) s += PF.commit * Math.min(3, p.systems.length + (p.building || []).length); if (s > bs) { bs = s; best = d; }
+    let s = buildScore(S, p, d) * W.buildScale; if (PF && PF.commit && (p.systems.length + (p.building || []).length) > 0) s += PF.commit * Math.min(3, p.systems.length + (p.building || []).length); if (s > bs) { bs = s; best = d; }
   });
   if (best && PF && PF.buildSkip && E.rnd(S) < PF.buildSkip) best = null;
   if (best) return { type: "build", p: p.id, name: best.name, free, crunch: bcrunch(S, p, best, free) };
