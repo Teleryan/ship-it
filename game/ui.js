@@ -707,7 +707,7 @@ function marketModal() {
   const cards = list.map(d => {
     const ck = E.canBuild(S, a.id, d.name, free, cr); const ckPaid = free ? E.canBuild(S, a.id, d.name, false, cr) : ck;
     const hint = a.objectives.some(id => S.cfg.varC ? S.data.objectives[id].res === E.sysMainRes(d) : d.sym.some(s => S.data.objectives[id].sym.includes(s)));
-    return { ok: ck.ok || ckPaid.ok, html: sysTile(d, ck.ok || ckPaid.ok, `<div class="row" style="margin-top:6px;gap:4px"><button class="btn sm primary" data-act="build" data-name="${esc(d.name)}" data-free="0" ${ckPaid.ok ? "" : "disabled"} title="${esc(ckPaid.ok ? "" : ckPaid.reason)}">Build</button>${S.cfg.marketSize ? `<button class="btn sm" data-act="refresh-sys" data-name="${esc(d.name)}" ${canRefresh ? "" : "disabled"} title="Replace this tile with a new one for ${S.cfg.marketRefreshGold}G (once per round)">Replace ${S.cfg.marketRefreshGold}G</button>` : ""}${free ? `<button class="btn sm good" data-act="build" data-name="${esc(d.name)}" data-free="1" ${ck.ok ? "" : "disabled"} title="${esc(ck.ok ? "" : ck.reason)}">Free</button>` : ""}</div>${!ckPaid.ok ? `<div class="dim" style="font-size:10px">${esc(ckPaid.reason)}</div>` : ""}`) };
+    return { ok: ck.ok || ckPaid.ok, html: sysTile(d, ck.ok || ckPaid.ok, `<div class="row" style="margin-top:6px;gap:4px"><button class="btn sm primary" data-act="build" data-name="${esc(d.name)}" data-free="0" ${ckPaid.ok ? "" : "disabled"} title="${esc(ckPaid.ok ? "" : ckPaid.reason)}">Build</button>${S.cfg.marketSize ? `<button class="btn sm" data-act="refresh-sys" data-name="${esc(d.name)}" ${canRefresh ? "" : "disabled"} title="Replace this tile with a new one for ${S.cfg.marketRefreshGold}G (once per round)">Replace ${S.cfg.marketRefreshGold}G</button>` : ""}${free ? `<button class="btn sm good" data-act="build" data-name="${esc(d.name)}" data-free="1" ${ck.ok ? "" : "disabled"} title="${esc(ck.ok ? "" : ck.reason)}">Free</button>` : ""}</div>${!ckPaid.ok && !(U.tut && free) ? `<div class="dim" style="font-size:10px">${esc(ckPaid.reason)}</div>` : ""}`) }; // the tutorial's free build makes the "You have 1 of 3 Ideas" note confusing, so it is hidden there
   });
   const can = cards.filter(c => c.ok), cant = cards.filter(c => !c.ok);
   h += `<div class="scroll-y"><div class="mute" style="margin:0 0 6px;font-weight:700">You can build now (${can.length})</div>${can.length ? `<div class="row wrap" style="align-items:stretch">${can.map(c => c.html).join("")}</div>` : '<p class="mute">Nothing available right now. See below for what each system needs.</p>'}
@@ -1016,7 +1016,7 @@ $root.addEventListener("click", e => {
     case "market": U.modal = "market"; render(); return;
     case "refresh-sys": act({ type: "refresh", p: E.currentActor(U.S), name: t.dataset.name }); return;
     case "mcat": U.marketCat = v; render(); return;
-    case "build": { const r = act({ type: "build", p: pi, name: t.dataset.name, free: t.dataset.free === "1", crunch: S.cfg.varC && U.crunch ? U.crunch : undefined }); if (r.ok) { U.modal = "market"; render(); } return; }
+    case "build": { const r = act({ type: "build", p: pi, name: t.dataset.name, free: t.dataset.free === "1", crunch: S.cfg.varC && U.crunch ? U.crunch : undefined }); if (r.ok) { U.modal = U.tut ? null : "market"; render(); } return; }
     case "promote": act({ type: "promote", p: pi, worker: +t.dataset.w }); return;
     case "train": act({ type: "train", p: pi, worker: +t.dataset.w }); return;
     case "fire": act({ type: "fire", p: pi, worker: +t.dataset.w }); return;

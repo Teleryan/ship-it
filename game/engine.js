@@ -892,7 +892,7 @@ E.canBuild = function (S, pi, name, free, crunch) {
   if (S.cfg.varC && b.reqs.length && !crewFor(p, b.reqs)) { return ownsDiscs(p, b.reqs) ? { ok: false, reason: "Workers busy building: need free " + b.reqs.map(r => (D0.disciplines[r] || {}).name || r).join(" and ") } : { ok: false, reason: "Needs workers: " + b.reqs.map(r => (D0.disciplines[r] || {}).name || r).join(" and ") }; }
   if (!S.cfg.varC && !ownsDiscs(p, b.reqs)) return { ok: false, reason: "Needs workers: " + b.reqs.map(r => (D0.disciplines[r] || {}).name || r).join(" and ") };
   const bc = E.buildCost(S, p, def, free);
-  if (b.cur === "M" && !free && !bc.coverable) return { ok: false, reason: "Needs " + E.resText(bc.short) + " more" + (S.cfg.resSubMax ? " (up to " + S.cfg.resSubMax + " missing can be paid in Gold)" : "") };
+  if (b.cur === "M" && !free && !bc.coverable) return { ok: false, reason: "You have " + RES.filter(k => bc.short[k] > 0).map(k => (bc.need[k] - bc.short[k]) + " of " + bc.need[k] + " " + RES_NAME[k]).join(", ") };
   if (b.cur === "G" && p.gold < b.cost) return { ok: false, reason: "Needs " + b.cost + "G" };
   const bg = free ? 0 : bc.gold;
   if (bg && p.gold < bg) return { ok: false, reason: "Needs " + bg + " Gold" };
