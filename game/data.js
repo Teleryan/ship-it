@@ -473,15 +473,16 @@ D.configV2 = {
   handSize:3, handSizeByN:{2:2,3:2},
   mileGoldAdj:{"First Promotion":-1,"Balanced Studio":-1,"Exactly Five":-1,"Lean Operation":-1,"Hiring Spree":-1,"Talent Scout":-1,"Foundation":-1,"Savings Account":-1,"Big Spender":-1,"Efficient Engine":-1},
   burnVP:{"0":0,"1":0,"2":-1,"3":-2,"4":-3,"5":-5,"6":-7}, reachMajorVP:0,
-  gateLossCap:3, gateContract:1, gateProgMult:0.85, gateHypeMultByN:{2:0.75,3:0.6,4:0.5,5:0.45,6:0.4},
+  gateLossCap:2, gateContract:1, gateProgMult:0.72, gateHypeMultByN:{2:0.65,3:0.52,4:0.43,5:0.38,6:0.34},
   gateReqSub:{"4+ total systems built":"2+ total systems built","1+ Stability systems":"1+ total systems built","1+ Innovation systems":"1+ total systems built"},
   cultAbsVP:{"-3":-5,"-2":-4,"-1":-2,"0":0,"1":1,"2":2,"3":3,"4":3,"5":4}, cultLossByN:{2:0,3:0,4:0,5:0,6:0},
   outsourceJrByN:{2:2,3:2}, outsourceSrByN:{2:4,3:4},
   closeByN:{2:2,3:1}, dropByN:{
     2:["0:code2","0:pitch2","0:proto1","0:protosprint","1:buzz1","1:create2","1:labcrew","1:build2","1:campaign","2:labcrew","2:playtest1","2:artpass","2:pmarket1","2:opt3","2:launchprep"],
     3:["0:pitch2","0:proto1","1:buzz1","1:create2","1:labcrew","2:labcrew","2:playtest1","2:opt3"]}, bigAdd:{5:["market3","artpush","vslice","trailer"],6:["pitch1","market3","artpush","vslice","trailer","keynote"]}, launchCap:1,
-  overCrew:1, spotFxAdj:{team:"+1 Culture"}, teamEventCulture:1, burnTeamRelief:2, promoGoldByN:{2:2,3:2}, trainEarly:0, buyoutVP:8, awardMinN:3, objVPMult:0.45,
-  raceLinDiv:14, racePotByN:{2:45,3:41,4:39,5:39,6:40},
+  overCrew:1, spotFxAdj:{team:"+1 Culture"}, teamEventCulture:1, burnTeamRelief:2, promoGoldByN:{2:2,3:2}, trainEarly:0, buyoutVP:8, awardMinN:3, objVPMult:0.35,
+  raceLinDiv:14, racePotByN:{2:47,3:43,4:41,5:40,6:41},
+  startGold:10, burnOverStep:1, salarySr:3,
   recruitOnly:1, startWorkers:4, "recruitDelta":0, recruitPerRound:1, recruitCost:2, recruitLadder:1, leanRound:1, cultureFold:1
 };
 
