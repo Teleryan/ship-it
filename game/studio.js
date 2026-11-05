@@ -12,7 +12,7 @@ const esc = SI.esc;
 
 const CFG_GROUPS = [
   ["Economy", ["startGold","income","jrCost","srCost","srCostPolish","hireDiscard","discardGold","promoCost0","promoCost1","promoCost2","promoCost3","promotionsPerRest","headhuntMult","headhuntComp","headhuntsPerRest"]],
-  ["Draft (cards dealt per player)", ["draftPre2","draftPre","draftProd2","draftProd","draftPol2","draftPol","draftLaunch"]],
+  ["Draft (cards dealt per player; not used in the lean loop)", ["draftPre2","draftPre","draftProd2","draftProd","draftPol2","draftPol","draftLaunch"]],
   ["Workers & fatigue", ["resJr","resSr","resOver","resCap","crewPartnerCap","sysCostMult","objVPMult","resSubGold","resSubMax","srBonus","srAllowedPreProd","qaAllowedPreProd","lossThreshBase"]],
   ["Systems & cards", ["buildsPerRound","rdDiscount","gatesRandom","slotsPerCategory","handSize","objDraw","objKeep","teamEventCulture","launchMult","crisisEnabled"]],
   ["Tracks", ["culMin","culMax","cultureDecay","hypeDecay","hypeCap","prodCap","debtMode"]],
