@@ -142,9 +142,10 @@ const SA=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:3});ok(!SA.cf
  let S2=run(2); ok(S2.cfg.goldPerVP===4&&S2.cfg.catchUpOrder===1,'v2: layer applies (goldPerVP 4, catch-up order)');
  ok(S2.players.every(p=>p.miles.length===2),'v2: milestone hand is 2 at 2P'); ok(run(4).players.every(p=>p.miles.length===3),'v2: milestone hand stays 3 at 4P');
  { // closures, extra spots
-   const T=run(2,null,5); let g=0; while(!(T.step==='place'&&T.round>=2)&&g++<8000){if(!B.step(T).ok)break}
-   const closed=Object.keys(T.closed||{}); ok(closed.length===6,'v2: 2P closes 6 spots each round ('+closed.length+')');
+   const T=run(2,{closeByN:{2:6}},5); let g=0; while(!(T.step==='place'&&T.round>=2)&&g++<8000){if(!B.step(T).ok)break}
+   const closed=Object.keys(T.closed||{}); ok(closed.length===6,'v2: Industry News (when switched on) closes 6 spots ('+closed.length+')');
    const p=T.players[E.currentActor(T)]; const bad=p.workers.map(w=>E.placementOptions(T,p.id,w)).flat().filter(o=>o.target&&o.target.startsWith('spot:')&&T.closed[o.target.slice(5)]&&o.ok); ok(bad.length===0,'v2: closed spots cannot be used');
+   const n2=E.activeSpots(run(2)).length, n4=E.activeSpots(run(4)).length; ok(n2<n4&&!E.activeSpots(run(2)).some(s=>s.id==='code2'),'v2: 2P plays on a smaller board ('+n2+' vs '+n4+' spots in Concept)');
    ok(run(6).data.spots.filter(s=>/_b$/.test(s.id)).length===6&&run(5).data.spots.filter(s=>/_b$/.test(s.id)).length===4&&run(4).data.spots.filter(s=>/_b$/.test(s.id)).length===0,'v2: 4 extra spots at 5P, 6 at 6P'); }
  { // catch-up order: lowest score first; no bid step
    const T=run(3,null,7); let g=0; while(!(T.step==='draft'&&T.round>=4)&&!T.over&&g++<12000){if(!B.step(T).ok)break}

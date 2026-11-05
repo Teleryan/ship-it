@@ -605,7 +605,7 @@ function removeWorker(S, pi, wid, toPool) {
 /* ============================================================
    PLACEMENT
    ============================================================ */
-function activeSpots(S) { const dr = S.cfg.smallDrop, small = dr && dr.length && S.players.length <= (S.cfg.smallMax || 3); return S.data.spots.filter(s => s.phases.includes(S.phase) && !(small && dr.includes(s.id))); }
+function activeSpots(S) { const dr = S.cfg.smallDrop, small = dr && dr.length && S.players.length <= (S.cfg.smallMax || 3); const bd = (S.cfg.dropByN && S.cfg.dropByN[S.players.length]) || []; return S.data.spots.filter(s => s.phases.includes(S.phase) && !(small && dr.includes(s.id)) && !bd.includes(S.phase + ":" + s.id)); }
 E.activeSpots = activeSpots; E.RES = RES; E.RES_OF = RES_OF; E.RES_NAME = RES_NAME; E.CAT_OF = CAT_OF;
 function catsOf(w) { const d = D0.disciplines[w.disc]; const out = [d.cat]; (d.wild || []).forEach(x => { const c = CAT_OF(x); if (!out.includes(c)) out.push(c); }); return out; }
 /* Strike Team spots: every way to fill the other slots from rested, unplaced workers. A plan = { ids (sorted), wcat (the category the placing worker fills), cats {id: category} }. */

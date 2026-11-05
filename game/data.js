@@ -367,7 +367,7 @@ D.config = {
     cleanThresh:["Clean launch below Debt %",""],stdThresh:["Standard up to Debt %",""],roughThresh:["Rough up to Debt %",""],
     cleanBonus:["Clean launch VP bonus",""],blockedPenalty:["Blocked launch VP penalty",""],roughHypeMult:["Rough launch Hype multiplier",""],
     goldPerVP:["Gold per 1 VP",""],
-    closeByN:["V2: Industry News closures by players","JSON: players -> number of single-slot spots closed each round"],bigAdd:["V2: extra spots by players","JSON: players -> list of spot ids that get a second copy"],launchCap:["V2: Launch capacity","1 = Party, Press and Platform become single-slot, with ceil(players/2) copies"],catchUpOrder:["V2: catch-up turn order","1 = no bid: the studio with the fewest VP acts first"],raceLinDiv:["V2: linear race VP divisor","Progress and Hype also score 1 VP per this many points on top of the rank VP. 0 = off"],handSizeByN:["V2: milestone hand by player count","JSON: players -> hand size (overrides the hand size)"],mileGoldAdj:["V2: milestone Gold adjustments","JSON: milestone name -> Gold change"],cultAbsVP:["V2: Culture VP table","JSON: Culture value -> VP (replaces the rank loss)"],gateHypeMultByN:["V2: gate Hype multiplier by player count","JSON: players -> multiplier"],gateReqSub:["V2: gate requirement swaps","JSON: requirement text -> replacement text"],outsourceJrByN:["V2: Outsource Junior Gold by players","JSON"],outsourceSrByN:["V2: Outsource Senior Gold by players","JSON"],v2:["V2: audit tuning layer","1 = apply the audit-driven tuning (Variant D)"],
+    dropByN:["V2: smaller board by player count","JSON: players -> list of \"phase:spotId\" removed from the board for that whole game (phase 0 = Concept ... 3 = Launch)"],closeByN:["V2: Industry News closures by players","JSON: players -> number of single-slot spots closed each round"],bigAdd:["V2: extra spots by players","JSON: players -> list of spot ids that get a second copy"],launchCap:["V2: Launch capacity","1 = Party, Press and Platform become single-slot, with ceil(players/2) copies"],catchUpOrder:["V2: catch-up turn order","1 = no bid: the studio with the fewest VP acts first"],raceLinDiv:["V2: linear race VP divisor","Progress and Hype also score 1 VP per this many points on top of the rank VP. 0 = off"],handSizeByN:["V2: milestone hand by player count","JSON: players -> hand size (overrides the hand size)"],mileGoldAdj:["V2: milestone Gold adjustments","JSON: milestone name -> Gold change"],cultAbsVP:["V2: Culture VP table","JSON: Culture value -> VP (replaces the rank loss)"],gateHypeMultByN:["V2: gate Hype multiplier by player count","JSON: players -> multiplier"],gateReqSub:["V2: gate requirement swaps","JSON: requirement text -> replacement text"],outsourceJrByN:["V2: Outsource Junior Gold by players","JSON"],outsourceSrByN:["V2: Outsource Senior Gold by players","JSON"],v2:["V2: audit tuning layer","1 = apply the audit-driven tuning (Variant D)"],
     deliveredBonus:["Delivery: delivered VP",""],
     synergyOn:["Synergy scoring on","1/0"]
   },
@@ -475,9 +475,11 @@ D.configV2 = {
   gateReqSub:{"4+ total systems built":"2+ total systems built","1+ Stability systems":"1+ total systems built","1+ Innovation systems":"1+ total systems built"},
   cultAbsVP:{"-3":-5,"-2":-4,"-1":-2,"0":0,"1":1,"2":2,"3":3,"4":3,"5":4}, cultLossByN:{2:0,3:0,4:0,5:0,6:0},
   outsourceJrByN:{2:2,3:2}, outsourceSrByN:{2:4,3:4},
-  closeByN:{2:6,3:3}, bigAdd:{5:["market3","artpush","vslice","trailer"],6:["pitch1","market3","artpush","vslice","trailer","keynote"]}, launchCap:1,
+  closeByN:{2:2,3:1}, dropByN:{
+    2:["0:code2","0:pitch2","0:proto1","0:protosprint","1:buzz1","1:create2","1:labcrew","1:build2","1:campaign","2:labcrew","2:playtest1","2:artpass","2:pmarket1","2:opt3","2:launchprep"],
+    3:["0:pitch2","0:proto1","1:buzz1","1:create2","1:labcrew","2:labcrew","2:playtest1","2:opt3"]}, bigAdd:{5:["market3","artpush","vslice","trailer"],6:["pitch1","market3","artpush","vslice","trailer","keynote"]}, launchCap:1,
   overCrew:1, spotFxAdj:{team:"+1 Culture"}, teamEventCulture:1, burnTeamRelief:2, promoGoldByN:{2:2,3:2}, trainEarly:0, buyoutVP:8, awardMinN:3, objVPMult:0.45,
-  raceLinDiv:14, racePotByN:{2:44,3:41,4:39,5:39,6:40}
+  raceLinDiv:14, racePotByN:{2:45,3:41,4:39,5:39,6:40}
 };
 
 D.tutorial = [
