@@ -188,7 +188,7 @@ function menuView() {
   const n = U.seats.length; const ver = /^\/a(\/|$)/.test(root.location.pathname) ? "a" : /^\/b(\/|$)/.test(root.location.pathname) ? "b" : /^\/c(\/|$)/.test(root.location.pathname) ? "c" : "d";
   return `<div class="center-screen"><div class="card-box">
   <div class="logo">SHIP <b>IT!</b>${D.config && D.config.envLabel ? ` <span style="font-size:.4em;color:var(--gold);letter-spacing:.08em">${D.config.envLabel}</span>` : ""}</div><p class="mute" style="margin:6px 0 16px">12 rounds · 4 phases · ${D.version}</p>
-  <div class="row"><label class="mute">Bot skill</label><select data-botskill>${(root.ShipItBot ? root.ShipItBot.profileNames : [["", "Standard"]]).map(o => `<option value="${o[0]}" ${(U.botSkill || "") === o[0] ? "selected" : ""}>${o[1]}</option>`).join("")}</select> <label class="mute" style="margin-left:10px">Players</label><select data-seatn>${[2,3,4,5,6].map(k => `<option ${k === n ? "selected" : ""}>${k}</option>`).join("")}</select></div>
+  <div class="row"><label class="mute">Bot skill</label><select data-botskill>${(root.ShipItBot ? root.ShipItBot.profileNames : [["", "Standard"]]).map(o => `<option value="${o[0]}" ${(U.botSkill || "") === o[0] ? "selected" : ""}>${o[1]}</option>`).join("")}</select> <label class="mute" style="margin-left:10px">Players</label><select data-seatn>${[2,3,4,5].map(k => `<option ${k === n ? "selected" : ""}>${k}</option>`).join("")}</select></div>
   ${gatePanel()}
   <div style="margin:10px 0">${U.seats.map((s, i) => `<div class="seat"><span class="dot" style="background:${["#e74c3c","#3498db","#27ae60","#f39c12","#9b59b6","#16a085"][i]}"></span><input data-seatname="${i}" value="${esc(s.name)}"><select data-seatbot="${i}"><option value="0" ${!s.bot ? "selected" : ""}>Human</option><option value="1" ${s.bot ? "selected" : ""}>Bot</option></select></div>`).join("")}</div>
   <div class="row wrap"><button class="btn primary" data-act="tutorial">Learn to play</button><button class="btn" data-act="start">Start new game</button>${hasSave() ? '<button class="btn" data-act="resume">Resume saved game</button>' : ""}${U.owner ? '<button class="btn" data-act="studio">Data Studio</button><button class="btn" data-act="master">Master</button>' : ""}</div>
@@ -890,7 +890,7 @@ function lobbyView() {
   <p class="mute" style="margin:6px 0 4px">Game code${n.up ? "" : " · reconnecting…"}</p>
   <div style="font-size:44px;font-weight:900;letter-spacing:.2em;margin:0 0 4px">${esc(M.code)}</div>
   <p class="dim" style="margin:0 0 14px;font-size:13px">Friends open this same page, choose <b>Play online</b> and enter the code. ${host ? "You are the host." : "Waiting for the host to start."}</p>
-  ${host ? `<div class="row"><label class="mute">Players</label><select data-lcount>${[2, 3, 4, 5, 6].map(k => `<option ${k === seats.length ? "selected" : ""}>${k}</option>`).join("")}</select></div>` : ""}
+  ${host ? `<div class="row"><label class="mute">Players</label><select data-lcount>${[2, 3, 4, 5].map(k => `<option ${k === seats.length ? "selected" : ""}>${k}</option>`).join("")}</select></div>` : ""}
   ${host ? gatePanel() : ""}
   <div style="margin:10px 0">${rows}</div>
   ${U.lobbyErr ? `<p style="color:var(--bad)">${esc(U.lobbyErr)}</p>` : ""}

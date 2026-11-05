@@ -211,7 +211,7 @@ export class Room {
     const host = cid === M.host;
     if (m.t === "ping") return ws.send('{"t":"pong"}');
     if (m.t === "cfg") { // host edits the seat layout in the lobby
-      if (!host || M.status !== "lobby" || !Array.isArray(m.seats) || m.seats.length < 2 || m.seats.length > 6) return err("Not allowed");
+      if (!host || M.status !== "lobby" || !Array.isArray(m.seats) || m.seats.length < 2 || m.seats.length > 5) return err("Not allowed");
       M.seats = m.seats.map((s, i) => { const old = M.seats[i] || {}; const kind = ["human", "bot", "open"].includes(s.kind) ? s.kind : "open";
         return { name: String(s.name || "").slice(0, 20), kind, cid: kind === "human" ? (old.cid || null) : null, persona: String(s.persona || "").slice(0, 12) }; });
       if (!M.seats.some((s) => s.cid === cid)) { const f = M.seats.find((s) => s.kind === "human" && !s.cid) ; if (f) f.cid = cid; }

@@ -186,6 +186,9 @@ table.dt input.n{width:62px}
 .explain td.mono{font-family:var(--mono)}
 
 #root.tut-hard .app,#root.tut-hard .overlay,#root.tut-soft .app{pointer-events:none}
+/* keep the two scroll columns wheel/touch-scrollable while the coach locks clicks (the click handler in ui.js blocks the rest) */
+#root.tut-hard .left,#root.tut-hard .right,#root.tut-soft .left,#root.tut-soft .right{pointer-events:auto}
+#root.tut-hard .left *,#root.tut-hard .right *,#root.tut-soft .left *,#root.tut-soft .right *{pointer-events:none}
 #root.tut-hard .app,#root.tut-soft .app{filter:saturate(.8)}
 
 /* ---------- category cards and detail popup ---------- */
@@ -293,7 +296,7 @@ table.dt input.n{width:62px}
 .lane .bar i.x{opacity:.45;border-radius:0 5px 5px 0}
 .lane .bar u{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--gold);text-decoration:none}
 .lane b{width:28px;text-align:right}
-.stats.big{grid-template-columns:repeat(3,1fr)}
+.stats.big{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr)}
 .stats .st.rs{display:flex;align-items:center;gap:5px;justify-content:center}
 .stats.big .st.rs{justify-content:flex-start;padding:2px 6px;background:#12202d;border-radius:6px}
 .stats .st.rs .ic{width:17px;height:17px}
@@ -451,7 +454,9 @@ table.dt input.n{width:62px}
 .stats .st.rs .sv{display:flex;flex-direction:column;line-height:1.1;min-width:0}
 .stats .st.rs .sv small{font-size:11px;font-weight:600;letter-spacing:.02em;text-transform:none;color:var(--mute);white-space:nowrap}
 .stats.big{gap:6px}
-.stats.big .st.rs{padding:4px 7px;gap:6px}
+.stats.big .st.rs{padding:4px 6px;gap:5px;min-width:0;overflow:hidden}
+.stats.big .st.rs .sv small{overflow:hidden;text-overflow:ellipsis}
+.stats.big .st.rs b .dim{font-size:11px;font-weight:600}
 .stats.big .st.rs b{font-size:14px;white-space:nowrap}
 .stats.res .st.rs{justify-content:flex-start;padding-left:4px}
 .stats.res .st.rs b{font-size:15px}
