@@ -14,7 +14,7 @@ N.cid = cid;
 N.whoami = async function () {
   try { const r = await fetch("/__whoami", { cache: "no-store" }); if (!r.ok) return null; return await r.json(); } catch (e) { return null; }
 };
-N.site = () => (location.pathname === "/b" || location.pathname.indexOf("/b/") === 0) ? "b" : (location.pathname === "/a" || location.pathname.indexOf("/a/") === 0) ? "a" : (location.pathname === "/c" || location.pathname.indexOf("/c/") === 0) ? "c" : "d";
+N.site = () => "d"; // the one shipped game; kept as a key so tuning already published to KV (cfg:*:d) still applies
 N.open = function (opts, on) { // opts: {code, create, name}
   N.close(); N.on = on; N.opts = opts; N.dead = false;
   const q = new URLSearchParams({ cid: cid(), name: opts.name || "", site: N.site() }); if (opts.create) q.set("create", "1"); else q.set("code", opts.code);

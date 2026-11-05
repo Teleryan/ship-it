@@ -86,25 +86,22 @@ E.applyLook = function (data) {
   phs.forEach(p => { const ph = D0.phases[p.id]; if (ph) { if (p.name) ph.name = p.name; if (p.color) ph.color = p.color; } });
 };
 E.defaultData = function (cfg) {
-  return clone(Object.assign(lookRows(), { spots:(cfg && cfg.varC && D0.spotsC) ? D0.spotsC : D0.spots, systems:D0.systems, milestones:D0.milestones, objectives:D0.objectives, crisis:D0.crisis, publisherGates:D0.publisherGates, gatePool:D0.gatePool, tutorial:D0.tutorial, text:D0.textRows ? D0.textRows() : [] }));
+  return clone(Object.assign(lookRows(), { spots:D0.spots, systems:D0.systems, milestones:D0.milestones, objectives:D0.objectives, crisis:D0.crisis, publisherGates:D0.publisherGates, gatePool:D0.gatePool, tutorial:D0.tutorial, text:D0.textRows ? D0.textRows() : [] }));
 };
 E.rawConfig = function () { return clone(D0.config); };
-E.defaultConfig = function () { const c = clone(D0.config); if (c.varC && D0.configC) { Object.assign(c, D0.configC, { varC: 1 }); } if (c.v2 && D0.configV2) Object.assign(c, clone(D0.configV2)); return c; };
+E.defaultConfig = function () { return clone(D0.config); };
 
 /* ---------- New game ---------- */
 E.newGame = function (seats, opts) {
   opts = opts || {};
-  const base = E.rawConfig(); const wantC = (opts.config && opts.config.varC != null) ? opts.config.varC : base.varC;
-  if (wantC && D0.configC) Object.assign(base, D0.configC, { varC: 1 });
-  if ((base.v2 || (opts.config && opts.config.v2)) && D0.configV2) Object.assign(base, clone(D0.configV2));
-  const cfg = Object.assign(base, opts.config || {});
+  const cfg = Object.assign(E.rawConfig(), opts.config || {});
   const data = Object.assign(E.defaultData(cfg), opts.data || {});
   const N0 = seats.length;
   if (cfg.spotFxAdj) data.spots.forEach(sp => { if (cfg.spotFxAdj[sp.id] != null) sp.fx = cfg.spotFxAdj[sp.id]; });
   if (cfg.bigAdd && cfg.bigAdd[N0]) cfg.bigAdd[N0].forEach(id => { const sp = data.spots.find(x => x.id === id); if (sp) data.spots.push(Object.assign({}, sp, { id: id + "_b" })); });
   if (cfg.launchCap) ["party", "press", "platform"].forEach(id => { const sp = data.spots.find(x => x.id === id); if (!sp) return; sp.mode = "single"; for (let k = 1; k < Math.ceil(N0 / 2); k++) data.spots.push(Object.assign({}, sp, { id: id + "_c" + k })); });
   E.useCfg(cfg); E.applyLook(data);
-  if (cfg.varC && D0.cScaleGates) D0.cScaleGates(data, cfg, seats.length);
+  if (D0.cScaleGates) D0.cScaleGates(data, cfg, seats.length);
   const S = {
     v: 1, seed: (opts.seed != null ? opts.seed : (Math.random() * 2 ** 31) | 0), cfg, data,
     round: 1, phase: 0, step: "setup", cur: 0, order: [], passed: [], log: [], dq: [], bids: {}, wid: 1,
@@ -127,9 +124,6 @@ E.newGame = function (seats, opts) {
     const cats = shuffle(S, Object.keys(D0.categories));
     for (let i = 0; i < cfg.startWorkers; i++) { const ds = D0.categories[cats[i % cats.length]].discs.filter(d => d !== "QA"); p.workers.push({ id: S.wid++, disc: ds[rint(S, ds.length)], lvl: "Jr", fat: 0, placed: false, as: null, worked: false }); }
   });
-  if (cfg.recruitOnly) data.milestones.forEach(m => { if (m.name === "Hiring Spree") m.text = "Have 6+ workers at the same time"; });
-  if (cfg.recruitOnly) data.crisis.forEach(c => { c.text = c.text.replace("Hiring costs +1G", "Recruiting costs +1G"); }); // one recruit a round makes "4 hires in a round" impossible
-  if (cfg.cultureFold) data.crisis.forEach(c => { c.text = c.text.replace("positive Culture (+1 or better) ignore this", "Burnout 2 or less ignore this").replace("with negative Culture (-1 or worse)", "with Burnout 4 or more").replace("Players with positive Culture lose no workers", "Players with Burnout 2 or less lose no workers").replace("-1 Culture", "+1 Burnout").replace("+1 Culture", "-1 Burnout"); });
   if (cfg.mileGoldAdj) data.milestones.forEach(m => { if (cfg.mileGoldAdj[m.name]) m.gold = Math.max(1, m.gold + cfg.mileGoldAdj[m.name]); });
   S.decks.mile = shuffle(S, data.milestones.map((m, i) => i));
   S.decks.obj = {};

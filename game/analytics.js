@@ -29,7 +29,7 @@ A.track = function (S) {
 A.rec = function (S, completed, status) {
   const m = A.meta, D = root.SHIPIT_DATA;
   const rec = {
-    id: m.id, v: D && D.version, site: m.site, env: S.cfg.envLabel || "A", mode: m.mode, code: m.code || null, completed: !!completed, status: status || (completed ? "complete" : "abandoned"),
+    id: m.id, v: D && D.version, site: m.site, env: "D", mode: m.mode, code: m.code || null, completed: !!completed, status: status || (completed ? "complete" : "abandoned"),
     n: S.players.length, humans: S.players.filter(p => !p.bot).length, startedAt: m.startedAt, endedAt: Date.now(), rounds: S.round,
     tuned: m.tuned || "default", hash: m.hash || "base", test: !!m.test, winner: completed ? S.winner : null, device: root.innerWidth && root.innerWidth < 820 ? "mobile" : "desktop",
     seats: S.players.map((p, i) => ({ name: p.name, bot: !!p.bot, persona: p.persona || "", profile: p.profile || "", acct: (m.seats && m.seats[i] && m.seats[i].cid || "").slice(0, 6), order: S.order.indexOf(p.id) })),

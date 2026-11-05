@@ -1,4 +1,4 @@
-// Writes dist/shipit-site.json into KV keys site:a / site:b / site:c via the Cloudflare API
+// Writes dist/shipit-site.json into KV keys site:d via the Cloudflare API
 const fs=require("fs");
 const {CLOUDFLARE_API_TOKEN:T,CLOUDFLARE_ACCOUNT_ID:A,KV_NAMESPACE_ID:N}=process.env;
 const site=JSON.parse(fs.readFileSync(__dirname+"/../dist/shipit-site.json","utf8"));

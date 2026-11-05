@@ -1,6 +1,6 @@
 // SHIP IT! on Cloudflare: password gate with roles (owner = master, player), online rooms (Durable Object per room),
 // analytics (KV, owner-readable), owner-only tuning publish (live/test), owner reset of all online games.
-// The game files live in KV (key site:a / site:b), uploaded by the master account at /__upload. This keeps the worker small and lets the owner update the game without redeploying.
+// The game files live in KV (key site:d), uploaded by the master account at /__upload. This keeps the worker small and lets the owner update the game without redeploying.
 const MEM = { a: null, b: null, t: { a: 0, b: 0 } };
 async function siteFiles(env, site) {
   const now = Date.now();
@@ -9,7 +9,7 @@ async function siteFiles(env, site) {
 }
 const UPLOAD_PAGE = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SHIP IT! upload</title>
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#10131c;color:#e8ecf5;font:16px system-ui,sans-serif}.b{background:#171c2a;border:1px solid #2b3350;border-radius:12px;padding:28px;width:min(460px,90vw)}button{padding:10px 16px;border-radius:8px;border:0;background:#f5c542;color:#2a2100;font-weight:700;cursor:pointer;margin-top:12px}p{color:#98a3bf;font-size:14px}</style>
-<div class="b"><h2>Upload game files</h2><p>Master account only. Choose the <b>shipit-site.json</b> bundle you were sent. It replaces the game files for all environments (A, B, C and D).</p>
+<div class="b"><h2>Upload game files</h2><p>Master account only. Choose the <b>shipit-site.json</b> bundle you were sent. It replaces the game files.</p>
 <input type="file" id="f" accept=".json"><br><button id="go">Upload</button><p id="m"></p></div>
 <script>document.getElementById("go").onclick=async()=>{const m=document.getElementById("m"),f=document.getElementById("f").files[0];if(!f){m.textContent="Choose the file first.";return}
 try{const o=JSON.parse(await f.text());let out=[];for(const s of ["a","b","c","d"]){if(!o[s])continue;const r=await fetch("/__site?site="+s,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(o[s])});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||r.status);out.push("Environment "+s.toUpperCase()+": "+j.files+" files");}
@@ -42,9 +42,7 @@ async function lockState(env, ip) { try { return JSON.parse((await env.UPD.get("
 const TYPES = { html: "text/html; charset=utf-8", js: "text/javascript; charset=utf-8", css: "text/css; charset=utf-8", json: "application/json" };
 const CODE_CH = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const newCode = () => { let s = ""; const b = crypto.getRandomValues(new Uint8Array(4)); for (const x of b) s += CODE_CH[x % CODE_CH.length]; return s; };
-const SITE = (x) => (x === "b" || x === "c" || x === "d") ? x : "a";
-// Variant D (Burnout) is the default at "/", C (phases) is at /c/, the classic scoring version at /a/, pool scoring at /b/ (KV keys site:a to site:d)
-const siteOf = (p) => (p === "/b" || p.startsWith("/b/")) ? "b" : (p === "/a" || p.startsWith("/a/")) ? "a" : (p === "/c" || p.startsWith("/c/")) ? "c" : "d";
+const SITE = () => "d"; // one shipped game (KV keys site:d and cfg:*:d)
 
 export default {
   async fetch(request, env) {
@@ -157,11 +155,10 @@ export default {
     }
     if (P.startsWith("/__")) return json({ error: "Not found" }, 404);
 
-    // ---- the game itself: D at /, C at /c/, A at /a/, B at /b/ ----
+    // ---- the game itself; the retired /a/, /b/, /c/ and /d/ paths redirect to / ----
     if (request.method !== "GET" && request.method !== "HEAD") return secure(new Response("Method not allowed", { status: 405 }));
-    const site = siteOf(P); if (P === "/a" || P === "/b" || P === "/c") return new Response(null, { status: 302, headers: { location: P + "/" } });
-    if (P === "/d" || P.startsWith("/d/")) return new Response(null, { status: 302, headers: { location: "/" + P.slice(3) } });
-    let rel = site !== "d" ? P.slice(3) : P.slice(1); if (!rel) rel = "index.html";
+    const site = "d"; const old = P.match(/^\/[abcd](\/|$)/); if (old) return new Response(null, { status: 302, headers: { location: "/" + P.slice(old[0].length) } });
+    let rel = P.slice(1); if (!rel) rel = "index.html";
     if (OWNER_FILES.has(rel) && !owner) return secure(new Response("Master account only.", { status: 403 }));
     const body = (await siteFiles(env, site))[rel]; if (body == null) return secure(new Response("Not found", { status: 404 }));
     return secure(new Response(body, { headers: { "content-type": TYPES[rel.split(".").pop()] || "text/plain", "cache-control": "no-cache" } }));
