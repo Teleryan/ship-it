@@ -209,7 +209,8 @@ function recruitPick(S, p, bs) {
 }
 function place(S, p) {
   let best = null, bs = W.thr; const cands = [];
-  p.workers.forEach(w => E.placementOptions(S, p.id, w).forEach(o => { let s = fxScore(S, p, w, o); if (PF) { s += (E.rnd(S) - 0.5) * 2 * PF.noise; cands.push({ w, o, s }); } if (s > bs) { bs = s; best = { w, o }; } }));
+  const wsc = S.cfg.wsMax ? E.canBuyWs(S, p.id) : { ok: false };
+  p.workers.forEach(w => E.placementOptions(S, p.id, w).forEach(o => { if (!o.ok && !(o.wsNeed && wsc.ok && p.gold - wsc.cost >= 2)) return; let s = fxScore(S, p, w, o.wsNeed ? Object.assign({}, o, { ok: true }) : o); if (o.wsNeed) s -= wsc.cost * 0.3; if (PF) { s += (E.rnd(S) - 0.5) * 2 * PF.noise; cands.push({ w, o, s }); } if (s > bs) { bs = s; best = { w, o }; } }));
   if (PF && cands.length) {
     cands.sort((a, b) => b.s - a.s);
     if (PF.deny) cands.slice(0, 6).forEach(c => { if (c.o.spot && (c.o.spot.mode || "single") === "single") c.s += PF.deny * 0.5 * rivalWant(S, p, c.o.target); });
@@ -219,6 +220,7 @@ function place(S, p) {
   }
   const rc = recruitPick(S, p, best ? bs : 0); if (rc) return rc;
   if (!best) return { type: "pass", p: p.id };
+  if (best.o.wsNeed) return { type: "buyws", p: p.id };
   const a = { type: "place", p: p.id, worker: best.w.id, target: best.o.target };
   if (best.w.lvl === "Sr") a.bonus = p.mktg < p.prod * 0.8 ? "mktg" : "prod";
   if (best.o.as) a.as = best.o.as[0];

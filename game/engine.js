@@ -337,7 +337,7 @@ function roundSetup(S) {
   S.players.forEach(p => {
     p.rs = { spent: 0, gained: 0, spentRes: 0, hires: 0, placed: 0, triggers: 0, builds: 0, debtRemoved: 0, hypeGained: 0, discards: 0, cashed: 0, debtStart: p.debt };
     p.workers.forEach(w => { w.placed = false; w.benched = false; w.training = false; w.trainNow = false; if (w.trainLeft > 0) { w.benched = "Training"; w.trainLeft--; } });
-    p.rd = false; p.rdDisc = 0; p.refreshed = 0; p.builds = 0; p.promos = 0; p.hunts = 0; p.swapObj = 0; p.swapMile = 0; p.recruited = 0; p.recruitExtra = 0;
+    p.ws = S.cfg.wsMax ? Math.min(S.cfg.wsMax, S.cfg.wsFree || 0) : 0; p.wsUsed = 0; p.rd = false; p.rdDisc = 0; p.refreshed = 0; p.builds = 0; p.promos = 0; p.hunts = 0; p.swapObj = 0; p.swapMile = 0; p.recruited = 0; p.recruitExtra = 0;
     p.systems.forEach(s => s.t = false);
   });
   S.occ = {}; S.passed = []; S.closed = {};
@@ -469,7 +469,8 @@ function canAnyPlace(S, pi) {
   if (P(S, pi).flags.skipLaunch && S.phase === 3) return false;
   const p = P(S, pi);
   if (S.cfg.varC && (S.recruit || []).some((o, i) => E.canRecruit(S, pi, i).ok)) return true;
-  return p.workers.some(w => !w.placed && placementOptions(S, pi, w).some(o => o.ok));
+  const buy = S.cfg.wsMax && E.canBuyWs(S, pi).ok;
+  return p.workers.some(w => !w.placed && placementOptions(S, pi, w).some(o => o.ok || (buy && o.wsNeed)));
 }
 function placeAdvance(S) {
   // find next player in cycle who hasn't passed & can place
@@ -656,7 +657,17 @@ function crewPlans(S, p, w, spot) {
 }
 E.crewText = function (spot) { return (spot.crew || []).map(a => a.join(" + ")).join(" or "); };
 function spotModeOf(s) { return s.mode || (s.excl ? "single" : "single"); }
+// Workstations: placing a worker on ANY board spot (main board or studio perk) uses one; triggering your own systems needs none. You power them up each round.
+function isMainSpot() { return true; }
+E.isMainSpot = isMainSpot;
+E.wsCost = function (S, pi) { const p = P(S, pi), c = S.cfg; return (c.wsCost || 0) + (c.wsStep || 0) * Math.max(0, p.ws - (c.wsFree || 0)); };
+E.canBuyWs = function (S, pi) { const p = P(S, pi), c = S.cfg; if (!c.wsMax || S.step !== "place") return { ok: false, reason: "Not available" }; if (p.ws >= c.wsMax) return { ok: false, reason: "You already have all " + c.wsMax + " workstations" }; const cost = E.wsCost(S, pi); if (p.gold < cost) return { ok: false, reason: "Needs " + cost + "G" }; return { ok: true, cost }; };
 function spotUsableBy(S, pi, w, spot) {
+  const r = spotUsableBase(S, pi, w, spot), p = P(S, pi);
+  if (r.ok && S.cfg.wsMax && isMainSpot(S, spot) && p.wsUsed >= p.ws) return Object.assign({}, r, { ok: false, wsNeed: true, reason: p.ws >= S.cfg.wsMax ? "All " + S.cfg.wsMax + " workstations are in use" : "Needs a free workstation (buy one for " + E.wsCost(S, pi) + "G)" });
+  return r;
+}
+function spotUsableBase(S, pi, w, spot) {
   // returns {ok, reason, as:[disciplines]}
   const p = P(S, pi);
   if (spot.srOnly && w.lvl !== "Sr") return { ok: false, reason: "Senior workers only" };
@@ -680,7 +691,7 @@ function spotUsableBy(S, pi, w, spot) {
   if (spot.cost && spot.cost.res && E.resTotal(p) < spot.cost.res) return { ok: false, reason: "Needs " + spot.cost.res + " skills" };
   if (spot.special === "talent" && S.cfg.varC) {
     if (S.phase === 3 && !S.cfg.recruitInLaunch) return { ok: false, reason: "No hiring in Launch" };
-  if (S.cfg.recruitMinRound && S.round < S.cfg.recruitMinRound) return { ok: false, reason: "Recruiting opens in round " + S.cfg.recruitMinRound };
+    if (S.cfg.recruitMinRound && S.round < S.cfg.recruitMinRound) return { ok: false, reason: "Recruiting opens in round " + S.cfg.recruitMinRound };
     if (!(S.recruit || []).some(o => o.by == null)) return { ok: false, reason: "Nobody left in the recruitment pool" };
   }
   if (spot.special === "mentor") {
@@ -756,6 +767,7 @@ function doPlace(S, pi, wid, target, o) {
     const names = plan.ids.map(id => { const pw = p.workers.find(x => x.id === id); const pover = pw.fat >= 2; if (pover) { pw.overWhenPlaced = true; p.rs.overN = (p.rs.overN || 0) + 1; log(S, p.name + "'s Over-Tired " + pw.lvl + " " + dn(pw.disc) + " joins the strike team (Burnout risk)"); } pw.placed = true; pw.worked = true; pw.fat = Math.min(2, pw.fat + 1); p.rs.placed++; if (!(S.cfg.spotResOr && !opt.spot.r) && !pover) gain(S, pi, RES_OF[plan.cats[id]], Math.min(pw.lvl === "Sr" ? S.cfg.resSr : S.cfg.resJr, S.cfg.crewPartnerCap == null ? 9 : S.cfg.crewPartnerCap)); return pw.lvl + " " + pw.disc; });
     log(S, p.name + " forms a strike team for " + opt.spot.id + ": " + w.lvl + " " + dn(w.disc) + " + " + names.join(" + "));
   }
+  if (opt.kind === "spot" && S.cfg.wsMax && isMainSpot(S, opt.spot)) p.wsUsed++;
   p.rs.placed++;
   if (opt.kind === "sys") {
     const def = opt.def; opt.sys.t = true; p.rs.triggers++; p.cs.trigTotal = (p.cs.trigTotal || 0) + 1;
@@ -996,6 +1008,10 @@ function stepAction(S, a, actor) {
         const o = S.recruit[a.idx]; gain(S, pi, "gold", -c.cost); if (p.hireDiscount > 0) p.hireDiscount--;
         o.by = pi; p.workers.push({ id: S.wid++, disc: o.disc, lvl: "Jr", fat: 0, placed: false, as: null, worked: false }); p.recruited = (p.recruited || 0) + 1; p.rs.hires++; p.cs.recruits = (p.cs.recruits || 0) + 1;
         log(S, p.name + " recruits a Junior " + dn(o.disc) + " (" + c.cost + "G)"); bumpPlace(S); return { ok: true };
+      }
+      if (a.type === "buyws") {
+        const c = E.canBuyWs(S, pi); if (!c.ok) return err(c.reason);
+        gain(S, pi, "gold", -c.cost); p.ws++; p.rs.wsBought = (p.rs.wsBought || 0) + 1; log(S, p.name + " powers up a workstation (" + c.cost + "G, " + p.ws + " this round)"); return { ok: true };
       }
       if (a.type === "train") return restAction(S, a, p);
       if (a.type !== "place") return err("Place a worker or pass");
