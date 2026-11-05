@@ -440,11 +440,19 @@ function tutHighlight0(rootEl) {
   const sel = st.hl(u.S); if (!sel) return;
   try {
     const els = rootEl.querySelectorAll(sel); els.forEach(el => el.classList.add("tut-hl")); if (els.length && !u.detail) spotSel = sel;
-    // bring the highlighted area into view (above the coach box), so the player never has to hunt for it
+    // bring the highlighted area into view (above the coach box): the page itself or, on desktop, the .left/.right column that scrolls
     const el = els[0]; if (el && el.getBoundingClientRect && !u.detail) {
-      const r = el.getBoundingClientRect(), coach = rootEl.querySelector(".coach"), cr = coach ? coach.getBoundingClientRect() : null;
-      const bottom = cr && cr.top > window.innerHeight * 0.4 ? cr.top - 8 : window.innerHeight;
-      if (r.top < 70 || r.bottom > bottom) { const dy = r.height > bottom - 70 ? r.top - 80 : r.top - (70 + Math.max(0, (bottom - 70 - r.height) / 2)); window.scrollBy({ top: dy, behavior: "smooth" }); }
+      const coach = rootEl.querySelector(".coach"), cr = coach ? coach.getBoundingClientRect() : null;
+      const sc = el.closest(".left,.right"), scrolls = sc && sc.scrollHeight > sc.clientHeight + 2 && getComputedStyle(sc).overflowY !== "visible";
+      const box = scrolls ? sc.getBoundingClientRect() : { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth };
+      const top = Math.max(box.top, 0) + 16;
+      let bottom = Math.min(box.bottom, window.innerHeight) - 16;
+      if (cr && cr.top > window.innerHeight * 0.4 && cr.right > box.left && cr.left < box.right) bottom = Math.min(bottom, cr.top - 12); // the coach covers the lower part of this column
+      const r = el.getBoundingClientRect();
+      if (r.top < top || r.bottom > bottom) {
+        const room = bottom - top, dy = r.height > room ? r.top - top : r.top - top - Math.max(0, (room - r.height) / 2);
+        (scrolls ? sc : window).scrollBy({ top: dy, behavior: "smooth" });
+      }
     }
   } catch (e) {}
 };
