@@ -58,7 +58,7 @@ function tokens(S) {
     burnMax: c.burnMax, burnOverStep: c.burnOverStep, burnOverMax: c.burnOverMax, burnUnpaidMin: c.burnUnpaidMin, burnRelief: c.burnRelief, burnTeamRelief: c.burnTeamRelief,
     energizedCulture: c.energizedCulture, energizedGold: c.energizedGold, burnStrainAt: c.burnStrainAt, burnStrainHype: c.burnStrainHype, burnBenchAt: c.burnBenchAt, burnQuitAt: c.burnQuitAt, burnQuitReset: c.burnQuitReset
   };
-  t.startWorkers = c.startWorkers; t.recruitLadder = c.recruitLadder;
+  t.startWorkers = c.startWorkers; t.recruitLadder = c.recruitLadder; t.wsFree = c.wsFree; t.wsCost = c.wsCost; t.wsMax = c.wsMax;
   t.foldNote = "\n\nThere is no separate Culture track: <b>Culture is " + c.cultureFoldBase + " minus Burnout</b>. Anything that gives Culture (Team Events, Training, some tiles) lowers Burnout, and anything that costs Culture raises it.";
   t.trainEffect = "lowers <b>Burnout</b> by " + c.trainCulture + " (that is +" + c.trainCulture + " Culture)";
   t.teamEventEffect = "to lower Burnout by " + (c.teamEventCulture + c.burnTeamRelief);
@@ -117,9 +117,8 @@ let STEPS = [
     done: S => after(S, "place", 1) || (S.round === 1 && S.step === "place" && me(S).rs.placed >= 1),
     allow: a => a.type === "place" ? null : a.type === "pass" ? MSG("msg_place_first") : MSG("msg_place") }),
   info("stats", { hl: () => ".pt[data-pid='0'] .stats" }),
-  doing("recruit1", { hl: () => "[data-tut=recruit]", done: S => me(S).recruited >= 1 || S.round > 1 || after(S, "place", 1),
-    allow: a => (a.type === "place" || a.type === "recruit") ? null : MSG("msg_recruit") }),
-  doing("place2", { hl: () => "[data-tut=workers]", done: S => after(S, "place", 1), allow: a => (a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
+  info("ws1", { hl: () => "[data-tut=ws]" }),
+  doing("place2", { hl: () => "[data-tut=workers]", done: S => after(S, "place", 1) || S.round > 1, allow: a => (a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
   doing("build", { hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"), done: S => builtInManage(S, 1),
     allow: (a, S) => a.type === "build" ? null : a.type === "done" ? ((me(S).builds >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : MSG("msg_build_first")) : MSG("msg_build") }),
   info("build_rd", { hl: () => "[data-spot=rd]" }),

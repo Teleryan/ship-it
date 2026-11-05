@@ -308,6 +308,14 @@ function workersPanel(S) {
   const sel = mine && S.step === "place" && !S.dq.length;
   return `<div class="panel"><h3><span style="color:${p.color}">${esc(p.name)}'s studio workers</span><span class="mute" style="text-transform:none;letter-spacing:0">${p.workers.length} workers</span></h3><div class="workers" data-tut="workers">${p.workers.length ? p.workers.map(w => workerCard(S, w, vi, sel && !w.placed)).join("") : '<span class="mute">No workers yet. Recruit from the shared pool.</span>'}</div></div>`;
 }
+// Workstations: each board spot (perks included) needs one; triggering your own systems does not
+function wsLine(S, p) {
+  const a = E.currentActor(S), mine = a === p.id && !p.bot && S.step === "place" && !S.dq.length;
+  const bw = mine ? E.canBuyWs(S, p.id) : { ok: false };
+  const tot = p.ws == null ? Math.min(S.cfg.wsMax, S.cfg.wsFree) : p.ws, left = Math.max(0, tot - (p.wsUsed || 0));
+  const btn = mine && tot < S.cfg.wsMax ? ` <button class="btn sm" data-act="buyws" ${bw.ok ? "" : "disabled"} title="${esc(bw.ok ? "" : bw.reason || "")}">Buy workstation · ${E.wsCost(S, p.id)}G</button>` : "";
+  return `<div class="row" data-tut="ws" style="font-size:12px;margin-top:6px;gap:6px;align-items:center" title="A worker needs a free workstation to take any board tile or Studio Perk. Triggering your own systems does not need one. You start each round with ${S.cfg.wsFree}; buy more (max ${S.cfg.wsMax})."><b>Workstations</b> <span>${left} free of ${tot}</span>${btn}</div>`;
+}
 function playerPanel(S) {
   const vi = viewIndex(S); const p = P(vi); const a = E.currentActor(S); const mine = a === vi && !p.bot;
   const sel = mine && S.step === "place" && !S.dq.length;
@@ -405,7 +413,7 @@ function playersPanel(S) {
     <div class="stats big">${[["g", "gold", p.gold], ["k", "marketing", p.mktg]].map(x => `<div class="st rs ${x[0]}" title="${ICN[x[1]]}">${ic(x[1])}<span class="sv"><small>${ICN[x[1]]}</small><b>${x[2]}</b></span></div>`).join("")}
     <div class="st rs d" title="Tech Debt (share of the Debt limit)">${ic("debt")}<span class="sv"><small>Tech Debt</small><b>${p.debt} <span class="dim">${Math.round(E.debtPct(S, p))}%</span></b></span></div><div class="st rs bo ${E.burnBand(S, p) === "Steady" ? "" : "hot"}" title="Burnout ${p.burnout} of ${S.cfg.burnMax}. ${E.burnBand(S, p)}. Culture is ${E.cultureOf(S, p)} (${S.cfg.cultureFoldBase} minus Burnout): Culture gains lower Burnout, Culture losses raise it">${ic("burnout")}<span class="sv"><small>Burnout · Culture ${E.cultureOf(S, p)}</small><b>${p.burnout} <span class="dim">${E.burnBand(S, p)}</span></b></span></div></div>
     <div class="stats res">${E.RES.map(k => `<div class="st rs" title="${E.RES_NAME[k]}: earned by placing a ${({ ideas: "Creative", code: "Development", process: "Operations", buzz: "Marketing" })[k]} role">${ic(k)}<span class="sv"><small>${ICN[k]}</small><b style="color:${RC[k]}">${p[k]}</b></span></div>`).join("")}</div>
-    <div class="mute" style="font-size:11px;margin-top:4px">${p.workers.length} workers · ${p.systems.length} systems${(p.building || []).length ? " (+" + p.building.length + " building)" : ""}${p.vpAdj ? " · crisis VP " + (p.vpAdj > 0 ? "+" : "") + p.vpAdj : ""}</div><div class="mute" style="font-size:11px;margin-top:2px" title="Income each round minus the salaries of your workers">Per round: +${S.cfg.income} income, -${p.workers.reduce((a, w) => a + (w.lvl === "Sr" ? S.cfg.salarySr : S.cfg.salaryJr), 0)} payroll</div>${stand ? `<div class="mute" style="font-size:11px;margin-top:2px" title="Live estimate of your final score if the game ended now. The studio with the fewest VP acts first each round.">Standing #${standRank[p.id]} · est. ${stand[p.id].total} VP</div>` : ""}</div>`;
+    ${S.cfg.wsMax ? wsLine(S, p) : ""}<div class="mute" style="font-size:11px;margin-top:4px">${p.workers.length} workers · ${p.systems.length} systems${(p.building || []).length ? " (+" + p.building.length + " building)" : ""}${p.vpAdj ? " · crisis VP " + (p.vpAdj > 0 ? "+" : "") + p.vpAdj : ""}</div><div class="mute" style="font-size:11px;margin-top:2px" title="Income each round minus the salaries of your workers">Per round: +${S.cfg.income} income, -${p.workers.reduce((a, w) => a + (w.lvl === "Sr" ? S.cfg.salarySr : S.cfg.salaryJr), 0)} payroll</div>${stand ? `<div class="mute" style="font-size:11px;margin-top:2px" title="Live estimate of your final score if the game ended now. The studio with the fewest VP acts first each round.">Standing #${standRank[p.id]} · est. ${stand[p.id].total} VP</div>` : ""}</div>`;
   }).join("");
 }
 function crisisCardHtml(c) {
@@ -903,6 +911,7 @@ $root.addEventListener("click", e => {
       const d = U.detail; const target = d.k === "sys" ? "sys:" + d.id : "spot:" + d.id; const as = g("as"); const alt = g("alt");
       const o = E.placementOptions(S, pi, P(pi).workers.find(x => x.id === U.sel)).find(x => x.target === target);
       act({ type: "place", p: pi, worker: U.sel, target, as: as || (o && o.as ? o.as[0] : undefined), bonus: g("bonus"), choice: +(g("choice") || 0), alt: alt || undefined, jr: g("jr") ? +g("jr") : undefined, conv: g("conv") || undefined, crew: g("crew") ? g("crew").split(",").map(Number) : undefined }); return; }
+    case "buyws": act({ type: "buyws", p: pi }); return;
     case "recruit": act({ type: "recruit", p: pi, idx: +t.dataset.i }); return;
     case "crunch": U.crunch = t.dataset.v === "none" ? null : t.dataset.v; render(); return;
     case "market": U.modal = "market"; render(); return;
