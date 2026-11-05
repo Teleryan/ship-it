@@ -634,6 +634,10 @@ function spotUsableBy(S, pi, w, spot) {
   if (spot.special === "convert") { const rk = RES_OF[CAT_OF(as[0])], rate = S.cfg.convertRate || 3; if (Math.floor((p[rk] || 0) / rate) < 1) return { ok: false, reason: "Needs " + rate + " " + RES_NAME[rk] + " to convert" }; }
   if (spot.cost && spot.cost.gold > p.gold) return { ok: false, reason: "Needs " + spot.cost.gold + "G" };
   if (spot.cost && spot.cost.res && E.resTotal(p) < spot.cost.res) return { ok: false, reason: "Needs " + spot.cost.res + " skills" };
+  if (spot.special === "talent" && S.cfg.varC) {
+    if (S.phase === 3 && !S.cfg.recruitInLaunch) return { ok: false, reason: "No hiring in Launch" };
+    if (!(S.recruit || []).some(o => o.by == null)) return { ok: false, reason: "Nobody left in the recruitment pool" };
+  }
   if (spot.special === "mentor") {
     if (S.phase === 2 && p.flags.noMentor) return { ok: false, reason: "Locked (Feature Creep: Delay)" };
     const jr = p.workers.find(x => x.lvl === "Jr" && x.id !== w.id && x.disc === w.disc);
