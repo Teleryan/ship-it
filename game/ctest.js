@@ -137,7 +137,7 @@ const SA=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:3});ok(!SA.cf
  const D0=mk({hireDiscard:0}); if(stepTo(D0)){const p=D0.players[E.currentActor(D0)]; const r=E.act(D0,{type:'discard',p:p.id,card:p.hand[0].id}); ok(!r.ok,'Variant D: discarding a card is refused');}
  const C0=mk({hireDiscard:1}); if(stepTo(C0)){const p=C0.players[E.currentActor(C0)]; ok(E.act(C0,{type:'discard',p:p.id,card:p.hand[0].id}).ok,'other variants can still discard');} }
 { // v2 audit layer
- const base={varC:1,burnout:1,train:1,flowV2:1,v2:1,recruitDelta:-1,qaAllowedPreProd:1,hireDiscard:0,promoByRest:1};
+ const base={varC:1,burnout:1,train:1,flowV2:1,v2:1,recruitDelta:-1,qaAllowedPreProd:1,hireDiscard:0,promoByRest:1,recruitOnly:0,recruitLadder:0,leanRound:0,cultureFold:0,recruitCost:3};
  const run=(n,cfg,seed)=>{const S=E.newGame(Array.from({length:n},(_,i)=>({name:'P'+i,bot:true})),{seed:seed||11,config:Object.assign({},base,cfg||{})});return S;};
  let S2=run(2); ok(S2.cfg.goldPerVP===4&&S2.cfg.catchUpOrder===1,'v2: layer applies (goldPerVP 4, catch-up order)');
  ok(S2.players.every(p=>p.miles.length===2),'v2: milestone hand is 2 at 2P'); ok(run(4).players.every(p=>p.miles.length===3),'v2: milestone hand stays 3 at 4P');
@@ -158,5 +158,18 @@ const SA=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:3});ok(!SA.cf
  { // Talent unavailable with an empty pool
    const T=run(2,null,13); let g=0; while(!(T.step==='place'&&T.round>=2)&&g++<8000){if(!B.step(T).ok)break}
    T.recruit.forEach(o=>{o.by=0}); const p=T.players[E.currentActor(T)], w=p.workers.find(x=>!x.placed&&x.fat<2); const o=E.placementOptions(T,p.id,w).find(x=>x.target==='spot:talent1'); ok(!o||!o.ok,'v2: Talent is unavailable when the recruitment pool is empty'); }
+}
+{ // lean loop: recruit-only, price ladder, lean round, culture fold
+ const base={varC:1,burnout:1,train:1,flowV2:1,v2:1,recruitDelta:-1,qaAllowedPreProd:1,hireDiscard:0,promoByRest:1};
+ const run=(n,cfg,seed)=>E.newGame(Array.from({length:n},(_,i)=>({name:'P'+i,bot:true})),{seed:seed||21,config:Object.assign({},base,cfg||{})});
+ { const T=run(3); ok(T.cfg.recruitOnly===1&&T.cfg.leanRound===1&&T.cfg.cultureFold===1,'lean: flags on in the v2 layer');
+   let g=0,saw={draft:0,hire:0,build:0},manage=0; while(!T.over&&g++<20000){ if(saw[T.step]!==undefined)saw[T.step]++; if(!B.step(T).ok)break } ok(T.over&&!saw.draft&&!saw.hire&&!saw.build,'lean: no Draft, Hire or Build step ever occurs ('+JSON.stringify(saw)+')'); }
+ { const T=run(4,null,22); let g=0; while(!(T.step==='place'&&T.round>=2)&&g++<8000){if(!B.step(T).ok)break}
+   const ids=[0,1,2].map(i=>E.recruitCost(T,T.order[0])); T.players.forEach(p=>p.gold=20); E.act(T,{type:'recruit',p:E.currentActor(T),idx:0});
+   const c2=E.recruitCost(T,T.order[1]); ok(c2===ids[0]+1,'lean: second recruit in the round costs 1G more ('+ids[0]+' -> '+c2+')'); }
+ { const T=run(2,null,23); const p=T.players[0]; const b=p.burnout; E.statChange(T,0,'culture',-1); ok(p.burnout===b+1&&p.culture===0,'fold: Culture loss adds Burnout'); E.statChange(T,0,'culture',2); ok(p.burnout===Math.max(0,b+1-2),'fold: Culture gain eases Burnout');
+   p.burnout=0; ok(E.cultureOf(T,p)===5,'fold: virtual Culture reads base minus Burnout'); p.burnout=4; ok(E.cultureOf(T,p)===1,'fold: Burnout 4 reads as Culture 1'); }
+ { const T=run(2,null,24); let g=0; while(T.step!=='rest'&&!T.over&&g++<8000){if(!B.step(T).ok)break}
+   ok(T.step==='rest','lean: Place goes straight to the Manage step'); const p=T.players[E.currentActor(T)]; const r=E.act(T,{type:'build',p:p.id,name:'__none__'}); ok(!r.ok&&/Unknown/.test(r.error||''),'lean: build actions are routed in the Manage step'); }
 }
 console.log('fails',fails);

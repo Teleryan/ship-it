@@ -202,11 +202,12 @@ function menuView() {
 }
 
 /* ---------- game view pieces ---------- */
+const canBuildNow = S => S.step === "build" || (!!S.cfg.leanRound && S.step === "rest");
 function actorName(S) { const a = E.currentActor(S); return a >= 0 ? S.players[a] : null; }
 function stepTracker(S) {
   if (S.cfg.flowV2) { // Upkeep opens each round (not round 1), then Income, Bid, Draft, Hire, Place, Build, Rest and Milestones
-    const pg2 = ["Crisis", "Reveal"], rg2 = [["upkeep", "Upkeep"], ["income", "Income"], ["bid", S.cfg.catchUpOrder ? "Order" : "Bid"], ["draft", "Draft"], ["hire", "Hire"], ["place", "Place"], ["build", "Build"], ["rest", "Clean up"]];
-    const inP = ["setup", "crisis"].includes(S.step), idxR2 = { bid: 2, draft: 3, hire: 4, place: 5, build: 6, rest: 7 }[S.step];
+    const lean = !!S.cfg.recruitOnly, pg2 = ["Crisis", "Reveal"], rg2 = lean ? [["upkeep", "Upkeep"], ["income", "Income"], ["bid", "Order"], ["place", "Place"], ["rest", "Manage"]] : [["upkeep", "Upkeep"], ["income", "Income"], ["bid", S.cfg.catchUpOrder ? "Order" : "Bid"], ["draft", "Draft"], ["hire", "Hire"], ["place", "Place"], ["build", "Build"], ["rest", "Clean up"]];
+    const inP = ["setup", "crisis"].includes(S.step), idxR2 = (lean ? { bid: 2, place: 3, rest: 4 } : { bid: 2, draft: 3, hire: 4, place: 5, build: 6, rest: 7 })[S.step];
     return `<div class="stepgroup sg-phase" data-tut="steps"><span class="lab">Phase start</span>${pg2.map((s, i) => `<span class="step ${inP ? (i === 0 ? "on" : "") : "done"}">${s}</span>`).join("")}</div>
   <div class="stepgroup sg-round" data-tut="steps"><span class="lab">Round</span>${rg2.map((s, i) => `<span class="step ${i === 0 && S.round === 1 ? "" : !inP ? (i === idxR2 ? "on" : i < idxR2 ? "done" : "") : ""}" ${i === 0 && S.round === 1 ? 'title="No Upkeep in round 1" style="opacity:.35;text-decoration:line-through"' : ""}>${s[1]}</span>`).join("")}</div>`;
   }
@@ -230,7 +231,7 @@ function prompt(S) {
   const d = S.dq[0]; const a = actorName(S);
   if (S.over) return "Game over";
   if (d) return { keepObj: "choose your objectives", bid: d.purpose === "turn" ? "secret blind bid for turn order" : "secret auction bid", choose: "make a crisis choice", pickWorker: "choose a worker to lose", raidHire: "Studio Raid: hire at half cost?", pivot: "pivot your Platform", dropObj: "remove an objective", keepMile: "choose milestone(s) to keep", swapObjPick: "choose objective", patch: "Day-One Patch: spend Momentum" }[d.t] || "decide";
-  return { draft: "take 1 card (" + (S.draft.left != null ? S.draft.left + " picks left in the draft" : S.draft.cards.length + " left") + ")", hire: "hire from your hand, then Done", place: "select a worker, then a highlighted spot (or Pass)", build: "build a system with skills, builds " + (a ? a.builds + "/" + E.maxBuilds(S, a) : ""), rest: S.cfg.flowV2 ? "clean up: cash in milestones, train or promote, then Done" : "promote, headhunt, swap or release, then Done", milestones: "cash in completed milestones, then Done" }[S.step] || "";
+  return { draft: "take 1 card (" + (S.draft.left != null ? S.draft.left + " picks left in the draft" : S.draft.cards.length + " left") + ")", hire: "hire from your hand, then Done", place: "select a worker, then a highlighted spot (or Pass)", build: "build a system with skills, builds " + (a ? a.builds + "/" + E.maxBuilds(S, a) : ""), rest: S.cfg.flowV2 ? (S.cfg.leanRound ? "manage: build systems, cash in milestones, train or promote, then Done" : "clean up: cash in milestones, train or promote, then Done") : "promote, headhunt, swap or release, then Done", milestones: "cash in completed milestones, then Done" }[S.step] || "";
 }
 function banner(S) {
   const a = actorName(S);
@@ -386,7 +387,7 @@ function actionArea(S) {
     const hp = P(vi);
     h += `<div class="panel"><h3>Your hand: tap a card to hire (${hp.hand.length})</h3><div class="mute" style="margin:-2px 0 10px">${S.cfg.srPromoteOnly ? `Hiring costs gold. Hire a Junior for ${S.cfg.jrCost}G (Seniors are promoted from Juniors who have worked and rested)${S.cfg.train ? `. Or <b>Hire + Train</b> for ${S.cfg.jrCost + S.cfg.trainCost}G (${S.cfg.jrCost}G hire + ${S.cfg.trainCost}G training): the Junior is in training ${(S.cfg.trainDuration || 1) > 1 ? "this round and next" : "for this round"}, and you gain +${S.cfg.trainCulture} Culture` : ""}${S.cfg.hireDiscard ? `, or discard a card for +${S.cfg.discardGold}G` : ""}. You can also recruit during placement. Press Done when finished.` : "Hiring costs gold. Hire Junior 2G, Senior 5G once unlocked, or discard a card for +1G. Press Done when finished."}${hp.contract > 0 ? `<br><b style="color:var(--good)">Contract Team: your next Junior hire is free</b> (publisher support after a missed gate).` : ""}</div><div class="hand" data-tut="hand">${hp.hand.length ? hp.hand.map(c => handCard(S, c, vi, true)).join("") : '<span class="mute">No cards left to hire.</span>'}</div></div>`;
   }
-  if (S.step === "build") {
+  if (canBuildNow(S)) {
     const free = a.freeBuilds > 0;
     h += `<div class="panel"><h3>Build systems</h3><div class="row wrap"><button class="btn primary" data-tut="market" data-act="market">Open Systems to Build</button><span class="mute">${resNow(a)} · ${ic("gold")} <b class="mono" style="color:var(--gold)">${a.gold}</b> · builds ${a.builds}/${E.maxBuilds(S, a)}${free ? ` · <b style="color:var(--good)">${a.freeBuilds} FREE build</b>` : ""}</span></div></div>`;
   }
@@ -409,7 +410,7 @@ function cleanMiles(S, a) {
 }
 function restView(S, a) {
   const cost = E.promoCost(S), hc = cost * S.cfg.headhuntMult;
-  let h = `<div class="panel" data-tut="rest"><h3>${S.cfg.flowV2 ? "Clean up: Rest and Milestones" : "Rest phase"}</h3><div class="mute" style="margin-bottom:6px">${S.cfg.train ? "" : `Promotion ${S.cfg.promoFree ? "is free for a worker who has worked and is resting this round" : cost + "G"} (${a.promos}/${S.cfg.promotionsPerRest} used)`}${U.tut || !S.cfg.headhuntsPerRest ? "" : ` · Headhunt ${hc}G, victim gets ${Math.floor(hc * S.cfg.headhuntComp)}G (${a.hunts}/${S.cfg.headhuntsPerRest} used)`}</div>`;
+  let h = `<div class="panel" data-tut="rest"><h3>${S.cfg.leanRound ? "Manage: build, train, promote, cash in" : S.cfg.flowV2 ? "Clean up: Rest and Milestones" : "Rest phase"}</h3><div class="mute" style="margin-bottom:6px">${S.cfg.train ? "" : `Promotion ${S.cfg.promoFree ? "is free for a worker who has worked and is resting this round" : cost + "G"} (${a.promos}/${S.cfg.promotionsPerRest} used)`}${U.tut || !S.cfg.headhuntsPerRest ? "" : ` · Headhunt ${hc}G, victim gets ${Math.floor(hc * S.cfg.headhuntComp)}G (${a.hunts}/${S.cfg.headhuntsPerRest} used)`}</div>`;
   h += `<div class="mute" style="margin:2px 0 6px">${S.cfg.flowV2 ? "Cash in any met Milestone above, click a worker to train or promote them, then press Done." : "Click a worker to promote or release them."}</div><div class="workers">${a.workers.map(w => workerCard(S, w, a.id, false)).join("") || '<span class="mute">No workers.</span>'}</div>`;
   const others = S.players.filter(p => p.id !== a.id && p.workers.length);
   if (others.length && !U.tut && S.cfg.headhuntsPerRest) {
@@ -471,7 +472,7 @@ function playersPanel(S) {
     const pos = S.order.indexOf(p.id); const cur = E.currentActor(S) === p.id; const vi = viewIndex(S) === p.id;
     return `<div class="pt ${cur ? "cur" : ""}" data-pid="${p.id}" data-act="view" data-v="${p.id}" style="cursor:pointer;${vi ? "background:var(--panel2)" : ""}"><div class="nm"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${p.bot ? ' <span class="tag">bot</span>' : ""}<span class="grow"></span>${ordered && pos >= 0 ? `<span class="ordbadge" title="${S.cfg.catchUpOrder ? "Turn order this round: the studio with the fewest VP goes first (catch-up)" : "Turn order this round, set by the blind bid"}">Turn order: ${pos + 1}</span>` : ""}</div>
     <div class="stats big">${(S.cfg.burnout ? [["g", "gold", p.gold], ["k", "marketing", p.mktg]] : [["g", "gold", p.gold], ["p", "progress", p.prod], ["k", "marketing", p.mktg], ["h", "hype", p.hype]]).map(x => `<div class="st rs ${x[0]}" title="${ICN[x[1]]}">${ic(x[1])}<span class="sv"><small>${ICN[x[1]]}</small><b>${x[2]}</b></span></div>`).join("")}
-    <div class="st rs d" title="Tech Debt (share of the Debt limit)">${ic("debt")}<span class="sv"><small>Tech Debt</small><b>${p.debt} <span class="dim">${Math.round(E.debtPct(S, p))}%</span></b></span></div><div class="st rs c" title="Culture">${ic("culture")}<span class="sv"><small>Culture</small><b>${p.culture > 0 ? "+" : ""}${p.culture}</b></span></div>${S.cfg.burnout ? `<div class="st rs bo ${E.burnBand(S, p) === "Steady" ? "" : "hot"}" title="Burnout ${p.burnout} of ${S.cfg.burnMax}. ${E.burnBand(S, p)}">${ic("burnout")}<span class="sv"><small>Burnout</small><b>${p.burnout} <span class="dim">${E.burnBand(S, p)}</span></b></span></div>` : ""}</div>
+    <div class="st rs d" title="Tech Debt (share of the Debt limit)">${ic("debt")}<span class="sv"><small>Tech Debt</small><b>${p.debt} <span class="dim">${Math.round(E.debtPct(S, p))}%</span></b></span></div>${S.cfg.cultureFold ? "" : `<div class="st rs c" title="Culture">${ic("culture")}<span class="sv"><small>Culture</small><b>${p.culture > 0 ? "+" : ""}${p.culture}</b></span></div>`}${S.cfg.burnout ? `<div class="st rs bo ${E.burnBand(S, p) === "Steady" ? "" : "hot"}" title="Burnout ${p.burnout} of ${S.cfg.burnMax}. ${E.burnBand(S, p)}">${ic("burnout")}<span class="sv"><small>Burnout</small><b>${p.burnout} <span class="dim">${E.burnBand(S, p)}</span></b></span></div>` : ""}</div>
     <div class="stats res">${E.RES.map(k => `<div class="st rs" title="${E.RES_NAME[k]}: earned by placing a ${({ ideas: "Creative", code: "Development", process: "Operations", buzz: "Marketing" })[k]} role">${ic(k)}<span class="sv"><small>${ICN[k]}</small><b style="color:${RC[k]}">${p[k]}</b></span></div>`).join("")}</div>
     ${poolBars(S, p, live)}<div class="mute" style="font-size:11px;margin-top:4px">${p.workers.length} workers · ${p.systems.length} systems${(p.building || []).length ? " (+" + p.building.length + " building)" : ""}${p.vpAdj ? " · crisis VP " + (p.vpAdj > 0 ? "+" : "") + p.vpAdj : ""}</div><div class="mute" style="font-size:11px;margin-top:2px" title="Income each round minus the salaries of your workers">Per round: +${S.cfg.income} income, -${p.workers.reduce((a, w) => a + (w.lvl === "Sr" ? S.cfg.salarySr : S.cfg.salaryJr), 0)} payroll</div>${stand ? `<div class="mute" style="font-size:11px;margin-top:2px" title="Live estimate of your final score if the game ended now. The studio with the fewest VP acts first each round.">Standing #${standRank[p.id]} · est. ${stand[p.id].total} VP</div>` : ""}</div>`;
   }).join("");
@@ -483,7 +484,7 @@ function crisisCardHtml(c) {
 function gameView() {
   const S = U.S;
   const crisis = S.crisisCard ? S.data.crisis.find(c => c.id === S.crisisCard) : null;
-  return `<div class="app ${U.tut ? "tutmode" : ""}">${topbar(S)}<div class="main"><div class="left">${banner(S)}${actionArea(S)}${recruitPanel(S)}${S.step === "build" ? marketStrip(S) : ""}${workersPanel(S)}${boardView(S)}${S.step === "build" ? "" : marketStrip(S)}${playerPanel(S)}</div>
+  return `<div class="app ${U.tut ? "tutmode" : ""}">${topbar(S)}<div class="main"><div class="left">${banner(S)}${actionArea(S)}${recruitPanel(S)}${canBuildNow(S) ? marketStrip(S) : ""}${workersPanel(S)}${boardView(S)}${canBuildNow(S) ? "" : marketStrip(S)}${playerPanel(S)}</div>
   <div class="right"><div class="panel pnl-studios"><h3>Studios</h3><div class="col studios">${playersPanel(S)}</div></div>${racePanel(S)}${gatesPanel(S)}${crisis ? `<div class="panel" data-tut="crisis" data-act="detail" data-k="crisis" style="cursor:pointer"><h3>Active crisis</h3>${crisisCardHtml(crisis)}</div>` : ""}
   <div class="panel pnl-log"><h3>Game log <button class="btn sm" data-act="log">${U.logOpen ? "Hide" : "Show all"}</button></h3><div class="log" style="${U.logOpen ? "max-height:60vh" : ""}">${S.log.slice(U.logOpen ? -300 : -14).reverse().map(l => `<div><span class="r">R${l.r}</span> ${esc(l.m)}</div>`).join("")}</div></div></div></div></div>`;
 }
@@ -641,7 +642,7 @@ function detailModal() {
       <div class="dsec"><h4>Benefit</h4>${def.pas ? dl("Passive", `<span style="color:var(--gold)">${esc(def.pas)}</span> (always on)`) : ""}${dl("End of game", def.vp + " VP, plus " + def.syn + " synergy VP if it shares " + (U.S.cfg.varC ? "its main skill (" + ICN[E.sysMainRes(def)] + ")" : "a symbol") + " with a completed objective")}</div>
       ${symLine(def)}`;
       if (d.k === "sys") h += placeSection(S, "sys:" + idx);
-      else if (U.modal === "market" && S.step === "build" && mineTurn) {
+      else if (U.modal === "market" && canBuildNow(S) && mineTurn) {
         const p = P(a), free = p.freeBuilds > 0; const crd = S.cfg.varC && U.crunch ? U.crunch : undefined; const ck = E.canBuild(S, a, def.name, free, crd), ckp = free ? E.canBuild(S, a, def.name, false, crd) : ck;
         h += `<div class="row" style="margin-top:12px">${actBtn("Build", `data-act="build" data-name="${esc(def.name)}" data-free="0"`, !ckp.ok, ckp.reason)}${free ? actBtn("Build free", `data-act="build" data-name="${esc(def.name)}" data-free="1"`, !ck.ok, ck.reason, false) : ""}</div>`;
       }
@@ -775,7 +776,7 @@ function render() {
     else if (U.modal === "milesref") h += milesModal(S);
     else if (U.modal === "rules") h += rulesModal();
     else if (U.modal === "gamemenu") h += gameMenuModal();
-    else if (U.modal === "market" && S.step === "build") h += marketModal();
+    else if (U.modal === "market" && canBuildNow(S)) h += marketModal();
     else if (S.over && U.modal !== "noresults") h += resultsModal();
     else if (hasHuman && !U.tut && S.crisisCard && U.seenCrisis !== (S.phase + S.crisisCard) && !S.over && !humanDecision) h += crisisIntroModal(S.data.crisis.find(c => c.id === S.crisisCard));
     if (U.detail) h += detailModal() || (U.detail = null, "");

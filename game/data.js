@@ -367,6 +367,7 @@ D.config = {
     cleanThresh:["Clean launch below Debt %",""],stdThresh:["Standard up to Debt %",""],roughThresh:["Rough up to Debt %",""],
     cleanBonus:["Clean launch VP bonus",""],blockedPenalty:["Blocked launch VP penalty",""],roughHypeMult:["Rough launch Hype multiplier",""],
     goldPerVP:["Gold per 1 VP",""],
+    startWorkers:["V2: starting team (Juniors)","Random Juniors each studio begins with when Recruit is the only hiring route"],recruitOnly:["V2: Recruit is the only way to get workers","No Draft, Shortlists or Hire step: every new worker comes from the shared Recruitment pool (Place step)"],recruitLadder:["V2: Recruit price ladder (+Gold per worker already taken)","Each worker taken from the pool this round makes the next one this much dearer"],leanRound:["V2: Lean round (Build + Clean up + Milestones are one Manage step)","After Place, each player in turn order builds, trains, promotes and cashes milestones in a single turn"],cultureFold:["V2: Culture folded into Burnout","No separate Culture track: Culture gains ease Burnout, losses add Burnout; Culture requirements read as (base - Burnout)"],cultureFoldBase:["V2: virtual Culture when Burnout is 0","Culture requirements read as this number minus Burnout"],
     dropByN:["V2: smaller board by player count","JSON: players -> list of \"phase:spotId\" removed from the board for that whole game (phase 0 = Concept ... 3 = Launch)"],closeByN:["V2: Industry News closures by players","JSON: players -> number of single-slot spots closed each round"],bigAdd:["V2: extra spots by players","JSON: players -> list of spot ids that get a second copy"],launchCap:["V2: Launch capacity","1 = Party, Press and Platform become single-slot, with ceil(players/2) copies"],catchUpOrder:["V2: catch-up turn order","1 = no bid: the studio with the fewest VP acts first"],raceLinDiv:["V2: linear race VP divisor","Progress and Hype also score 1 VP per this many points on top of the rank VP. 0 = off"],handSizeByN:["V2: milestone hand by player count","JSON: players -> hand size (overrides the hand size)"],mileGoldAdj:["V2: milestone Gold adjustments","JSON: milestone name -> Gold change"],cultAbsVP:["V2: Culture VP table","JSON: Culture value -> VP (replaces the rank loss)"],gateHypeMultByN:["V2: gate Hype multiplier by player count","JSON: players -> multiplier"],gateReqSub:["V2: gate requirement swaps","JSON: requirement text -> replacement text"],outsourceJrByN:["V2: Outsource Junior Gold by players","JSON"],outsourceSrByN:["V2: Outsource Senior Gold by players","JSON"],v2:["V2: audit tuning layer","1 = apply the audit-driven tuning (Variant D)"],
     deliveredBonus:["Delivery: delivered VP",""],
     synergyOn:["Synergy scoring on","1/0"]
@@ -451,6 +452,7 @@ D.configC = {
   spotResOr:1, srSystems:1, srPromoteOnly:1, srAllowedPreProd:1,
   promoFree:1, promoNeedsRest:1, promotionsPerRest:1, headhuntsPerRest:0, overworkCulture:-1, burnout:0, train:0, smallDrop:[], smallMax:6, hypeBank:0, hypeLeadVP:0, hypeLeadMin:3, hypeIncStep:0, hypeIncMax:2, trainCost:1, trainCulture:1, trainNeeded:1, trainDuration:1, promoByRest:0, v2:0, catchUpOrder:0, trainsPerRest:2, draftMiniDelta:0, burnMax:6, burnUnpaidPer:2, burnOverStep:2, burnOverMax:2, burnUnpaidMax:1, burnUnpaidMin:2, burnRelief:1, burnTeamRelief:1, burnStrainAt:3, burnStrainHype:1, burnBenchAt:5, burnQuitAt:6, burnQuitReset:4, energizedBurnMax:0, energizedCulture:2, energizedGold:1, burnVP:{"0":0,"1":0,"2":0,"3":-1,"4":-3,"5":-5,"6":-8},
   recruitCost:3, recruitPerRound:1, recruitSize2:2, recruitSize34:3, recruitSize56:4, recruitDelta:0, flowV2:0, recruitInLaunch:0,
+  recruitOnly:0, startWorkers:0, recruitLadder:0, leanRound:0, cultureFold:0, cultureFoldBase:5,
   bidEveryRound:1, bidWinnerOnly:0, buildDelay:2, crunchDelay:1, crunchGold:2, rdCrunch:1, rdDiscount:0, convertRate:3,
   income:6, sysGoldMult:0.5, sysCostMult:1, gateProgMult:0.6, gateHypeMult:0.6,
   draftPre:2, draftPre2:3, draftProd:3, draftProd2:4, draftPol:2, draftPol2:3
@@ -479,7 +481,8 @@ D.configV2 = {
     2:["0:code2","0:pitch2","0:proto1","0:protosprint","1:buzz1","1:create2","1:labcrew","1:build2","1:campaign","2:labcrew","2:playtest1","2:artpass","2:pmarket1","2:opt3","2:launchprep"],
     3:["0:pitch2","0:proto1","1:buzz1","1:create2","1:labcrew","2:labcrew","2:playtest1","2:opt3"]}, bigAdd:{5:["market3","artpush","vslice","trailer"],6:["pitch1","market3","artpush","vslice","trailer","keynote"]}, launchCap:1,
   overCrew:1, spotFxAdj:{team:"+1 Culture"}, teamEventCulture:1, burnTeamRelief:2, promoGoldByN:{2:2,3:2}, trainEarly:0, buyoutVP:8, awardMinN:3, objVPMult:0.45,
-  raceLinDiv:14, racePotByN:{2:45,3:41,4:39,5:39,6:40}
+  raceLinDiv:14, racePotByN:{2:45,3:41,4:39,5:39,6:40},
+  recruitOnly:1, startWorkers:4, "recruitDelta":0, recruitPerRound:1, recruitCost:2, recruitLadder:1, leanRound:1, cultureFold:1
 };
 
 D.tutorial = [

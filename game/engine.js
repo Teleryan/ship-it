@@ -123,6 +123,10 @@ E.newGame = function (seats, opts) {
   const cards = []; let n = 1;
   DISCS.forEach(d => { const cnt = (cfg.deckBase != null ? cfg.deckBase : D0.deck.base) + (N >= 3 ? (cfg.deckExtra != null ? cfg.deckExtra : D0.deck.extra) : 0); for (let i = 0; i < cnt; i++) cards.push({ id: "C" + n++, disc: d }); });
   S.decks.disc = shuffle(S, cards);
+  if (cfg.startWorkers) S.players.forEach(p => { // L2: no hand to hire from, so each studio opens with a small team: one Junior from each of a few different categories
+    const cats = shuffle(S, Object.keys(D0.categories));
+    for (let i = 0; i < cfg.startWorkers; i++) { const ds = D0.categories[cats[i % cats.length]].discs.filter(d => d !== "QA"); p.workers.push({ id: S.wid++, disc: ds[rint(S, ds.length)], lvl: "Jr", fat: 0, placed: false, as: null, worked: false }); }
+  });
   if (cfg.mileGoldAdj) data.milestones.forEach(m => { if (cfg.mileGoldAdj[m.name]) m.gold = Math.max(1, m.gold + cfg.mileGoldAdj[m.name]); });
   S.decks.mile = shuffle(S, data.milestones.map((m, i) => i));
   S.decks.obj = {};
@@ -147,8 +151,12 @@ E.newGame = function (seats, opts) {
 /* ---------- helpers ---------- */
 const P = (S, i) => S.players[i];
 E.phaseOfRound = PHASE_OF_ROUND;
+// cultureFold (R5): Culture is not a separate track. Every Culture gain eases Burnout, every loss adds Burnout; readers see a virtual Culture of (base - Burnout).
+const cul = (S, p) => S.cfg.cultureFold ? (S.cfg.cultureFoldBase || 5) - (p.burnout || 0) : p.culture;
+E.cultureOf = cul;
 function statChange(S, pi, stat, d) {
   if (stat === "mktg" && S.cfg.mergeMktg) stat = "hype";
+  if (stat === "culture" && S.cfg.cultureFold) { stat = "burnout"; d = -d; }
   const p = P(S, pi); if (!d) return 0;
   const cfg = S.cfg; const before = p[stat];
   let v = before + d;
@@ -290,7 +298,7 @@ function afterCrisis(S) {
   // Reveal -> Bid -> Draft
   const c = S.cfg, N = S.players.length;
   const per = S.phase === 0 ? (N === 2 ? c.draftPre2 : c.draftPre) : S.phase === 1 ? (N === 2 ? c.draftProd2 : c.draftProd) : S.phase === 2 ? (N === 2 ? c.draftPol2 : c.draftPol) : c.draftLaunch;
-  const picks = per * N, pool = c.draftPool > 0 ? c.draftPool : 0;
+  const picks = c.recruitOnly ? 0 : per * N, pool = c.draftPool > 0 ? c.draftPool : 0;
   // draftPool > 0: a fixed-size face-up pool that refills after every pick; otherwise deal exactly per x players cards
   S.draft = { cards: picks ? drawDisc(S, pool || picks) : [], per, left: pool ? picks : null };
   log(S, "REVEAL: " + S.draft.cards.length + " discipline cards dealt face up" + (pool ? " (pool refills to " + pool + " after each pick)" : ""));
@@ -303,7 +311,7 @@ function beginDraft(S) {
   else afterDraft(S);
 }
 // flowV2 (Variant D): Upkeep opens the round, Income comes next, then the Bid; the draft and Hire follow the bid
-function afterDraft(S) { if (S.cfg.flowV2) { S.step = "hire"; S.cur = 0; } else beginRound(S); }
+function afterDraft(S) { if (S.cfg.recruitOnly) { S.step = "place"; startPlace(S); } else if (S.cfg.flowV2) { S.step = "hire"; S.cur = 0; } else beginRound(S); }
 // Catch-up order (v2): no blind bid. The studio with the fewest VP right now acts first; ties go to the smaller team, then a coin flip. Round 1 keeps the setup order.
 function catchUpOrder(S) {
   if (S.round <= 1 && !S.lastOrderSet) { S.lastOrderSet = 1; return; }
@@ -369,13 +377,13 @@ E.burnBand = function (S, p) {
   if (b >= c.burnQuitAt) return "Meltdown";
   if (b >= c.burnBenchAt) return "Burned out";
   if (b >= c.burnStrainAt) return "Strained";
-  if (b <= c.energizedBurnMax && p.culture >= c.energizedCulture) return "Energized";
+  if (b <= c.energizedBurnMax && cul(S, p) >= c.energizedCulture) return "Energized";
   return "Steady";
 };
 function burnBands(S) {
   S.players.forEach(p => {
     const c = S.cfg;
-    if (E.burnBand(S, p) === "Energized" && c.energizedGold) { S._nt = 1; gain(S, p.id, "gold", c.energizedGold); S._nt = 0; log(S, p.name + " is Energized (Burnout " + p.burnout + ", Culture " + p.culture + "): +" + c.energizedGold + "G"); }
+    if (E.burnBand(S, p) === "Energized" && c.energizedGold) { S._nt = 1; gain(S, p.id, "gold", c.energizedGold); S._nt = 0; log(S, p.name + " is Energized (Burnout " + p.burnout + (S.cfg.cultureFold ? "" : ", Culture " + p.culture) + "): +" + c.energizedGold + "G"); }
     if (p.burnout >= c.burnQuitAt && p.workers.length > 1) {
       const q = p.workers.filter(w => !w.build).sort((a, b) => (a.lvl === "Sr") - (b.lvl === "Sr") || b.fat - a.fat || a.id - b.id)[0];
       if (q) { log(S, p.name + " Meltdown: a " + q.lvl + " " + dn(q.disc) + " quits"); removeWorker(S, p.id, q.id); p.burnout = Math.min(p.burnout, c.burnQuitReset); }
@@ -414,7 +422,8 @@ function rollRecruit(S) {
   } else cats.slice(0, size).forEach(cat => { const ds = left[cat]; S.recruit.push({ cat, disc: ds[rint(S, ds.length)], by: null }); });
   log(S, "RECRUITMENT: " + S.recruit.map(o => dn(o.disc)).join(", ") + " available");
 }
-E.recruitCost = function (S, pi) { const p = P(S, pi); return Math.max(0, (S.cfg.recruitCost == null ? 3 : S.cfg.recruitCost) - Math.min(p.hireDiscount || 0, 1)); };
+// recruitLadder (L2): each worker taken from the pool this round makes the next one dearer; the Talent spot's extra recruit is 1G cheaper
+E.recruitCost = function (S, pi) { const p = P(S, pi), c = S.cfg; const taken = (S.recruit || []).filter(o => o.by != null).length; return Math.max(0, (c.recruitCost == null ? 3 : c.recruitCost) + (c.recruitLadder || 0) * taken - Math.min(p.hireDiscount || 0, 1)); };
 E.canRecruit = function (S, pi, idx) {
   const p = P(S, pi); if (!S.cfg.varC || S.step !== "place") return { ok: false, reason: "Not available" };
   if (S.phase === 3 && !S.cfg.recruitInLaunch) return { ok: false, reason: "No hiring in Launch" };
@@ -430,19 +439,21 @@ function nextStep(S) {
   if (prev === "hire") {
     if (S.phase === 3) { S.step = "place"; startPlace(S); return; }
     S.step = "place"; startPlace(S);
-  } else if (prev === "build") {
-    S.step = "rest";
-    S.players.forEach(p => {
-      p.swapObj = S.cfg.noSwaps ? 0 : p.workers.filter(w => (w.disc === "PX") && ((w.lvl === "Sr" && w.placed) || (w.lvl === "Jr" && !w.placed))).length;
-      p.swapMile = S.cfg.noSwaps ? 0 : p.workers.filter(w => (w.disc === "DATA") && ((w.lvl === "Sr" && w.placed) || (w.lvl === "Jr" && !w.placed))).length;
-    });
-  } else if (prev === "rest") {
+  } else if (prev === "build") beginRest(S);
+  else if (prev === "rest") {
     S.players.forEach(p => { p.cs.hypeStreak = p.hype >= 10 ? p.cs.hypeStreak + 1 : 0; });
     if (S.cfg.flowV2) return roundEnd(S); // Rest and Milestones are one step
     S.step = "milestones";
   } else if (prev === "milestones") { upkeep(S); }
 }
 
+function beginRest(S) {
+  S.step = "rest"; S.cur = 0;
+  S.players.forEach(p => {
+    p.swapObj = S.cfg.noSwaps ? 0 : p.workers.filter(w => (w.disc === "PX") && ((w.lvl === "Sr" && w.placed) || (w.lvl === "Jr" && !w.placed))).length;
+    p.swapMile = S.cfg.noSwaps ? 0 : p.workers.filter(w => (w.disc === "DATA") && ((w.lvl === "Sr" && w.placed) || (w.lvl === "Jr" && !w.placed))).length;
+  });
+}
 function startPlace(S) {
   S.passed = []; S.cur = 0;
   // skip players who cannot ever place
@@ -464,6 +475,7 @@ function placeAdvance(S) {
     S.cur = idx; return;
   }
   // everyone passed -> build
+  if (S.cfg.leanRound) { log(S, "MANAGE: build, train, promote and cash in milestones"); return beginRest(S); } // L1: Build, Rest and Milestones are one step
   S.step = "build"; S.cur = 0; log(S, "BUILD SYSTEMS");
 }
 function bumpPlace(S) { S.cur = (S.cur + 1) % S.order.length; }
@@ -536,7 +548,7 @@ function roundEnd(S) {
   S.round++;
   upkeepPlayers(S);
   if (PHASE_OF_ROUND(S.round) !== S.phase) return beginPhase(S);
-  const n = S.cfg.draftMiniDelta ? Math.max(1, S.players.length + S.cfg.draftMiniDelta) : 0; // a small face-up draft every other round: one card fewer than players
+  const n = S.cfg.draftMiniDelta && !S.cfg.recruitOnly ? Math.max(1, S.players.length + S.cfg.draftMiniDelta) : 0; // a small face-up draft every other round: one card fewer than players
   S.draft = { cards: n ? drawDisc(S, n) : [], per: 1, left: null };
   if (n) log(S, "REVEAL: " + n + " discipline cards dealt face up (one fewer than players: the last player in turn order gets none)");
   roundSetup(S); startBid(S);
@@ -924,7 +936,7 @@ E.act = function (S, a) {
 function stepAction(S, a, actor) {
   const pi = a.p; const p = P(S, pi);
   if (pi !== actor) return err("Not your turn");
-  switch (S.step) {
+  switch (S.cfg.leanRound && S.step === "rest" && (a.type === "build" || a.type === "refresh") ? "build" : S.step) {
     case "draft": {
       if (a.type !== "pick") return err("Pick a card");
       const i = a.idx; if (i == null || i < 0 || i >= S.draft.cards.length) return err("Bad card");
@@ -1190,7 +1202,7 @@ const CRISIS_START = {
   raid(S, c, order) { order.forEach(pi => S.dq.push({ t: "raidHire", p: pi })); },
   creep(S, c, order) { order.forEach(pi => S.dq.push({ t: "choose", p: pi, card: "creep", options: c.options.map(o => Object.assign({}, o)) })); },
   departure(S, c, order) {
-    order.forEach(pi => { const p = P(S, pi); if (p.culture <= -1 && p.workers.some(w => w.lvl === "Sr")) S.dq.push({ t: "pickWorker", p: pi, srOnly: true, reason: "Key Employee Departure" }); });
+    order.forEach(pi => { const p = P(S, pi); if (cul(S, p) <= -1 && p.workers.some(w => w.lvl === "Sr")) S.dq.push({ t: "pickWorker", p: pi, srOnly: true, reason: "Key Employee Departure" }); });
   },
   conference(S, c) { S.sched.push({ kind: "conference", round: S.round, params: c.params }); },
   breakthrough(S, c, order) { S.bids = {}; order.forEach(pi => S.dq.push({ t: "bid", p: pi, purpose: "auction", card: c.id })); S.dq.push({ t: "auto", fn: "auction", args: { card: c.id } }); },
@@ -1198,7 +1210,7 @@ const CRISIS_START = {
     order.forEach(pi => {
       const p = P(S, pi); const over = p.workers.filter(w => w.fat >= 2).length, tired = p.workers.filter(w => w.fat >= 1).length;
       if (tired >= c.params.tired) { gain(S, pi, "culture", -1); log(S, p.name + " has " + tired + " tired workers: -1 Culture"); }
-      if (over >= c.params.overTired && p.culture < 1) S.dq.push({ t: "pickWorker", p: pi, reason: "Burnout Wave" });
+      if (over >= c.params.overTired && cul(S, p) < 1) S.dq.push({ t: "pickWorker", p: pi, reason: "Burnout Wave" });
     });
   },
   bug(S, c, order) {
@@ -1347,7 +1359,7 @@ function reqCheck(S, p, r) {
   if ((m = r.match(/^(\d+)\+\s*Hype(?: at Launch)?$/))) return p.hype >= +m[1];
   if ((m = r.match(/^Debt\s*<\s*(\d+)%$/))) return debtPct(S, p) < +m[1];
   if ((m = r.match(/^(\d+)%\s*Tech Debt at Launch$/))) return debtPct(S, p) <= +m[1] && p.debt === 0;
-  if ((m = r.match(/^\+(\d+)\s*Culture$/))) return p.culture >= +m[1];
+  if ((m = r.match(/^\+(\d+)\s*Culture$/))) return cul(S, p) >= +m[1];
   if ((m = r.match(/^(\d+)\+\s*(Innovation|Stability|Reach|Revenue)\s*systems$/))) return sysCount(p, m[2]) >= +m[1];
   if ((m = r.match(/^(\d+)\+\s*total systems built$/))) return p.systems.length >= +m[1];
   if ((m = r.match(/^(\d+)\+\s*systems each category$/))) return ["Innovation","Stability","Reach"].every(c => sysCount(p, c) >= +m[1]);
@@ -1408,7 +1420,7 @@ E.score = function (S) {
       const hr = rankScore(hv, tab)[pl] + (c.raceLinDiv ? Math.floor(hv[pl] / c.raceLinDiv) : 0);
       s.raceHype = hr;
       s.raceDebt = -rankScore(dv, lossTable(c.debtLossByN && c.debtLossByN[N] != null ? c.debtLossByN[N] : c.debtLossMax, N), false)[pl];
-      s.raceCult = c.cultAbsVP ? (c.cultAbsVP[String(clamp(p.culture, -3, 5))] || 0) : -rankScore(cv, lossTable(c.cultLossByN && c.cultLossByN[N] != null ? c.cultLossByN[N] : c.cultLossMax, N), true)[pl];
+      s.raceCult = c.cultureFold ? 0 : c.cultAbsVP ? (c.cultAbsVP[String(clamp(p.culture, -3, 5))] || 0) : -rankScore(cv, lossTable(c.cultLossByN && c.cultLossByN[N] != null ? c.cultLossByN[N] : c.cultLossMax, N), true)[pl];
     }
     if (c.trackScoring && !c.raceScoring) {
       const net = Math.max(0, p.prod - p.debt); s.netProg = net;
@@ -1427,7 +1439,7 @@ E.score = function (S) {
     const diff = hypePct - prodPct, db = c.deliveryBands;
     s.delivery = diff <= 0 ? db.delivered : diff <= db.nearMax ? db.near : diff <= db.farMax ? db.far : db.backlash;
     s.debtPenalty = c.trackScoring ? 0 : -Math.min(c.debtPenaltyCap, Math.round(dp * c.debtPenaltyMult * dbl));
-    s.culture = c.cultureVP[String(clamp(p.culture, c.culMin, c.culMax))] || 0;
+    s.culture = c.cultureFold ? 0 : (c.cultureVP[String(clamp(p.culture, c.culMin, c.culMax))] || 0);
     s.burnout = c.burnout && c.burnVP ? (c.burnVP[String(clamp(p.burnout || 0, 0, c.burnMax || 6))] || 0) : 0;
     // objectives & synergy
     s.objectives = 0; s.synergy = 0; s.objList = [];
