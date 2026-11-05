@@ -585,7 +585,7 @@ function removeWorker(S, pi, wid, toPool) {
 function activeSpots(S) { const dr = S.cfg.smallDrop, small = dr && dr.length && S.players.length <= (S.cfg.smallMax || 3); return S.data.spots.filter(s => s.phases.includes(S.phase) && !(small && dr.includes(s.id))); }
 E.activeSpots = activeSpots; E.RES = RES; E.RES_OF = RES_OF; E.RES_NAME = RES_NAME; E.CAT_OF = CAT_OF;
 function catsOf(w) { const d = D0.disciplines[w.disc]; const out = [d.cat]; (d.wild || []).forEach(x => { const c = CAT_OF(x); if (!out.includes(c)) out.push(c); }); return out; }
-/* Crew spots: every way to fill the other slots from rested, unplaced workers. A plan = { ids (sorted), wcat (the category the placing worker fills), cats {id: category} }. */
+/* Strike Team spots: every way to fill the other slots from rested, unplaced workers. A plan = { ids (sorted), wcat (the category the placing worker fills), cats {id: category} }. */
 function crewPlans(S, p, w, spot) {
   if (w.fat >= 2) return [];
   const others = p.workers.filter(x => x.id !== w.id && !x.placed && !x.build && x.fat < 2);
@@ -628,7 +628,7 @@ function spotUsableBy(S, pi, w, spot) {
   if (!as.length) return { ok: false, reason: "No Quality workers in Concept" };
   if (spot.crew) {
     const plans = crewPlans(S, p, w, spot);
-    if (!plans.length) return { ok: false, reason: "Needs a rested crew: " + E.crewText(spot) };
+    if (!plans.length) return { ok: false, reason: "Needs a rested strike team: " + E.crewText(spot) };
     return { ok: true, as, plans };
   }
   if (spot.special === "convert") { const rk = RES_OF[CAT_OF(as[0])], rate = S.cfg.convertRate || 3; if (Math.floor((p[rk] || 0) / rate) < 1) return { ok: false, reason: "Needs " + rate + " " + RES_NAME[rk] + " to convert" }; }
@@ -705,7 +705,7 @@ function doPlace(S, pi, wid, target, o) {
     const want = Array.isArray(o.crew) ? o.crew.map(Number).sort((x, y) => x - y).join(",") : "";
     plan = opt.plans.find(pl => pl.ids.join(",") === want) || opt.plans[0];
     const names = plan.ids.map(id => { const pw = p.workers.find(x => x.id === id); pw.placed = true; pw.worked = true; pw.fat = Math.min(2, pw.fat + 1); p.rs.placed++; if (!(S.cfg.spotResOr && !opt.spot.r)) gain(S, pi, RES_OF[plan.cats[id]], Math.min(pw.lvl === "Sr" ? S.cfg.resSr : S.cfg.resJr, S.cfg.crewPartnerCap == null ? 9 : S.cfg.crewPartnerCap)); return pw.lvl + " " + pw.disc; });
-    log(S, p.name + " forms a crew for " + opt.spot.id + ": " + w.lvl + " " + dn(w.disc) + " + " + names.join(" + "));
+    log(S, p.name + " forms a strike team for " + opt.spot.id + ": " + w.lvl + " " + dn(w.disc) + " + " + names.join(" + "));
   }
   p.rs.placed++;
   if (opt.kind === "sys") {
@@ -822,7 +822,7 @@ E.resText = function (o) { return RES.filter(k => o[k] > 0).map(k => o[k] + " " 
 function spendRes(S, p, n) { for (let i = 0; i < n; i++) { let big = RES[0]; RES.forEach(k => { if (p[k] > p[big]) big = k; }); p[big]--; } }
 function maxBuilds(S, p) { return S.cfg.buildsPerRound; }
 /* Variant C: rounds until a bought system is finished. Crunch (Gold or fatigue, or free after R&D) is the fast option. */
-/* Rounds until a system is ready. Crew rounds (bt, 1-3 by system power) are the rounds its workers stay committed; ready = this round + 1 + crew rounds. A rush removes one crew round. */
+/* Rounds until a system is ready. Team rounds (bt, 1-3 by system power) are the rounds its workers stay committed; ready = this round + 1 + team rounds. A rush removes one team round. */
 E.buildRounds = function (S, p, crunch, def) { const bt = def && def.bt != null ? def.bt : (S.cfg.buildDelay || 2) - 1; const rush = crunch || (p && p.rd && S.cfg.rdCrunch); return Math.max(0, bt - (rush ? (S.cfg.rushRounds == null ? 1 : S.cfg.rushRounds) : 0)); };
 E.buildDelay = function (S, p, crunch, def) { return 1 + E.buildRounds(S, p, crunch, def); };
 E.crunchWorker = function (p) { const c = p.workers.filter(w => w.fat < 2).sort((x, y) => x.fat - y.fat || x.id - y.id); return c[0] || null; };

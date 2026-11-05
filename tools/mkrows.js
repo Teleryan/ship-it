@@ -29,7 +29,7 @@ r("board_prototype","Step 9 · the board · Prototype and Quality","Prototype an
 r("board_pitch","Step 9 · the board · Pitch Deck","Pitch Deck","Next",
 "**Pitch Deck** generates **Hype**: how much the world wants your game.");
 r("board_jam","Step 9 · the board · Game Jam","Game Jam","Next",
-"**Game Jam** needs a crew of 2 or 3 workers from different categories. It can earn skills or generate Progress.\n\nA worker earning skills is a worker not scoring: that is the central trade-off.");
+"**Game Jam** needs a strike team of 2 or 3 workers from different categories. It can earn skills or generate Progress.\n\nA worker earning skills is a worker not scoring: that is the central trade-off.");
 r("board_perks","Step 9 · the board · Studio Perks","Studio Perks","Next",
 "**Studio Perks** are special actions. **Each perk slot takes only one worker per round**, so whoever places first gets it. That is why turn order matters.\n\n**Talent**: recruit one extra worker from the pool, 1G cheaper.\n**Outsource**: a worker earns Gold.\n**Team Event**: send 2 workers with different roles (any two roles that are not the same) and pay 3G to gain +2 Culture.");
 r("bid","Step 12 \u00b7 place a bid","Blind bid for turn order","",
@@ -55,9 +55,9 @@ r("stats","Step 16 \u00b7 numbers","What your numbers mean","Next",
 r("place2","Step 15 · keep placing","Keep placing, or pass","",
 "Each worker can work **once per round**. Place more workers if you want more skills.\n\nYou do not have to place everyone. **A worker you leave unplaced will rest** and recover from tiredness. When you are finished, press **Pass** at the top. Passing ends your placing for this round.");
 r("build","Step 18 \u00b7 build a system","Build: spend your skills","",
-"You have **{bank} skills** banked. The **Systems to Build** panel under the board shows what is available. Press **Open Systems to Build** to build: each card shows its cost in skills, plus Gold, and which workers it needs. Only systems you can afford are enabled. You can start **{buildsPerRound}** per round.\n\nA **System** is a permanent engine that scores VP at the end. Building it **commits one worker for every role it needs**: they cannot be placed until it is finished, and it does nothing until then. Stronger systems keep their crew busy longer (1 to 3 rounds).{freeBuild}\n\nBuild one, close the market with **×**, then press **Done**. It appears under **Building** in your studio panel with the round it finishes.");
+"You have **{bank} skills** banked. The **Systems to Build** panel under the board shows what is available. Press **Open Systems to Build** to build: each card shows its cost in skills, plus Gold, and which workers it needs. Only systems you can afford are enabled. You can start **{buildsPerRound}** per round.\n\nA **System** is a permanent engine that scores VP at the end. Building it **commits one worker for every role it needs**: they cannot be placed until it is finished, and it does nothing until then. Stronger systems keep their team busy longer (1 to 3 rounds).{freeBuild}\n\nBuild one, close the market with **×**, then press **Done**. It appears under **Building** in your studio panel with the round it finishes.");
 r("build_rd","Step 18 \u00b7 R&D (after the build)","R&D: build faster","Next",
-"Systems take several rounds to build, and their crew is busy until they finish.\n\n**R&D** is the spot that speeds this up. Send two workers from different disciplines (Creative + Development, or Operations + Marketing) and **system development is reduced by 1 round** for what you start building that round. You also skip the Gold crunch fee.\n\nPlan R&D for a round when you are about to start a big system.");
+"Systems take several rounds to build, and their team is busy until they finish.\n\n**R&D** is the spot that speeds this up. Send two workers from different disciplines (Creative + Development, or Operations + Marketing) and **system development is reduced by 1 round** for what you start building that round. You also skip the Gold crunch fee.\n\nPlan R&D for a round when you are about to start a big system.");
 r("rest1","Step 19 \u00b7 tired workers and rest","Rest: tired workers","",
 "Every worker who worked this round is now **Tired**. A Tired worker who works again becomes **Over-Tired**: no skill, and a chance they quit. A worker who sits out a round **rests and recovers**, so leaving someone unplaced keeps everyone healthy. Workers building a system show **Building** and cannot be placed until it is finished.{burnRest}{restMiles}\n\n{restTeam}\n\nPress **Done**.");
 r("miles","Step 16 · milestones","Milestones","",
@@ -79,7 +79,7 @@ r("r2recruit","Step 24 \u00b7 recruit (round 2)","Recruit from the shared pool",
 r("r2place","Step 25 \u00b7 place (round 2)","Place your team","",
 "Place your workers. **A worker you leave unplaced rests**, and in Production a Junior who has worked and then rested can be promoted, so leave at least one out.\n\nPress **Pass** when you are finished.");
 r("r2crunch","Step 26 \u00b7 crunch (round 2)","Crunch: finish a build sooner","",
-"A system keeps its crew busy for 1 to 3 rounds. **Crunch** takes one round off, so the crew is freed sooner. It costs **{crunchGold}G**, or makes one worker more tired. In the market, set **Build speed** to Crunch before you build.{freeBuild}\n\nBuild a system with Crunch, close the market with **×**, then press **Done**.");
+"A system keeps its team busy for 1 to 3 rounds. **Crunch** takes one round off, so the team is freed sooner. It costs **{crunchGold}G**, or makes one worker more tired. In the market, set **Build speed** to Crunch before you build.{freeBuild}\n\nBuild a system with Crunch, close the market with **×**, then press **Done**.");
 r("r3","Step 27 \u00b7 rounds 2 and 3","Rounds 2 and 3: keep building","",
 "Concept ends after round 3, and **Production** rewards Progress and Hype, so spend your bank on systems now.\n\n{hint}");
 r("gateresult","Step 28 \u00b7 gate result","Concept gate result","Next",
@@ -87,7 +87,7 @@ r("gateresult","Step 28 \u00b7 gate result","Concept gate result","Next",
 r("gate_pass","Step 17 · gate result (passed)","","","You **passed** and received **{gateFund}G**.");
 r("gate_miss","Step 18 · gate result (missed)","","","You **missed** it and lost **{gatePenalty} VP**.");
 r("crisis","Step 29 \u00b7 crisis (round 4)","Production begins: a Crisis","Got it",
-"Round 4 starts a new phase, and every phase after the first opens with a **Crisis card**, an event that hits every studio{crisisLine}.\n\nProduction brings more score spots, Buzz earn spots, bigger crews and **Seniors**.");
+"Round 4 starts a new phase, and every phase after the first opens with a **Crisis card**, an event that hits every studio{crisisLine}.\n\nProduction brings more score spots, Buzz earn spots, bigger teams and **Seniors**.");
 r("r4play","Step 30 \u00b7 bid, draft, hire, place (round 4)","Round 4: play your round","",
 "Bid and draft work as before: every bid is paid, so pick the disciplines you need. Then hire Juniors, place, and leave someone out to rest so you can promote them.\n\n{hint}");
 r("promote","Step 31 \u00b7 promote","Promote a Junior to Senior","",
@@ -103,7 +103,7 @@ r("trigger","Step 32 \u00b7 trigger a system","A Senior triggers a system","",
 r("prod","Step 33 \u00b7 production","Production: balance your studio","",
 "Play freely through Production (rounds 4 to 8): spend skills on systems, take score spots for Progress and Hype, and keep Debt and Culture healthy.\n\n{hint}");
 r("polish","Step 34 \u00b7 polish","Polish begins","Got it",
-"**Polish** runs rounds 9 to 11. Check the gate panel: the Beta Review is due at the end of round 11. Stronger systems commit their crew for longer (one round less with Crunch), and **builds stop in the last rounds** because they could not finish in time.");
+"**Polish** runs rounds 9 to 11. Check the gate panel: the Beta Review is due at the end of round 11. Stronger systems commit their team for longer (one round less with Crunch), and **builds stop in the last rounds** because they could not finish in time.");
 r("polishfree","Step 19 · polish, free play","Polish","",
 "{hint}");
 r("convert","Step 36 \u00b7 launch and convert","Launch: convert your leftovers","",
