@@ -218,8 +218,8 @@ function tokens(S) {
   t.cultStat = fold ? "" : " <b>Culture</b> is morale: the lowest Culture loses VP.";
   t.upkeepCult = fold ? "" : "Culture moved toward 0, ";
   t.energizedCond = fold ? "Burnout 0" : "Burnout 0 and Culture " + c.energizedCulture + "+";
-  t.foldNote = fold ? "\n\nThere is no separate Culture track: **Culture is " + (c.cultureFoldBase || 5) + " minus Burnout**. Anything that gives Culture (Team Events, Training, some tiles) lowers Burnout, and anything that costs Culture raises it." : "";
-  t.trainEffect = fold ? "lowers **Burnout** by " + c.trainCulture + " (that is +" + c.trainCulture + " Culture)" : "gives **+" + c.trainCulture + " Culture**";
+  t.foldNote = fold ? "\n\nThere is no separate Culture track: <b>Culture is " + (c.cultureFoldBase || 5) + " minus Burnout</b>. Anything that gives Culture (Team Events, Training, some tiles) lowers Burnout, and anything that costs Culture raises it." : "";
+  t.trainEffect = fold ? "lowers <b>Burnout</b> by " + c.trainCulture + " (that is +" + c.trainCulture + " Culture)" : "gives <b>+" + c.trainCulture + " Culture</b>";
   t.healthy = fold ? "Burnout" : "Culture";
   t.teamEventEffect = fold ? "to lower Burnout by " + (c.teamEventCulture + (c.burnTeamRelief || 0)) : "to gain +" + c.teamEventCulture + " Culture";
   t.burnOverPer = c.burnOverStep > 1 ? c.burnOverStep + " Over-Tired workers" : "Over-Tired worker";
@@ -388,7 +388,7 @@ SI.tutLockMode = function () {
 SI.tutAllowsDetail = function () {
   const u = U(), T = u.tut; if (!T || T.auto || !u.S) return true;
   if (T.rev != null) return false;
-  const i = SI.tutSteps.findIndex(s => s.id === (lean() ? "recruit1" : "draft")); return i < 0 || T.idx >= i;
+  const i = SI.tutSteps.findIndex(s => s.id === (lean() ? "place1" : "draft")); return i < 0 || T.idx >= i;
 };
 SI.tutBack = function () { const T = U().tut; if (!T) return; if (T.rev == null) T.rev = Math.max(0, T.idx - 1); else T.rev = Math.max(0, T.rev - 1); };
 SI.tutFwd = function () { const T = U().tut; if (!T || T.rev == null) return; T.rev++; if (T.rev >= T.idx) T.rev = null; };
