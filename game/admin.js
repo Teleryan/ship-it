@@ -72,7 +72,7 @@ function renderAnalytics() {
   if (Object.keys(resN).length) h += `<h3>Resources left at game end <span class="mute" style="text-transform:none;letter-spacing:0">(average per player; high numbers mean unspent resources)</span></h3>` + table(["Players", "Ideas", "Code", "Process", "Buzz", "Total"], Object.keys(resN).sort().map(n => { const r = resN[n], v = r.t.map(x => x / r.n); return [n, f1(v[0]), f1(v[1]), f1(v[2]), f1(v[3]), f1(v[0] + v[1] + v[2] + v[3])]; }));
   const cN = {}; S.done.forEach(g => (g.final || []).forEach(f => { if (f.rc == null) return; const r = cN[g.n] = cN[g.n] || { n: 0, sr: 0, rc: 0, cr: 0, cv: 0, bd: 0, sy: 0, w: 0 }; r.n++; r.sr += f.sr || 0; r.rc += f.rc || 0; r.cr += f.cr || 0; r.cv += f.cv || 0; r.bd += f.bd || 0; r.sy += f.sy || 0; r.w += f.w || 0; }));
   if (Object.keys(cN).length) {
-    h += `<h3>Variant C economy <span class="mute" style="text-transform:none;letter-spacing:0">(average per player, games from the phase-shaped environment)</span></h3>` + table(["Players", "Workers", "Seniors", "Recruited", "Systems finished", "Unfinished at end", "Rushed builds", "Resources converted"], Object.keys(cN).sort().map(n => { const r = cN[n]; return [n, f1(r.w / r.n), f1(r.sr / r.n), f1(r.rc / r.n), f1(r.sy / r.n), f1(r.bd / r.n), f1(r.cr / r.n), f1(r.cv / r.n)]; }));
+    h += `<h3>Team and economy <span class="mute" style="text-transform:none;letter-spacing:0">(average per player, all games)</span></h3>` + table(["Players", "Workers", "Seniors", "Recruited", "Systems finished", "Unfinished at end", "Rushed builds", "Resources converted"], Object.keys(cN).sort().map(n => { const r = cN[n]; return [n, f1(r.w / r.n), f1(r.sr / r.n), f1(r.rc / r.n), f1(r.sy / r.n), f1(r.bd / r.n), f1(r.cr / r.n), f1(r.cv / r.n)]; }));
     h += `<div class="mute" style="margin:4px 0">Per round (all players): ` + Object.keys(S.rounds).sort((a, b) => a - b).map(r => { const x = S.rounds[r], n = x.n || 1; return `R${r}: ${f1(x.sr / n)} Sr, ${f1(x.bd / n)} building`; }).join(" · ") + `</div>`;
   }
   const recent = gs.slice().sort((a, b) => b.endedAt - a.endedAt).slice(0, 15);
@@ -90,7 +90,7 @@ function renderTuning(ctx) {
   <tr><td><b>Test</b> (<a href="/?env=test" target="_blank" style="color:var(--gold)">open test page</a>)</td><td>${line("test")}</td><td><button class="btn sm" data-act="m-revert" data-v="test">Back to defaults</button></td></tr></tbody></table>
   <div style="margin:14px 0;padding:12px;border:1px solid var(--line,#2b3350);border-radius:10px"><div class="mute">Your current Data Studio edits: <b>${nCfg}</b> rule values and <b>${nData}</b> card/data tables changed from the shipped defaults.</div>
   <div class="row wrap" style="margin-top:8px"><input id="m-note" placeholder="Note (what changed)" maxlength="200" style="min-width:260px" class="grow"><button class="btn" data-act="m-publish" data-v="test">Publish to test</button><button class="btn primary" data-act="m-publish" data-v="live">Publish to live</button></div></div>
-  <p class="dim" style="font-size:12px">Environments A, B, C and D keep separate published tuning (this is Environment ${site === "b" ? "B" : site === "c" ? "C" : site === "d" ? "D" : "A"}). Each published version is also kept on the server.</p>`;
+  <p class="dim" style="font-size:12px">Each published tuning version is kept on the server.</p>`;
 }
 function renderGames() {
   const m = M(), n = (m.rooms || []).length;

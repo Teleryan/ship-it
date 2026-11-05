@@ -188,7 +188,7 @@ function ownsDiscs(p, req) { // distinct workers for each requirement, wild work
   }
   return go(0);
 }
-/* Variant C build crew: one free (not already building) worker per role the system's cost names; wild workers are flexible. Returns worker ids, or null. */
+/* build crew: one free (not already building) worker per role the system's cost names; wild workers are flexible. Returns worker ids, or null. */
 function crewFor(p, req) {
   const free = p.workers.filter(w => !w.build); const used = {}; const out = [];
   function go(i) {
@@ -341,7 +341,7 @@ function burnBands(S) {
   });
 }
 
-/* ---------- Variant C: build time, recruitment pool ---------- */
+/* ---------- build time, recruitment pool ---------- */
 // A system you buy is held in p.building until its ready round, then joins p.systems (so triggers, passives and scoring only ever see finished systems).
 function completeBuilds(S) {
   S.players.forEach(p => {
@@ -756,7 +756,7 @@ E.parseBuild = parseBuild;
 E.srDiscount = function (S, p) { return p && p.rs ? Math.max(0, (p.rs.srPlaced || 0) * (S.cfg.srBuildDiscount || 0)) : 0; };
 E.resTotal = function (p) { return RES.reduce((t, k) => t + (p[k] || 0), 0); };
 /* A system's printed cost "4M+Eng+QA" is paid in skills of the roles it needs: the total is split evenly across their categories (the first category gets any odd unit). */
-/* Variant C synergy: a system's main skill is the one its printed cost asks for most (ties: first role listed). */
+/* synergy: a system's main skill is the one its printed cost asks for most (ties: first role listed). */
 E.sysMainRes = function (def) {
   const b = parseBuild(def.build), need = E.buildNeed(b); let best = null;
   RES.forEach(k => { if (need[k] > 0 && (best === null || need[k] > need[best])) best = k; });
@@ -788,7 +788,7 @@ E.buildGold = function (S, def, p) { return E.buildCost(S, p, def, false).gold; 
 E.resText = function (o) { return RES.filter(k => o[k] > 0).map(k => o[k] + " " + RES_NAME[k]).join(" + ") || "nothing"; };
 function spendRes(S, p, n) { for (let i = 0; i < n; i++) { let big = RES[0]; RES.forEach(k => { if (p[k] > p[big]) big = k; }); p[big]--; } }
 function maxBuilds(S, p) { return S.cfg.buildsPerRound; }
-/* Variant C: rounds until a bought system is finished. Crunch (Gold or fatigue, or free after R&D) is the fast option. */
+/* rounds until a bought system is finished. Crunch (Gold or fatigue, or free after R&D) is the fast option. */
 /* Rounds until a system is ready. Team rounds (bt, 1-3 by system power) are the rounds its workers stay committed; ready = this round + 1 + team rounds. A rush removes one team round. */
 E.buildRounds = function (S, p, crunch, def) { const bt = def && def.bt != null ? def.bt : (S.cfg.buildDelay || 2) - 1; const rush = crunch || (p && p.rd && S.cfg.rdCrunch); return Math.max(0, bt - (rush ? (S.cfg.rushRounds == null ? 1 : S.cfg.rushRounds) : 0)); };
 E.buildDelay = function (S, p, crunch, def) { return 1 + E.buildRounds(S, p, crunch, def); };

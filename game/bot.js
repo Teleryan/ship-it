@@ -8,7 +8,7 @@ const E = root.ShipItEngine || require("./engine.js");
 const B = {};
 // strategy personas for balance testing (a player with no persona plays the neutral heuristic)
 const NEUTRAL = { res: 1, crewCost: 3, prod: 1, mktg: 1, hype: 1, gold: 1, debt: 1, spotDebt: 0.3, buildBias: 0, cat: {}, workers: 0, bid: 1,
-  // Variant C knobs (tuned by self-play, see work/ctune.js)
+  // Bot knobs (tuned by self-play, see work/ctune.js)
   gate: 1, gateSurplus: 1.1, gatePace: 4, resVal: 1.5, recBase: 3.4, recReserve: 2, recMax: 0, srCap: 0.5, promoGold: 7, crunchGold: 16, crunchRound: 8, buildScale: 1, srVal: 1.2, convHold: 1, thr: 0.3 };
 B.personas = {
   // Crunch Studio: Progress first, tolerates Tech Debt, big team
@@ -33,7 +33,7 @@ B.profileNames = [["", "Standard"], ["novice", "Novice"], ["casual", "Human-like
 let PF = null;
 const quirk = (S, p) => { if (!p.qk) p.qk = [E.rnd(S), E.rnd(S), E.rnd(S), E.rnd(S), E.rnd(S)]; return p.qk; };
 let W = NEUTRAL;
-// Variant C: Progress and Hype are worth more while the phase's publisher gate is out of reach, less once it is safe
+// Progress and Hype are worth more while the phase's publisher gate is out of reach, less once it is safe
 let GF = { prod: 1, hype: 1 };
 function gateFactors(S, p) { // gate pressure, then the press-buzz (Hype leader) incentive
   gateFactors0(S, p);
@@ -197,7 +197,7 @@ function buildScore(S, p, d) {
   p.objectives.forEach(id => { const o = S.data.objectives[id]; if (o.res && E.sysMainRes(d) === o.res) v += 1.5; });
   return v + E.rnd(S);
 }
-// Variant C: normal builds finish two rounds later; rush when the clock is short (or the Gold is plentiful)
+// normal builds finish two rounds later; rush when the clock is short (or the Gold is plentiful)
 function bcrunch(S, p, d, free) {
   if (p.rd && S.cfg.rdCrunch) return undefined;
   const need = S.round + (S.cfg.buildDelay || 2) > 12, late = S.round >= W.crunchRound, rich = p.gold >= W.crunchGold;
