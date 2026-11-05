@@ -1,14 +1,13 @@
-// KPI sweep for the shipped game (Variant D rules): winner VP, gap, blowouts, leftover Gold, Burnout, by player count.
-// usage: node tools/kpi.js [games=200] [skill=casual|novice|expert|""] [players csv=2,3,4,5,6] ['{"cfg":"overrides"}']
+// KPI sweep for the shipped game: winner VP, gap, blowouts, leftover Gold, Burnout, by player count.
+// usage: node tools/kpi.js [games=200] [skill=casual|novice|expert|""] [players csv=2,3,4,5,6] ['{"key":value}' config overrides]
 // Seats rotate through the four personas. Seeds are fixed so two runs are comparable.
 global.window = undefined;
 const path = require("path"), G = path.join(__dirname, "..", "game");
 const D = require(path.join(G, "data.js")), E = require(path.join(G, "engine.js")), B = require(path.join(G, "bot.js"));
 const games = +process.argv[2] || 200, skill = process.argv[3] === undefined ? "casual" : process.argv[3];
 const counts = (process.argv[4] || "2,3,4,5,6").split(",").map(Number), ov = JSON.parse(process.argv[5] || "{}");
-D.milestones = D.milestones.map(m => m.name === "Liquidation" ? { cat: "Workforce", gold: 4, name: "Double Recruit", text: "Recruit 2 workers from the shared pool in one round", phases: [1, 2] } : m); // as the Variant D build does
-// shipped D rules: the build flips these flags on the C config
-const cfg = Object.assign({}, D.config, D.configC, { varC: 1, burnout: 1, train: 1, smallDrop: ["insight"], smallMax: 6, hypeBank: 3, recruitDelta: -1, flowV2: 1, draftMiniDelta: -1, promoByRest: 1, v2: 1, qaAllowedPreProd: 1, hireDiscard: 0 }, ov.v2 === 0 ? {} : D.configV2, ov);
+// the shipped rules are simply D.config; the optional JSON argument overrides single keys
+const cfg = Object.assign({}, D.config, ov);
 const PERS = ["", "crunch", "hype", "systems", "clean"];
 const avg = a => a.reduce((x, y) => x + y, 0) / (a.length || 1), med = a => { const b = a.slice().sort((x, y) => x - y); return b[b.length >> 1]; };
 for (const n of counts) {

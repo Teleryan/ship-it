@@ -3,8 +3,8 @@ global.window = undefined;
 const path = require("path"), G = path.join(__dirname, "..", "game");
 const D = require(path.join(G, "data.js")), E = require(path.join(G, "engine.js")), B = require(path.join(G, "bot.js"));
 const games = +process.argv[2] || 60, counts = (process.argv[3] || "2,3,4,5,6").split(",").map(Number), ov = JSON.parse(process.argv[4] || "{}");
-D.milestones = D.milestones.map(m => m.name === "Liquidation" ? { cat: "Workforce", gold: 4, name: "Double Recruit", text: "Recruit 2 workers from the shared pool in one round", phases: [1, 2] } : m);
-const cfg = Object.assign({}, D.config, D.configC, { varC: 1, burnout: 1, train: 1, smallDrop: ["insight"], smallMax: 6, hypeBank: 3, recruitDelta: -1, flowV2: 1, draftMiniDelta: -1, promoByRest: 1, v2: 1, qaAllowedPreProd: 1, hireDiscard: 0 }, ov.v2 === 0 ? {} : D.configV2, ov);
+// the shipped rules are simply D.config; the optional JSON argument overrides single keys
+const cfg = Object.assign({}, D.config, ov);
 const PERS = ["", "crunch", "hype", "systems", "clean"];
 const med = a => { const b = a.slice().sort((x, y) => x - y); return b[b.length >> 1]; }, avg = a => a.reduce((x, y) => x + y, 0) / (a.length || 1);
 const pc = (a, f) => Math.round(a.filter(f).length / (a.length || 1) * 100);

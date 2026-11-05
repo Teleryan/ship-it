@@ -224,26 +224,11 @@ function build(S, p) {
 
 function rest(S, p) {
   const c = S.cfg; const cost = E.promoGold(S);
-  if (c.promoFree) {
-    const srN = p.workers.filter(w => w.lvl === "Sr").length, cap = 1 + Math.floor(p.workers.length * W.srCap);
-    if (c.train) {
-      const rdy = p.workers.find(w => w.lvl === "Jr" && !E.trainPromoWhy(S, w));
-      if (rdy && p.gold >= cost && p.promos < c.promotionsPerRest && srN < cap && E.srAllowed(S) && S.phase < 3 && (!PF || E.rnd(S) < PF.promoP)) return { type: "promote", p: p.id, worker: rdy.id };
-      const tr = p.workers.find(w => w.lvl === "Jr" && !w.placed && !w.build && !w.training && (w.trained || 0) < c.trainNeeded);
-      if (tr && (p.rs.trains || 0) < Math.min(c.trainsPerRest, 1) && srN < cap && S.round < 11 && S.phase < 3 && p.gold >= W.promoGold - 2 && p.workers.length >= 4 && (!PF || E.rnd(S) < PF.promoP)) return { type: "train", p: p.id, worker: tr.id };
-      return { type: "done", p: p.id };
-    }
-    const jr = p.workers.find(w => w.lvl === "Jr" && !w.placed && w.worked);
-    if (jr && p.promos < c.promotionsPerRest && srN < cap && p.gold >= W.promoGold && S.phase < 3 && (!PF || E.rnd(S) < PF.promoP)) return { type: "promote", p: p.id, worker: jr.id };
-    return { type: "done", p: p.id };
-  }
-  if (E.srAllowed(S) && p.promos < c.promotionsPerRest && p.gold >= cost + 4 && S.phase < 3) {
-    const jr = p.workers.find(w => w.lvl === "Jr"); if (jr) return { type: "promote", p: p.id, worker: jr.id };
-  }
-  if (p.hunts < c.headhuntsPerRest && S.phase < 3 && p.gold >= cost * c.headhuntMult + 8 && E.rnd(S) < 0.3) {
-    const cands = S.players.filter(q => q.id !== p.id && q.workers.length > 1 && (!c.headhuntCatchUp || q.workers.length > p.workers.length)); const t = cands[E.rint(S, cands.length)];
-    if (t) { const w = t.workers.slice().sort((a, b) => (b.lvl === "Sr" ? 1 : 0) - (a.lvl === "Sr" ? 1 : 0))[0]; if (!(w.lvl === "Sr" && !E.srAllowed(S))) return { type: "headhunt", p: p.id, target: t.id, worker: w.id }; }
-  }
+  const srN = p.workers.filter(w => w.lvl === "Sr").length, cap = 1 + Math.floor(p.workers.length * W.srCap);
+  const rdy = p.workers.find(w => w.lvl === "Jr" && !E.trainPromoWhy(S, w));
+  if (rdy && p.gold >= cost && p.promos < c.promotionsPerRest && srN < cap && E.srAllowed(S) && S.phase < 3 && (!PF || E.rnd(S) < PF.promoP)) return { type: "promote", p: p.id, worker: rdy.id };
+  const tr = p.workers.find(w => w.lvl === "Jr" && !w.placed && !w.build && !w.training && (w.trained || 0) < c.trainNeeded);
+  if (tr && (p.rs.trains || 0) < Math.min(c.trainsPerRest, 1) && srN < cap && S.round < 11 && S.phase < 3 && p.gold >= W.promoGold - 2 && p.workers.length >= 4 && (!PF || E.rnd(S) < PF.promoP)) return { type: "train", p: p.id, worker: tr.id };
   return { type: "done", p: p.id };
 }
 

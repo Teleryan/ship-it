@@ -12,7 +12,7 @@ const rich = q => { q.gold = 40; RES.forEach(k => q[k] = 10) };
 
 // ---- shape of the game ----
 let S = mk(3);
-ok(JSON.stringify(D.phases.map(p => p.rounds)) === '[[1,2],[3,8],[9,11],[12,12]]', 'phases: rounds 1-2, 3-8, 9-11, 12');
+ok(JSON.stringify(D.phases.map(p => p.rounds)) === '[[1,3],[4,8],[9,11],[12,12]]', 'phases: rounds 1-3, 4-8, 9-11, 12');
 ok(S.players.every(p => p.hand === undefined) && S.draft === undefined, 'no hand and no draft');
 ok(E.hireCost === undefined, 'no hire cost');
 { const seen = new Set(); const T = mk(4, 3); let g = 0; while (!T.over && g++ < 30000) { seen.add(T.step); const a = B.decide(T); if (!a || !E.act(T, a).ok) break }
@@ -24,8 +24,8 @@ ok(S.players.every(p => p.workers.length === S.cfg.startWorkers), 'every studio 
 
 // ---- recruit, price ladder ----
 S = toStep(mk(3, 3), 'place', 3);
-{ const a = E.currentActor(S), p = S.players[a], o = S.players[(a + 1) % 3];
-  p.gold = 20; o.gold = 20; const cost = E.recruitCost(S, a), n0 = p.workers.length;
+{ const a = E.currentActor(S), p = S.players[a];
+  S.players.forEach(x => { x.gold = 20; x.hireDiscount = 0 }); const cost = E.recruitCost(S, a), n0 = p.workers.length;
   let r = E.act(S, { type: 'recruit', p: a, idx: 0 });
   ok(r.ok && p.workers.length === n0 + 1 && p.gold === 20 - cost, 'recruit costs ' + cost + 'G and adds a worker');
   const nw = p.workers[p.workers.length - 1]; ok(nw.lvl === 'Jr' && !nw.placed, 'recruit is a Jr, can be placed this round');
@@ -159,19 +159,20 @@ const mkRest = seed => { const T = mk(seed); toStep(T, 'rest', 4); const pi = E.
   const num = g => g.reqs.map(r => +((r.match(/^(\d+)\+/) || [])[1] || 0)).reduce((a, b) => a + b, 0);
   ok(H.gateSet.reduce((t, g) => t + num(g), 0) > M.gateSet.reduce((t, g) => t + num(g), 0), 'Hard gates have higher targets');
   ok(H.gateSet.concat(M.gateSet).every(g => g.reqs.every(x => !/Debt < (0|100)/.test(x))), 'Debt limits stay in range'); }
-{ // a gate pays funding to a studio that meets it and costs VP when missed
-  const T = mk(22); let g = 0; while (!T.over && !T.gateSet && g++ < 4000) if (!B.step(T).ok) break;
-  const gate = T.gateSet[T.phase]; ok(!!gate && T.round === 2, 'reached the first gate (round 2)');
-  const need = parseInt(gate.reqs[0], 10), p0 = T.players[0], p1 = T.players[1]; p0.prod = need + 5; p1.prod = 0; p0.debt = 0; p1.debt = 0;
-  const gold0 = p0.gold, vp1 = p1.vpAdj, n = (T.gates || []).length; let h = 0; while (!T.over && (T.gates || []).length === n && h++ < 4000) if (!B.step(T).ok) break;
-  const res = T.gates[n]; ok(res && res.passed.includes(0) && res.failed.includes(1), 'gate: the studio at target passes, the one below fails');
-  ok(p1.vpAdj <= vp1 - Math.min(gate.penalty, 1) + 0 || p1.vpAdj < vp1 || gate.penalty === 0, 'a missed gate costs VP'); }
+{ // a gate pays funding to a studio that meets it and costs VP when missed (resolved at the end of the phase, round 3)
+  const T = mk(22); toStep(T, 'rest', 3); const gate = T.gateSet[0];
+  ok(T.round === 3 && gate.phase === 0, 'reached the end of Phase 1 with its gate drawn');
+  const need = parseInt(gate.reqs[0], 10), p0 = T.players[0], p1 = T.players[1];
+  p0.prod = need + 5; p1.prod = 0; p0.debt = 0; p1.debt = 0; const v0 = p0.vpAdj, v1 = p1.vpAdj, n = (T.gates || []).length;
+  until(T, s => s.round > 3 || s.over); const res = T.gates[n];
+  ok(res && res.phase === 0 && res.passed.includes(0) && res.failed.includes(1), 'gate: the studio at target passes, the one below fails');
+  ok(p1.vpAdj === v1 - gate.penalty && p0.vpAdj === v0 + (gate.vp || 0), 'a missed gate costs its VP penalty'); }
 
 // ---- crisis cards, incl. auctions ----
 function crisisGame(card, seed, n) {
   const T = mk(seed, n || 3), deck = T.data.crisis.find(c => c.id === card).deck; T.decks.crisis[deck].push(card); // top of the deck
-  const round = [3, 9, 12][deck]; let g = 0;
-  while (!T.over && g++ < 30000 && !(T.step === 'crisis' && T.crisisCard === card)) { const a = B.decide(T); if (!a || !E.act(T, a).ok) break }
+  let g = 0;
+  while (!T.over && g++ < 30000 && T.crisisCard !== card) { const a = B.decide(T); if (!a || !E.act(T, a).ok) break }
   return T;
 }
 for (const [card, seed] of [['earlyaccess', 31], ['breakthrough', 32], ['viral', 33]]) {
@@ -181,10 +182,11 @@ for (const [card, seed] of [['earlyaccess', 31], ['breakthrough', 32], ['viral',
   T.players.forEach(p => { p.gold = 20; p.hype = 0 }); T.players.forEach(p => p.freeBuilds = 0);
   const bids = [3, 7, 1]; let i = 0; while (T.dq.length && T.dq[0].t === 'bid') { const pi = T.dq[0].p; if (i === 0) { ok(!E.act(T, { type: 'bid', p: pi, amount: 9999 }).ok, card + ': a bid above your Gold is refused'); ok(!E.act(T, { type: 'bid', p: pi, amount: -1 }).ok, card + ': a negative bid is refused'); } const r = E.act(T, { type: 'bid', p: pi, amount: bids[pi] }); if (!r.ok) break; i++ }
   ok(i === 3 && !T.dq.some(d => d.t === 'auto'), card + ': bids accepted and the auction resolved');
-  const w = T.players[1];
-  if (card === 'breakthrough') ok(w.freeBuilds === 1 && w.gold === 13 && T.players[0].freeBuilds === 0 && T.players[0].gold === 20, 'Tech Breakthrough: the high bidder pays his bid and gets a free build');
-  if (card === 'viral') ok(w.hype > 0 && w.gold === 13 && T.players[0].gold === 20, 'Viral Moment: the high bidder pays his bid and gains Hype');
-  if (card === 'earlyaccess') ok(w.hype > 0 && w.gold > 13 - 1 && T.players[0].gold > 20, 'Early Access: the winner pays and gets Gold and Hype, the runner-up gets Gold'); }
+  const L = T.log.map(l => l.m).join('\n'), w = T.players[1];
+  ok(new RegExp('P1 wins .*pays 7G').test(L), card + ': the highest bidder wins and pays his bid');
+  if (card === 'breakthrough') ok(w.freeBuilds === 1 && T.players[0].freeBuilds === 0, 'Tech Breakthrough: the winner gets a free build');
+  if (card === 'viral') ok(w.hype > 0, 'Viral Moment: the winner gains Hype');
+  if (card === 'earlyaccess') ok(w.hype > 0 && /P0 \+\d+G/.test(L), 'Early Access: the winner gains Hype, the runner-up gets Gold'); }
 for (const card of ['platform', 'creep', 'buyout', 'bug', 'patch', 'raid', 'departure', 'burnout', 'conference', 'award', 'investor', 'talentwar']) {
   const T = crisisGame(card, 40 + card.length, 3); if (T.crisisCard !== card) { ok(false, card + ' reached'); continue }
   const done = until(T, s => s.step === 'place' || s.over); ok(done.step === 'place' || done.over, 'crisis ' + card + ' resolves and play continues'); }
@@ -201,7 +203,7 @@ for (const card of ['platform', 'creep', 'buyout', 'bug', 'patch', 'raid', 'depa
   T.players[0].burnout = 5; ok(E.score(T)[0].parts.burnout === (T.cfg.burnVP['5'] || 0), 'Burnout VP follows the printed track'); }
 
 // ---- 2-6 players ----
-for (const n of [2, 3, 4, 5, 6]) { const T = mk(60 + n, n); const R = mk(60 + n, n); const spots = E.activeSpots(T).length; B.run(T, 40000);
+for (const n of [2, 3, 4, 5, 6]) { const T = mk(60 + n, n); const R = toStep(mk(60 + n, n), 'place', 1); const spots = E.activeSpots(T).length; B.run(T, 40000);
   ok(T.over && T.scores.length === n && T.winner != null && T.players.every(p => p.workers.length >= 1), n + ' players: a bot game finishes with scores and a winner');
   ok(spots > 0, n + ' players: board has spots (' + spots + ')');
   ok(R.recruit.length === E.recruitSize(R), n + ' players: recruitment pool size ' + R.recruit.length); }

@@ -622,7 +622,7 @@ function placementOptions(S, pi, w) {
     const def = sysDef(S, s.name); const need = DISC_ALIAS[def.trig.replace(/^1\s*/, "")] || def.trig.replace(/^1\s*/, "");
     let o = { target: "sys:" + i, label: s.name, kind: "sys", sys: s, def };
     if (s.t) o = Object.assign(o, { ok: false, reason: "Already triggered this round" });
-    else if (S.cfg.srSystems && w.lvl !== "Sr") o = Object.assign(o, { ok: false, reason: "Senior workers only" });
+    else if (w.lvl !== "Sr") o = Object.assign(o, { ok: false, reason: "Senior workers only" });
     else if (!actsAs(w).includes(need)) o = Object.assign(o, { ok: false, reason: "Needs " + need });
     else o = Object.assign(o, { ok: true, as: [need] });
     out.push(o);

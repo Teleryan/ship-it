@@ -6,7 +6,7 @@ const SRC = process.env.SHIPIT_SRC || path.join(__dirname, "..", "game");
 const E = require(path.join(SRC, "engine.js")), D = require(path.join(SRC, "data.js"));
 // Variant D (Burnout) is the default game: Burnout and Training on, Insight off the board
 D.milestones = D.milestones.map(m => m.name === "Liquidation" ? { cat: "Workforce", gold: 4, name: "Double Recruit", text: "Recruit 2 workers from the shared pool in one round", phases: [1, 2] } : m.name === "Hiring Spree" ? Object.assign({}, m, { text: "Have 6+ workers at the same time" }) : m); // as the Variant D build does
-const c = Object.assign(E.defaultConfig(), D.configC, { varC: 1, burnout: 1, train: 1, smallDrop: ["insight"], smallMax: 6, hypeBank: 3, recruitDelta: -1, flowV2: 1, draftMiniDelta: -1, promoByRest: 1, v2: 1, qaAllowedPreProd: 1, hireDiscard: 0 }, D.configV2);
+const c = Object.assign(E.defaultConfig(), D.config);
 const bv = c.burnVP || {}, bvTxt = [3, 4, 5, 6].map(k => k + ": " + (bv[k] || 0) + " VP").join(", ");
 const esc = s => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
