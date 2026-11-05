@@ -89,17 +89,22 @@ E.defaultData = function (cfg) {
   return clone(Object.assign(lookRows(), { spots:(cfg && cfg.varC && D0.spotsC) ? D0.spotsC : D0.spots, systems:D0.systems, milestones:D0.milestones, objectives:D0.objectives, crisis:D0.crisis, publisherGates:D0.publisherGates, gatePool:D0.gatePool, tutorial:D0.tutorial, text:D0.textRows ? D0.textRows() : [] }));
 };
 E.rawConfig = function () { return clone(D0.config); };
-E.defaultConfig = function () { const c = clone(D0.config); if (c.varC && D0.configC) Object.assign(c, D0.configC, { varC: 1 }); return c; };
+E.defaultConfig = function () { const c = clone(D0.config); if (c.varC && D0.configC) { Object.assign(c, D0.configC, { varC: 1 }); } if (c.v2 && D0.configV2) Object.assign(c, clone(D0.configV2)); return c; };
 
 /* ---------- New game ---------- */
 E.newGame = function (seats, opts) {
   opts = opts || {};
   const base = E.rawConfig(); const wantC = (opts.config && opts.config.varC != null) ? opts.config.varC : base.varC;
   if (wantC && D0.configC) Object.assign(base, D0.configC, { varC: 1 });
+  if ((base.v2 || (opts.config && opts.config.v2)) && D0.configV2) Object.assign(base, clone(D0.configV2));
   const cfg = Object.assign(base, opts.config || {});
   const data = Object.assign(E.defaultData(cfg), opts.data || {});
+  const N0 = seats.length;
+  if (cfg.spotFxAdj) data.spots.forEach(sp => { if (cfg.spotFxAdj[sp.id] != null) sp.fx = cfg.spotFxAdj[sp.id]; });
+  if (cfg.bigAdd && cfg.bigAdd[N0]) cfg.bigAdd[N0].forEach(id => { const sp = data.spots.find(x => x.id === id); if (sp) data.spots.push(Object.assign({}, sp, { id: id + "_b" })); });
+  if (cfg.launchCap) ["party", "press", "platform"].forEach(id => { const sp = data.spots.find(x => x.id === id); if (!sp) return; sp.mode = "single"; for (let k = 1; k < Math.ceil(N0 / 2); k++) data.spots.push(Object.assign({}, sp, { id: id + "_c" + k })); });
   E.useCfg(cfg); E.applyLook(data);
-  if (cfg.varC && D0.cScaleGates) D0.cScaleGates(data, cfg);
+  if (cfg.varC && D0.cScaleGates) D0.cScaleGates(data, cfg, seats.length);
   const S = {
     v: 1, seed: (opts.seed != null ? opts.seed : (Math.random() * 2 ** 31) | 0), cfg, data,
     round: 1, phase: 0, step: "setup", cur: 0, order: [], passed: [], log: [], dq: [], bids: {}, wid: 1,
@@ -118,6 +123,7 @@ E.newGame = function (seats, opts) {
   const cards = []; let n = 1;
   DISCS.forEach(d => { const cnt = (cfg.deckBase != null ? cfg.deckBase : D0.deck.base) + (N >= 3 ? (cfg.deckExtra != null ? cfg.deckExtra : D0.deck.extra) : 0); for (let i = 0; i < cnt; i++) cards.push({ id: "C" + n++, disc: d }); });
   S.decks.disc = shuffle(S, cards);
+  if (cfg.mileGoldAdj) data.milestones.forEach(m => { if (cfg.mileGoldAdj[m.name]) m.gold = Math.max(1, m.gold + cfg.mileGoldAdj[m.name]); });
   S.decks.mile = shuffle(S, data.milestones.map((m, i) => i));
   S.decks.obj = {};
   ["Platform","Genre","Audience","Wild"].forEach(t => S.decks.obj[t] = shuffle(S, data.objectives.map((o, i) => o.type === t ? i : -1).filter(i => i >= 0)));
@@ -128,7 +134,7 @@ E.newGame = function (seats, opts) {
   refillMarket(S);
   S.order = shuffle(S, S.players.map(p => p.id));
   S.players.forEach(p => {
-    for (let i = 0; i < cfg.handSize; i++) drawMile(S, p.id, true);
+    for (let i = 0; i < ((cfg.handSizeByN && cfg.handSizeByN[N] != null) ? cfg.handSizeByN[N] : cfg.handSize); i++) drawMile(S, p.id, true);
     const opts = {};
     Object.keys(S.decks.obj).forEach(t => { opts[t] = []; for (let i = 0; i < cfg.objDraw; i++) { const c = S.decks.obj[t].pop(); if (c != null) opts[t].push(c); } });
     S.dq.push({ t: "keepObj", p: p.id, opts });
@@ -223,6 +229,7 @@ function hireCost(S, pi, lvl) {
 E.hireCost = hireCost;
 const promoCost = S => S.cfg["promoCost" + S.phase];
 E.promoCost = promoCost;
+E.promoGold = S => (S.cfg.promoGoldByN && S.cfg.promoGoldByN[S.players.length] != null) ? S.cfg.promoGoldByN[S.players.length] : (S.cfg.promoFree ? 0 : promoCost(S));
 function sysDef(S, name) { return S.data.systems.find(s => s.name === name); }
 
 /* ---------- actor / flow ---------- */
@@ -297,7 +304,16 @@ function beginDraft(S) {
 }
 // flowV2 (Variant D): Upkeep opens the round, Income comes next, then the Bid; the draft and Hire follow the bid
 function afterDraft(S) { if (S.cfg.flowV2) { S.step = "hire"; S.cur = 0; } else beginRound(S); }
+// Catch-up order (v2): no blind bid. The studio with the fewest VP right now acts first; ties go to the smaller team, then a coin flip. Round 1 keeps the setup order.
+function catchUpOrder(S) {
+  if (S.round <= 1 && !S.lastOrderSet) { S.lastOrderSet = 1; return; }
+  const sc = E.score(S).map(x => x.total), ids = S.players.map(p => p.id), key = i => [sc[i], P(S, i).workers.length, rnd(S)], k = {}; ids.forEach(i => k[i] = key(i));
+  ids.sort((a, b) => { for (let j = 0; j < 3; j++) if (k[a][j] !== k[b][j]) return k[a][j] - k[b][j]; return 0; });
+  S.order = ids; S.lastBids = {};
+  log(S, "TURN ORDER (catch-up, fewest VP first): " + ids.map(i => P(S, i).name).join(" > "));
+}
 function startBid(S) {
+  if (S.cfg.catchUpOrder) { S.bids = {}; if (S.cfg.varC) rollRecruit(S); catchUpOrder(S); beginDraft(S); return; }
   S.step = "bid"; S.bids = {}; if (S.cfg.varC) rollRecruit(S);
   S.order.forEach(pi => S.dq.push({ t: "bid", p: pi, purpose: "turn" }));
   S.dq.push({ t: "auto", fn: "turnOrder" });
@@ -311,7 +327,14 @@ function roundSetup(S) {
     p.rd = false; p.rdDisc = 0; p.refreshed = 0; p.builds = 0; p.promos = 0; p.hunts = 0; p.swapObj = 0; p.swapMile = 0; p.recruited = 0; p.recruitExtra = 0;
     p.systems.forEach(s => s.t = false);
   });
-  S.occ = {}; S.passed = [];
+  S.occ = {}; S.passed = []; S.closed = {};
+  const kc = S.cfg.closeByN && S.cfg.closeByN[S.players.length];
+  if (kc && S.phase < 3) {
+    const cand = activeSpots(S).filter(sp => spotModeOf(sp) === "single" && !sp.special && !sp.excl && sp.id !== "ship");
+    for (let i = cand.length - 1; i > 0; i--) { const j = rint(S, i + 1); const t = cand[i]; cand[i] = cand[j]; cand[j] = t; }
+    cand.slice(0, kc).forEach(sp => { S.closed[sp.id] = 1; });
+    log(S, "INDUSTRY NEWS: " + cand.slice(0, kc).map(sp => sp.row + " (" + (sp.fx || sp.note || sp.id) + ")").join("; ") + " closed this round");
+  }
   if (S.cfg.varC) { completeBuilds(S); rollRecruit(S); S.players.forEach(p => { p.cs.crewRounds = (p.cs.crewRounds || 0) + p.workers.filter(w => w.build).length; }); }
   log(S, "--- ROUND " + S.round + " (" + D0.phases[S.phase].name + ") ---");
   S.players.forEach(p => {
@@ -463,7 +486,7 @@ function endOfRound(S) {
   }
   if (S.cfg.hypeLeadVP && S.phase < 3 && PHASE_OF_ROUND(S.round + 1) !== S.phase) { // press buzz: the studio with the most Hype when a phase closes earns VP
     const mx = Math.max.apply(null, S.players.map(q => q.hype)), tops = S.players.filter(q => q.hype === mx);
-    if (tops.length === 1 && mx >= (S.cfg.hypeLeadMin || 1)) { tops[0].vpAdj += S.cfg.hypeLeadVP; S.hypeLead = (S.hypeLead || []).concat([{ phase: S.phase, id: tops[0].id, vp: S.cfg.hypeLeadVP }]); log(S, "HYPE LEADER: " + tops[0].name + " has the most Hype (" + mx + ") at the end of " + D0.phases[S.phase].name + ": +" + S.cfg.hypeLeadVP + " VP"); }
+    if (tops.length === 1 && mx >= (S.cfg.hypeLeadMin || 1) && S.players.length >= (S.cfg.awardMinN || 0)) { tops[0].vpAdj += S.cfg.hypeLeadVP; S.hypeLead = (S.hypeLead || []).concat([{ phase: S.phase, id: tops[0].id, vp: S.cfg.hypeLeadVP }]); log(S, "HYPE LEADER: " + tops[0].name + " has the most Hype (" + mx + ") at the end of " + D0.phases[S.phase].name + ": +" + S.cfg.hypeLeadVP + " VP"); }
   }
   return false;
 }
@@ -563,7 +586,7 @@ function resolveGate(S) {
   failed.forEach(id => { const pl = P(S, id), cap = S.cfg.gateLossCap || 99, pen = Math.max(0, Math.min(g.penalty, cap - (pl.gateLoss || 0))); pl.gateLoss = (pl.gateLoss || 0) + pen; pl.vpAdj -= pen; if (S.cfg.gateContract) pl.contract = (pl.contract || 0) + 1; });
   }
   let best = null;
-  if (passed.length) { const mx = Math.max.apply(null, passed.map(id => P(S, id).prod)); const tops = passed.filter(id => P(S, id).prod === mx); if (tops.length === 1 && S.cfg.gateBestVP) { best = tops[0]; adjTrack(S, best, "P", S.cfg.poolScoring ? S.cfg.poolFavPts : S.cfg.gateBestVP); } }
+  if (passed.length) { const mx = Math.max.apply(null, passed.map(id => P(S, id).prod)); const tops = passed.filter(id => P(S, id).prod === mx); if (tops.length === 1 && S.cfg.gateBestVP && S.players.length >= (S.cfg.awardMinN || 0)) { best = tops[0]; adjTrack(S, best, "P", S.cfg.poolScoring ? S.cfg.poolFavPts : S.cfg.gateBestVP); } }
   S.gates.push({ phase: S.phase, name: g.name, lvl: g.lvl || "M", passed, failed, best });
   log(S, "GATE: " + g.name + " (" + g.reqs.join(", ") + "). Passed: " + (passed.map(id => P(S, id).name).join(", ") || "nobody") + (best != null ? ". Publisher's favorite: " + P(S, best).name : "") + (failed.length ? ". Missed (-" + (S.cfg.poolScoring ? (g.pts + " pts") : (g.penalty + " VP")) + "): " + failed.map(id => P(S, id).name).join(", ") : ""));
 }
@@ -588,7 +611,8 @@ function catsOf(w) { const d = D0.disciplines[w.disc]; const out = [d.cat]; (d.w
 /* Strike Team spots: every way to fill the other slots from rested, unplaced workers. A plan = { ids (sorted), wcat (the category the placing worker fills), cats {id: category} }. */
 function crewPlans(S, p, w, spot) {
   if (w.fat >= 2) return [];
-  const others = p.workers.filter(x => x.id !== w.id && !x.placed && !x.build && x.fat < 2);
+  const overOK = !!S.cfg.overCrew && !!S.cfg.burnout;
+  const others = p.workers.filter(x => x.id !== w.id && !x.placed && !x.build && !x.benched && (x.fat < 2 || overOK));
   const seen = {}, out = [];
   spot.crew.forEach(alt => {
     const wcs = catsOf(w).slice(); if (alt.includes("Any") && !wcs.some(c => alt.includes(c))) wcs.push(catsOf(w)[0]);
@@ -603,8 +627,9 @@ function crewPlans(S, p, w, spot) {
         }
         others.forEach(x => {
           if (picks.some(y => y.id === x.id)) return;
-          if (rest[k] === "Any") { if (x.disc === w.disc || picks.some(y => y.disc === x.disc)) return; go(k + 1, picks.concat({ id: x.id, cat: catsOf(x)[0], disc: x.disc })); return; }
-          if (!catsOf(x).includes(rest[k])) return; go(k + 1, picks.concat({ id: x.id, cat: rest[k], disc: x.disc }));
+          if (x.fat >= 2 && picks.some(y => y.over)) return;
+          if (rest[k] === "Any") { if (x.disc === w.disc || picks.some(y => y.disc === x.disc)) return; go(k + 1, picks.concat({ id: x.id, cat: catsOf(x)[0], disc: x.disc, over: x.fat >= 2 })); return; }
+          if (!catsOf(x).includes(rest[k])) return; go(k + 1, picks.concat({ id: x.id, cat: rest[k], disc: x.disc, over: x.fat >= 2 }));
         });
       })(0, []);
     });
@@ -618,6 +643,7 @@ function spotUsableBy(S, pi, w, spot) {
   const p = P(S, pi);
   if (spot.srOnly && w.lvl !== "Sr") return { ok: false, reason: "Senior workers only" };
   const mode = spotModeOf(spot); const occ = S.occ[spot.id] || [];
+  if (S.closed && S.closed[spot.id]) return { ok: false, reason: "Closed by Industry News this round" };
   if (mode === "single" && occ.length) return { ok: false, reason: "Occupied" };
   if (mode !== "single" && mode !== "open" && occ.includes(pi)) return { ok: false, reason: "You already used this spot" };
   let as = [];
@@ -708,7 +734,7 @@ function doPlace(S, pi, wid, target, o) {
   if (opt.kind === "spot" && opt.spot.crew) {
     const want = Array.isArray(o.crew) ? o.crew.map(Number).sort((x, y) => x - y).join(",") : "";
     plan = opt.plans.find(pl => pl.ids.join(",") === want) || opt.plans[0];
-    const names = plan.ids.map(id => { const pw = p.workers.find(x => x.id === id); pw.placed = true; pw.worked = true; pw.fat = Math.min(2, pw.fat + 1); p.rs.placed++; if (!(S.cfg.spotResOr && !opt.spot.r)) gain(S, pi, RES_OF[plan.cats[id]], Math.min(pw.lvl === "Sr" ? S.cfg.resSr : S.cfg.resJr, S.cfg.crewPartnerCap == null ? 9 : S.cfg.crewPartnerCap)); return pw.lvl + " " + pw.disc; });
+    const names = plan.ids.map(id => { const pw = p.workers.find(x => x.id === id); const pover = pw.fat >= 2; if (pover) { pw.overWhenPlaced = true; p.rs.overN = (p.rs.overN || 0) + 1; log(S, p.name + "'s Over-Tired " + pw.lvl + " " + dn(pw.disc) + " joins the strike team (Burnout risk)"); } pw.placed = true; pw.worked = true; pw.fat = Math.min(2, pw.fat + 1); p.rs.placed++; if (!(S.cfg.spotResOr && !opt.spot.r) && !pover) gain(S, pi, RES_OF[plan.cats[id]], Math.min(pw.lvl === "Sr" ? S.cfg.resSr : S.cfg.resJr, S.cfg.crewPartnerCap == null ? 9 : S.cfg.crewPartnerCap)); return pw.lvl + " " + pw.disc; });
     log(S, p.name + " forms a strike team for " + opt.spot.id + ": " + w.lvl + " " + dn(w.disc) + " + " + names.join(" + "));
   }
   p.rs.placed++;
@@ -764,7 +790,7 @@ function doPlace(S, pi, wid, target, o) {
     case "workshop": spendRes(S, p, spot.cost.res); break;
     case "talent": p.hireDiscount += 1; if (S.cfg.varC) { p.recruitExtra = (p.recruitExtra || 0) + 1; log(S, p.name + " may recruit one more worker from the pool this round (1G off)"); } break;
     case "team": gain(S, pi, "gold", -spot.cost.gold); gain(S, pi, "culture", S.cfg.teamEventCulture); if (S.cfg.burnout) gain(S, pi, "burnout", -(S.cfg.burnTeamRelief || 1)); break;
-    case "outsource": gain(S, pi, "gold", w.lvl === "Sr" ? (S.cfg.outsourceSr == null ? 5 : S.cfg.outsourceSr) : (S.cfg.outsourceJr == null ? 3 : S.cfg.outsourceJr)); break;
+    case "outsource": { const Nn = S.players.length, bn = (m, k) => S.cfg[m] && S.cfg[m][Nn] != null ? S.cfg[m][Nn] : S.cfg[k]; gain(S, pi, "gold", w.lvl === "Sr" ? (bn("outsourceSrByN", "outsourceSr") == null ? 5 : bn("outsourceSrByN", "outsourceSr")) : (bn("outsourceJrByN", "outsourceJr") == null ? 3 : bn("outsourceJrByN", "outsourceJr"))); break; }
     case "rd": p.rd = true; p.rdDisc = S.cfg.rdDiscount || 0; break;
     case "convert": {
       const rk = RES_OF[CAT_OF(as)], rate = S.cfg.convertRate || 3, n = Math.floor((p[rk] || 0) / rate), k = o.conv === "hype" ? "hype" : "prod";
@@ -928,6 +954,7 @@ function stepAction(S, a, actor) {
         const cost = hireCost(S, pi, lvl);
         if (a.train) { // hire and train in one step: pay hire + training, the new Junior sits out this round and the next
           if (!S.cfg.train) return err("Training is not part of these rules");
+          if (S.cfg.trainEarly === 0) return err("Training happens in the Clean up step");
           if (lvl !== "Jr") return err("Only Juniors train");
           if (S.round >= PHASE_ENDS[3]) return err("The game ends this round: no time to train");
           if ((p.rs.trains || 0) >= S.cfg.trainsPerRest) return err("Training limit reached this round");
@@ -998,7 +1025,7 @@ function restAction(S, a, p) {
       if (p.promos >= c.promotionsPerRest) return err("Promotion limit reached");
       if (c.train) { const why = trainPromoWhy(S, w); if (why) return err(why); }
       else if (c.promoNeedsRest && (w.placed || !w.worked)) return err("Needs a worker that has worked and is resting this round");
-      const cost = c.promoFree ? 0 : promoCost(S); if (p.gold < cost) return err("Needs " + cost + "G");
+      const cost = E.promoGold(S); if (p.gold < cost) return err("Needs " + cost + "G");
       gain(S, pi, "gold", -cost); w.lvl = "Sr"; w.trained = 0; p.promos++; p.cs.promotions++; log(S, p.name + " promotes " + dn(w.disc) + " to Sr"); return { ok: true };
     }
     case "headhunt": {
@@ -1014,6 +1041,7 @@ function restAction(S, a, p) {
     }
     case "train": {
       if (!c.train) return err("Training is not part of these rules");
+      if (c.trainEarly === 0 && S.step !== "rest") return err("Training happens in the Clean up step");
       const w = p.workers.find(x => x.id === a.worker); if (!w || w.lvl !== "Jr") return err("Pick a Junior worker");
       if (S.round >= PHASE_ENDS[3]) return err("The game ends this round: no time to train");
       if (w.placed || w.build) return err("A worker who worked or is building cannot train this round");
@@ -1211,7 +1239,7 @@ const CRISIS_CHOICE = {
   },
   buyout(S, p, k, d) {
     const pl = P(S, p); const cp = S.data.crisis.find(c => c.id === "buyout").params;
-    if (k === "accept") { adjTrack(S, pl.id, "P", cp.vp); log(S, pl.name + " accepts the buyout: +" + cp.vp + " VP"); if (pl.objectives.length) S.dq.unshift({ t: "dropObj", p, left: Math.min(cp.remove, pl.objectives.length) }); }
+    if (k === "accept") { const bvp = S.cfg.buyoutVP != null ? S.cfg.buyoutVP : cp.vp; adjTrack(S, pl.id, "P", bvp); log(S, pl.name + " accepts the buyout: +" + bvp + " VP"); if (pl.objectives.length) S.dq.unshift({ t: "dropObj", p, left: Math.min(cp.remove, pl.objectives.length) }); }
   },
   raid() {}
 };
@@ -1376,11 +1404,11 @@ E.score = function (S) {
     if (c.raceScoring && !c.poolScoring) {
       const pv = S.players.map(q => q.prod), hv = S.players.map(q => q.hype + Math.floor(q.mktg * (c.mergeMktg ? 0 : c.mktgToHype))), dv = S.players.map(q => q.debt), cv = S.players.map(q => q.culture);
       const tab = rankTable(c, N), pl = S.players.indexOf(p);
-      s.prodShare = rankScore(pv, tab)[pl]; s.mktShare = 0;
-      const hr = rankScore(hv, tab)[pl];
+      s.prodShare = rankScore(pv, tab)[pl] + (c.raceLinDiv ? Math.floor(p.prod / c.raceLinDiv) : 0); s.mktShare = 0;
+      const hr = rankScore(hv, tab)[pl] + (c.raceLinDiv ? Math.floor(hv[pl] / c.raceLinDiv) : 0);
       s.raceHype = hr;
       s.raceDebt = -rankScore(dv, lossTable(c.debtLossByN && c.debtLossByN[N] != null ? c.debtLossByN[N] : c.debtLossMax, N), false)[pl];
-      s.raceCult = -rankScore(cv, lossTable(c.cultLossByN && c.cultLossByN[N] != null ? c.cultLossByN[N] : c.cultLossMax, N), true)[pl];
+      s.raceCult = c.cultAbsVP ? (c.cultAbsVP[String(clamp(p.culture, -3, 5))] || 0) : -rankScore(cv, lossTable(c.cultLossByN && c.cultLossByN[N] != null ? c.cultLossByN[N] : c.cultLossMax, N), true)[pl];
     }
     if (c.trackScoring && !c.raceScoring) {
       const net = Math.max(0, p.prod - p.debt); s.netProg = net;

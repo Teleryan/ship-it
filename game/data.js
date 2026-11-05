@@ -367,6 +367,7 @@ D.config = {
     cleanThresh:["Clean launch below Debt %",""],stdThresh:["Standard up to Debt %",""],roughThresh:["Rough up to Debt %",""],
     cleanBonus:["Clean launch VP bonus",""],blockedPenalty:["Blocked launch VP penalty",""],roughHypeMult:["Rough launch Hype multiplier",""],
     goldPerVP:["Gold per 1 VP",""],
+    closeByN:["V2: Industry News closures by players","JSON: players -> number of single-slot spots closed each round"],bigAdd:["V2: extra spots by players","JSON: players -> list of spot ids that get a second copy"],launchCap:["V2: Launch capacity","1 = Party, Press and Platform become single-slot, with ceil(players/2) copies"],catchUpOrder:["V2: catch-up turn order","1 = no bid: the studio with the fewest VP acts first"],raceLinDiv:["V2: linear race VP divisor","Progress and Hype also score 1 VP per this many points on top of the rank VP. 0 = off"],handSizeByN:["V2: milestone hand by player count","JSON: players -> hand size (overrides the hand size)"],mileGoldAdj:["V2: milestone Gold adjustments","JSON: milestone name -> Gold change"],cultAbsVP:["V2: Culture VP table","JSON: Culture value -> VP (replaces the rank loss)"],gateHypeMultByN:["V2: gate Hype multiplier by player count","JSON: players -> multiplier"],gateReqSub:["V2: gate requirement swaps","JSON: requirement text -> replacement text"],outsourceJrByN:["V2: Outsource Junior Gold by players","JSON"],outsourceSrByN:["V2: Outsource Senior Gold by players","JSON"],v2:["V2: audit tuning layer","1 = apply the audit-driven tuning (Variant D)"],
     deliveredBonus:["Delivery: delivered VP",""],
     synergyOn:["Synergy scoring on","1/0"]
   },
@@ -448,20 +449,35 @@ D.spotsC = [
 D.configC = {
   varC:1, noSwaps:1, resSubMax:0, envLabel:"ENV C · PHASES", rowNames:{EARN:["Backlog","Backlog","Backlog","Backlog"],PROGRESS:["Prototype","Vertical Slice","Beta Build","Gold Master"],HYPE:["Pitch Deck","Trailer Drop","Press Tour","Launch Party"],CREW:["Game Jam","Game Jam","Game Jam","Game Jam"],UTILITY:["Studio Perks","Studio Perks","Studio Perks","Studio Perks"]}, raceCurveByN:{2:0.12,3:0.2,4:0.25,5:0.25,6:0.3}, racePotByN:{2:38,3:38,4:40,5:42,6:42}, debtLossByN:{2:4,3:6,4:8}, cultLossByN:{2:3,3:5,4:6}, phaseEnds:[3,8,11,12],
   spotResOr:1, srSystems:1, srPromoteOnly:1, srAllowedPreProd:1,
-  promoFree:1, promoNeedsRest:1, promotionsPerRest:1, headhuntsPerRest:0, overworkCulture:-1, burnout:0, train:0, smallDrop:[], smallMax:6, hypeBank:0, hypeLeadVP:0, hypeLeadMin:3, hypeIncStep:0, hypeIncMax:2, trainCost:1, trainCulture:1, trainNeeded:1, trainDuration:1, promoByRest:0, trainsPerRest:2, draftMiniDelta:0, burnMax:6, burnUnpaidPer:2, burnOverStep:2, burnOverMax:2, burnUnpaidMax:1, burnUnpaidMin:2, burnRelief:1, burnTeamRelief:1, burnStrainAt:3, burnStrainHype:1, burnBenchAt:5, burnQuitAt:6, burnQuitReset:4, energizedBurnMax:0, energizedCulture:2, energizedGold:1, burnVP:{"0":0,"1":0,"2":0,"3":-1,"4":-3,"5":-5,"6":-8},
+  promoFree:1, promoNeedsRest:1, promotionsPerRest:1, headhuntsPerRest:0, overworkCulture:-1, burnout:0, train:0, smallDrop:[], smallMax:6, hypeBank:0, hypeLeadVP:0, hypeLeadMin:3, hypeIncStep:0, hypeIncMax:2, trainCost:1, trainCulture:1, trainNeeded:1, trainDuration:1, promoByRest:0, v2:0, catchUpOrder:0, trainsPerRest:2, draftMiniDelta:0, burnMax:6, burnUnpaidPer:2, burnOverStep:2, burnOverMax:2, burnUnpaidMax:1, burnUnpaidMin:2, burnRelief:1, burnTeamRelief:1, burnStrainAt:3, burnStrainHype:1, burnBenchAt:5, burnQuitAt:6, burnQuitReset:4, energizedBurnMax:0, energizedCulture:2, energizedGold:1, burnVP:{"0":0,"1":0,"2":0,"3":-1,"4":-3,"5":-5,"6":-8},
   recruitCost:3, recruitPerRound:1, recruitSize2:2, recruitSize34:3, recruitSize56:4, recruitDelta:0, flowV2:0, recruitInLaunch:0,
   bidEveryRound:1, bidWinnerOnly:0, buildDelay:2, crunchDelay:1, crunchGold:2, rdCrunch:1, rdDiscount:0, convertRate:3,
   income:6, sysGoldMult:0.5, sysCostMult:1, gateProgMult:0.6, gateHypeMult:0.6,
   draftPre:2, draftPre2:3, draftProd:3, draftProd2:4, draftPol:2, draftPol2:3
 };
 // scale the Progress / Hype / Marketing numbers in the gate requirements (Variant C tuning)
-D.cScaleGates = function (data, cfg) {
-  const pm = cfg.gateProgMult == null ? 1 : cfg.gateProgMult, hm = cfg.gateHypeMult == null ? 1 : cfg.gateHypeMult;
+D.cScaleGates = function (data, cfg, N) {
+  const pm = cfg.gateProgMult == null ? 1 : cfg.gateProgMult, hm = (cfg.gateHypeMultByN && N && cfg.gateHypeMultByN[N] != null) ? cfg.gateHypeMultByN[N] : (cfg.gateHypeMult == null ? 1 : cfg.gateHypeMult);
   const f = r => r.replace(/^(\d+)\+ (Progress|Hype|Marketing value)/, (m, n, w) => Math.max(1, Math.round(+n * (w === "Progress" ? pm : hm))) + "+ " + w);
   // C has few Marketing sources, so Marketing-value gates are read as Hype, and the Culture +1 gate as +0
   const g0 = r => r.replace(/^(\d+)\+ Marketing value$/, "$1+ Hype").replace(/^\+1 Culture$/, "+0 Culture");
   if (data.gatePool) data.gatePool = data.gatePool.filter(g => g.name !== "Pitch Deck");
-  [data.publisherGates, data.gatePool].forEach(l => (l || []).forEach(g => { g.reqs = g.reqs.map(g0).map(f); }));
+  [data.publisherGates, data.gatePool].forEach(l => (l || []).forEach(g => { g.reqs = g.reqs.map(g0).map(r => (cfg.gateReqSub && cfg.gateReqSub[r]) || r).map(f); }));
+};
+
+// Variant D v2: the audit-driven tuning layer. Applied on top of configC when v2 is on (D build only)
+D.configV2 = {
+  catchUpOrder:1, goldPerVP:4, hypeLeadVP:1, hypeLeadMin:3, gateBestVP:1,
+  handSize:3, handSizeByN:{2:2,3:2},
+  mileGoldAdj:{"First Promotion":-1,"Balanced Studio":-1,"Exactly Five":-1,"Lean Operation":-1,"Hiring Spree":-1,"Talent Scout":-1,"Foundation":-1,"Savings Account":-1,"Big Spender":-1,"Efficient Engine":-1},
+  burnVP:{"0":0,"1":0,"2":-1,"3":-2,"4":-3,"5":-5,"6":-7}, reachMajorVP:0,
+  gateLossCap:3, gateContract:1, gateProgMult:0.85, gateHypeMultByN:{2:0.75,3:0.6,4:0.5,5:0.45,6:0.4},
+  gateReqSub:{"4+ total systems built":"2+ total systems built","1+ Stability systems":"1+ total systems built","1+ Innovation systems":"1+ total systems built"},
+  cultAbsVP:{"-3":-5,"-2":-4,"-1":-2,"0":0,"1":1,"2":2,"3":3,"4":3,"5":4}, cultLossByN:{2:0,3:0,4:0,5:0,6:0},
+  outsourceJrByN:{2:2,3:2}, outsourceSrByN:{2:4,3:4},
+  closeByN:{2:6,3:3}, bigAdd:{5:["market3","artpush","vslice","trailer"],6:["pitch1","market3","artpush","vslice","trailer","keynote"]}, launchCap:1,
+  overCrew:1, spotFxAdj:{team:"+1 Culture"}, teamEventCulture:1, burnTeamRelief:2, promoGoldByN:{2:2,3:2}, trainEarly:0, buyoutVP:8, awardMinN:3, objVPMult:0.45,
+  raceLinDiv:14, racePotByN:{2:44,3:41,4:39,5:39,6:40}
 };
 
 D.tutorial = [

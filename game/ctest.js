@@ -136,4 +136,26 @@ const SA=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:3});ok(!SA.cf
  const stepTo=S=>{let g=0;while(!S.over&&g++<4000){const p0=S.players[0]; if(S.step==='hire'&&p0.hand.length)return true; if(!require('./bot.js').step(S).ok)break}return false};
  const D0=mk({hireDiscard:0}); if(stepTo(D0)){const p=D0.players[E.currentActor(D0)]; const r=E.act(D0,{type:'discard',p:p.id,card:p.hand[0].id}); ok(!r.ok,'Variant D: discarding a card is refused');}
  const C0=mk({hireDiscard:1}); if(stepTo(C0)){const p=C0.players[E.currentActor(C0)]; ok(E.act(C0,{type:'discard',p:p.id,card:p.hand[0].id}).ok,'other variants can still discard');} }
+{ // v2 audit layer
+ const base={varC:1,burnout:1,train:1,flowV2:1,v2:1,recruitDelta:-1,qaAllowedPreProd:1,hireDiscard:0,promoByRest:1};
+ const run=(n,cfg,seed)=>{const S=E.newGame(Array.from({length:n},(_,i)=>({name:'P'+i,bot:true})),{seed:seed||11,config:Object.assign({},base,cfg||{})});return S;};
+ let S2=run(2); ok(S2.cfg.goldPerVP===4&&S2.cfg.catchUpOrder===1,'v2: layer applies (goldPerVP 4, catch-up order)');
+ ok(S2.players.every(p=>p.miles.length===2),'v2: milestone hand is 2 at 2P'); ok(run(4).players.every(p=>p.miles.length===3),'v2: milestone hand stays 3 at 4P');
+ { // closures, extra spots
+   const T=run(2,null,5); let g=0; while(!(T.step==='place'&&T.round>=2)&&g++<8000){if(!B.step(T).ok)break}
+   const closed=Object.keys(T.closed||{}); ok(closed.length===6,'v2: 2P closes 6 spots each round ('+closed.length+')');
+   const p=T.players[E.currentActor(T)]; const bad=p.workers.map(w=>E.placementOptions(T,p.id,w)).flat().filter(o=>o.target&&o.target.startsWith('spot:')&&T.closed[o.target.slice(5)]&&o.ok); ok(bad.length===0,'v2: closed spots cannot be used');
+   ok(run(6).data.spots.filter(s=>/_b$/.test(s.id)).length===6&&run(5).data.spots.filter(s=>/_b$/.test(s.id)).length===4&&run(4).data.spots.filter(s=>/_b$/.test(s.id)).length===0,'v2: 4 extra spots at 5P, 6 at 6P'); }
+ { // catch-up order: lowest score first; no bid step
+   const T=run(3,null,7); let g=0; while(!(T.step==='draft'&&T.round>=4)&&!T.over&&g++<12000){if(!B.step(T).ok)break}
+   if(!T.over){const sc=E.score(T).map(x=>x.total);ok(sc[T.order[0]]<=sc[T.order[T.order.length-1]],'v2: catch-up order puts the lowest score first'); ok(!T.dq.some(d=>d.t==='bid'),'v2: no bid step');} }
+ { // Train only in Clean up
+   const T=run(2,null,9); let g=0; while(!(T.step==='hire')&&g++<4000){if(!B.step(T).ok)break}
+   const p=T.players[E.currentActor(T)]; p.hand.push({id:'XT',disc:'ENG'}); p.gold=20; ok(!E.act(T,{type:'hire',p:p.id,card:'XT',lvl:'Jr',train:true}).ok,'v2: Hire + Train is refused');
+   let w=p.workers.find(x=>x.lvl==='Jr'&&!x.placed); if(!w){w={id:777,disc:'ENG',lvl:'Jr',fat:0,placed:false,as:null,worked:false};p.workers.push(w)} ok(!E.act(T,{type:'train',p:p.id,worker:w.id}).ok,'v2: Train is refused outside Clean up'); }
+ ok(run(2).promoGold===undefined&&E.promoGold(run(2))===2&&E.promoGold(run(4))===0,'v2: promotion costs 2G at 2-3P only');
+ { // Talent unavailable with an empty pool
+   const T=run(2,null,13); let g=0; while(!(T.step==='place'&&T.round>=2)&&g++<8000){if(!B.step(T).ok)break}
+   T.recruit.forEach(o=>{o.by=0}); const p=T.players[E.currentActor(T)], w=p.workers.find(x=>!x.placed&&x.fat<2); const o=E.placementOptions(T,p.id,w).find(x=>x.target==='spot:talent1'); ok(!o||!o.ok,'v2: Talent is unavailable when the recruitment pool is empty'); }
+}
 console.log('fails',fails);

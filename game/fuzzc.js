@@ -38,7 +38,7 @@ function fuzzAct(S){
 for(const n of [2,3,4,5,6]){
  for(let seed=1;seed<=60;seed++){
   const seats=[];for(let i=0;i<n;i++)seats.push({name:'P'+(i+1)});
-  const S=E.newGame(seats,{seed,config:{varC:1}});let k=0;
+  const S=E.newGame(seats,{seed,config:Object.assign({varC:1},process.env.V2?{burnout:1,train:1,flowV2:1,v2:1,smallDrop:['insight'],smallMax:6,hypeBank:3,recruitDelta:-1,draftMiniDelta:-1,promoByRest:1,qaAllowedPreProd:1,hireDiscard:0}:{})});let k=0;
   try{ while(!S.over&&k++<20000){ if(!fuzzAct(S))break; } }catch(e){console.log('EXC',n,seed,e.stack.split('\n').slice(0,5).join('|'));errs++;break;}
   if(!S.over){console.log('NOT OVER',n,seed,S.step,S.round,JSON.stringify(S.dq[0]));errs++;}
   S.log.forEach(l=>{const m=l.m.match(/^CRISIS: ([^:]+)/);if(m)cnt[m[1].trim()]=(cnt[m[1].trim()]||0)+1;});
