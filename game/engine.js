@@ -432,6 +432,7 @@ E.recruitCost = function (S, pi) { const p = P(S, pi), c = S.cfg; const taken = 
 E.canRecruit = function (S, pi, idx) {
   const p = P(S, pi); if (!S.cfg.varC || S.step !== "place") return { ok: false, reason: "Not available" };
   if (S.phase === 3 && !S.cfg.recruitInLaunch) return { ok: false, reason: "No hiring in Launch" };
+  if (S.cfg.recruitMinRound && S.round < S.cfg.recruitMinRound) return { ok: false, reason: "Recruiting opens in round " + S.cfg.recruitMinRound };
   const o = (S.recruit || [])[idx]; if (!o) return { ok: false, reason: "No such offer" };
   if (o.by != null) return { ok: false, reason: "Already taken" };
   if ((p.recruited || 0) >= (S.cfg.recruitPerRound || 1) + (p.recruitExtra || 0)) return { ok: false, reason: "One hire per round" };
@@ -679,6 +680,7 @@ function spotUsableBy(S, pi, w, spot) {
   if (spot.cost && spot.cost.res && E.resTotal(p) < spot.cost.res) return { ok: false, reason: "Needs " + spot.cost.res + " skills" };
   if (spot.special === "talent" && S.cfg.varC) {
     if (S.phase === 3 && !S.cfg.recruitInLaunch) return { ok: false, reason: "No hiring in Launch" };
+  if (S.cfg.recruitMinRound && S.round < S.cfg.recruitMinRound) return { ok: false, reason: "Recruiting opens in round " + S.cfg.recruitMinRound };
     if (!(S.recruit || []).some(o => o.by == null)) return { ok: false, reason: "Nobody left in the recruitment pool" };
   }
   if (spot.special === "mentor") {
