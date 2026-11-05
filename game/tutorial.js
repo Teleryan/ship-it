@@ -15,7 +15,7 @@ const b = t => "<b>" + t + "</b>";
 
 SI.TUT_SEED = 20261031;
 // The guided tutorial teaches the core rules (blind bid, Hire + Train, the printed board), so it switches the Variant D v2 tuning layer off
-SI.TUT_V2_OFF = { startGold: 15, burnOverStep: 2, salarySr: 2, gateLossCap: 3, catchUpOrder: 0, recruitOnly: 0, recruitDelta: -1, recruitPerRound: 1, startWorkers: 0, recruitLadder: 0, leanRound: 0, cultureFold: 0, dropByN: {}, recruitCost: 3, closeByN: {}, bigAdd: {}, launchCap: 0, trainEarly: 1, overCrew: 0, promoGoldByN: {}, spotFxAdj: {}, raceLinDiv: 0, handSizeByN: {}, mileGoldAdj: {}, cultAbsVP: null, gateHypeMultByN: null, gateReqSub: null, outsourceJrByN: {}, outsourceSrByN: {}, buyoutVP: null, awardMinN: 0, goldPerVP: 3, hypeLeadVP: 0, gateBestVP: 0, reachMajorVP: 5, objVPMult: 0.9, teamEventCulture: 2, burnTeamRelief: 1, gateProgMult: 0.6, gateHypeMult: 0.6, cultLossByN: { 2: 3, 3: 5, 4: 6 }, racePotByN: { 2: 38, 3: 38, 4: 40, 5: 42, 6: 42 }, burnVP: { "0": 0, "1": 0, "2": 0, "3": -1, "4": -3, "5": -5, "6": -8 } };
+SI.TUT_V2_OFF = { closeByN: {} };   // the tutorial teaches the shipped Variant D rules (lean loop); only the random Industry News closures are off so the script stays steady
 SI.TUT_CONFIG_C = Object.assign({ gatesRandom: 0, qaAllowedPreProd: 1, bidEveryRound: 0 }, SI.TUT_V2_OFF);
 SI.TUT_CONFIG = { varC: 0, headhuntsPerRest: 0, qaAllowedPreProd: 1, gatesRandom: 0 };   // headhunting is left for later; QA is hireable so any card can be recruited
 
@@ -192,7 +192,7 @@ function fmt(s, tok) {
   const h = esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\n\n/g, "<br><br>").replace(/\n/g, "<br>");
   return h.replace(/\{(\w+)\}/g, (m, k) => tok && tok[k] != null ? tok[k] : m);
 }
-const hintId = S => ({ hire: "hint_hire", place: "hint_place", build: "hint_build", rest: "hint_rest", milestones: "hint_miles", bid: "free_bid", draft: "free_draft" }[S.step] || "hint_wait");
+const hintId = S => ({ hire: "hint_hire", place: "hint_place", build: "hint_build", rest: S.cfg.leanRound ? "hint_manage" : "hint_rest", milestones: "hint_miles", bid: "free_bid", draft: "free_draft" }[S.step] || "hint_wait");
 function tokens(S) {
   const c = S.cfg, p = me(S), gs = S.gateSet && S.gateSet.length ? S.gateSet : S.data.publisherGates;
   const g = gs.find(x => x.phase === 0) || gs[0] || {}, g2 = gs.find(x => x.phase === 1) || gs[1] || {};
@@ -206,15 +206,27 @@ function tokens(S) {
     gateEnd: (c.phaseEnds || [])[g.phase || 0] || "", gateFund: g.fund || 0, gatePenalty: g.penalty || 0,
     crisisLine: crisis ? ": <b>" + esc(crisis.name) + "</b>. " + esc(crisis.text) : "",
     nPlayers: S.players.length, goldPerVP: c.goldPerVP || 3, raceFirst: (E.rankTable(c, S.players.length) || [])[0], raceLast: (E.rankTable(c, S.players.length) || []).slice(-1)[0],
-    burnLine: c.burnout ? "<br><b>Burnout</b>: an exhausted studio loses VP at the end (" + [3, 4, 5, 6].map(k => k + ": " + (((c.burnVP || {})[k]) || 0)).join(", ") + ")." : "",
+    burnLine: c.burnout ? "<br><b>Burnout</b>" + (c.cultureFold ? " and Culture share one track (Culture is " + (c.cultureFoldBase || 5) + " minus Burnout)" : "") + ": an exhausted studio loses VP at the end (" + [3, 4, 5, 6].map(k => k + ": " + (((c.burnVP || {})[k]) || 0)).join(", ") + ")." : "",
     hypeBank: c.hypeBank || 0, trainCost: c.trainCost, trainCulture: c.trainCulture, trainNeeded: c.trainNeeded,
     freeBuild: p.freeBuilds ? "<br><br><b>A free build is on the house this round.</b>" : "",
     burnMax: c.burnMax, burnOverStep: c.burnOverStep, burnOverMax: c.burnOverMax, burnUnpaidMin: c.burnUnpaidMin, burnRelief: c.burnRelief, burnTeamRelief: c.burnTeamRelief,
     energizedCulture: c.energizedCulture, energizedGold: c.energizedGold, burnStrainAt: c.burnStrainAt, burnStrainHype: c.burnStrainHype, burnBenchAt: c.burnBenchAt, burnQuitAt: c.burnQuitAt, burnQuitReset: c.burnQuitReset
   };
-  const v2 = !!c.flowV2;
-  t.phaseOrder = v2 ? "Crisis, Reveal" : "Crisis, Reveal, Bid, Draft";
-  t.roundOrder = v2 ? "<b>Upkeep</b> (not in round 1), <b>Income</b>, a blind <b>Bid</b> for turn order, <b>Draft</b>, <b>Hire</b>, <b>Place</b>, <b>Build</b>, then one <b>Clean up</b> step (Rest and Milestones together)" : "a blind <b>Bid</b> for turn order, then <b>Income</b>, <b>Hire</b>, <b>Place</b>, <b>Build</b>, <b>Rest</b>, <b>Milestones</b>, <b>Upkeep</b>";
+  const v2 = !!c.flowV2, lean = !!c.recruitOnly, fold = !!c.cultureFold;
+  t.startWorkers = c.startWorkers || 0; t.recruitLadder = c.recruitLadder || 0;
+  t.cultLose = fold ? "" : "<br><b>Culture</b>: the studio with the lowest Culture loses the most VP.";
+  t.cultStat = fold ? "" : " <b>Culture</b> is morale: the lowest Culture loses VP.";
+  t.upkeepCult = fold ? "" : "Culture moved toward 0, ";
+  t.energizedCond = fold ? "Burnout 0" : "Burnout 0 and Culture " + c.energizedCulture + "+";
+  t.foldNote = fold ? "\n\nThere is no separate Culture track: **Culture is " + (c.cultureFoldBase || 5) + " minus Burnout**. Anything that gives Culture (Team Events, Training, some tiles) lowers Burnout, and anything that costs Culture raises it." : "";
+  t.trainEffect = fold ? "lowers **Burnout** by " + c.trainCulture + " (that is +" + c.trainCulture + " Culture)" : "gives **+" + c.trainCulture + " Culture**";
+  t.healthy = fold ? "Burnout" : "Culture";
+  t.teamEventEffect = fold ? "to lower Burnout by " + (c.teamEventCulture + (c.burnTeamRelief || 0)) : "to gain +" + c.teamEventCulture + " Culture";
+  t.burnOverPer = c.burnOverStep > 1 ? c.burnOverStep + " Over-Tired workers" : "Over-Tired worker";
+  t.hireOrRecruit = lean ? "Recruit" : "Hire or recruit";
+  t.phaseSets = lean ? "the Crisis card and the board for the phase" : "the draft and the Crisis";
+  t.phaseOrder = lean ? "Crisis, Reveal" : v2 ? "Crisis, Reveal" : "Crisis, Reveal, Bid, Draft";
+  t.roundOrder = lean ? "<b>Upkeep</b> (not in round 1), <b>Income</b>, <b>Order</b> (the studio with the fewest VP goes first), <b>Place</b> (including <b>Recruit</b>), then one <b>Manage</b> step (Build, Train or Promote, and Milestones)" : v2 ? "<b>Upkeep</b> (not in round 1), <b>Income</b>, a blind <b>Bid</b> for turn order, <b>Draft</b>, <b>Hire</b>, <b>Place</b>, <b>Build</b>, then one <b>Clean up</b> step (Rest and Milestones together)" : "a blind <b>Bid</b> for turn order, then <b>Income</b>, <b>Hire</b>, <b>Place</b>, <b>Build</b>, <b>Rest</b>, <b>Milestones</b>, <b>Upkeep</b>";
   t.incomeNote = v2 ? "Next comes <b>Income</b>: every studio gets " + c.income + "G, so you have gold to bid with. The Recruitment pool is revealed after the Draft; in rounds with no Draft you see it while you bid.\n\n" : "";
   t.restMiles = v2 ? "\n\n<b>This is the Clean up step: Rest and Milestones together.</b> Your Milestones sit at the top, like your hand did in Hire. They are bonus goals, such as \"have 3 Seniors\". When one is met it shows <b>MET</b>: press <b>Cash in</b> to take the gold. A milestone can only be completed during its phase window." : "";
   t.upkeepV2 = v2 ? "\n\nFrom now on every round <b>opens with Upkeep</b>, before Income. There is no Upkeep in round 1." : "";
@@ -245,6 +257,11 @@ const info = (id, o) => mk(id, Object.assign({ kind: "info", allow: () => MSG("m
 const softInfo = (id, o) => info(id, Object.assign({ soft: true, allow: () => null }, o));
 const doing = (id, o) => mk(id, Object.assign({ kind: "do" }, o));
 const play = (id, o) => mk(id, Object.assign({ kind: "free", allow: () => null }, o));
+let LEAN = null;
+const lean = () => (U() && U().S && U().S.cfg) ? !!U().S.cfg.recruitOnly : (LEAN == null ? (LEAN = !!E.defaultConfig().recruitOnly) : LEAN);
+// lean loop: Build moves into the Manage (rest) step, so "after build" means "built, or unable to, during Manage"
+const cantBuild = S => !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)));
+const builtInManage = (S, r, crunch) => S.round > r || (S.round === r && S.step === "rest" && (crunch ? me(S).cs.crunched >= 1 : (me(S).building || []).length + me(S).systems.length >= 1));
 const reachedRound = (S, r, stage) => S.round > r || (S.round === r && RANK[S.step] >= RANK[stage]);
 
 const STEPS_C = [
@@ -256,54 +273,56 @@ const STEPS_C = [
   info("win_lose", { hl: () => ".pt[data-pid='0'] .stats" }),
   info("loop", { hl: () => "[data-tut=steps]" }),
   doing("objectives", { hl: () => ".modal", done: S => !S.dq.some(d => d.t === "keepObj" && d.p === 0), allow: a => a.type === "keepObj" ? null : MSG("msg_obj") }),
-  info("phasestart", { hl: () => "[data-tut=steps]" }),
+  info("phasestart", { rv: () => lean() ? "phasestart_lean" : "phasestart", hl: () => "[data-tut=steps]" }),
   info("boardintro", { hl: () => "[data-tut=board]" }),
   info("board_backlog", { hl: () => "[data-row=EARN]" }),
   info("board_prototype", { hl: () => "[data-row=PROGRESS]" }),
   info("board_pitch", { hl: () => "[data-row=HYPE]" }),
   info("board_jam", { hl: () => "[data-row=CREW]" }),
   info("board_perks", { hl: () => ".shared" }),
-  doing("bid", { hl: () => ".modal", done: S => after(S, "bid", 1), allow: a => a.type !== "bid" ? MSG("msg_bid") : (a.amount > 3 ? MSG("msg_bid_small") : null) }),
-  doing("draft", { hl: () => "[data-tut=draftpanel]", done: S => after(S, "draft", 1), allow: a => a.type === "pick" ? null : MSG("msg_draft") }),
-  doing("hire", { hl: () => "[data-tut=hand]", done: S => after(S, "hire", 1),
+  doing("bid", { only: () => !lean(), hl: () => ".modal", done: S => after(S, "bid", 1), allow: a => a.type !== "bid" ? MSG("msg_bid") : (a.amount > 3 ? MSG("msg_bid_small") : null) }),
+  doing("draft", { only: () => !lean(), hl: () => "[data-tut=draftpanel]", done: S => after(S, "draft", 1), allow: a => a.type === "pick" ? null : MSG("msg_draft") }),
+  doing("hire", { only: () => !lean(), hl: () => "[data-tut=hand]", done: S => after(S, "hire", 1),
     allow: (a, S) => a.type === "hire" ? (a.lvl === "Jr" ? null : MSG("msg_hire_sr")) : a.type === "discard" ? null :
       a.type === "done" ? (me(S).workers.length < Math.min(2, hireable(S) + me(S).workers.length) ? MSG("msg_hire_min") : null) : MSG("msg_hire_do") }),
-  info("placeintro", { hl: () => "[data-tut=board]" }),
+  info("placeintro", { rv: () => lean() ? "placeintro_lean" : "placeintro", hl: () => "[data-tut=board]" }),
   doing("place1", { hl: () => (U().sel == null ? "[data-tut=workers] .wk:not(.placed)" : ".spot.ok"),
     vid: S => !actorIsMe(S) ? "place1w" : U().detail && U().detail.k === "spot" ? "place1c" : U().detail && U().detail.k === "worker" ? "place1d" : U().sel == null ? "place1" : "place1b",
     done: S => after(S, "place", 1) || (S.round === 1 && S.step === "place" && me(S).rs.placed >= 1),
     allow: a => a.type === "place" ? null : a.type === "pass" ? MSG("msg_place_first") : MSG("msg_place") }),
   info("stats", { hl: () => ".pt[data-pid='0'] .stats" }),
+  doing("recruit1", { only: lean, hl: () => "[data-tut=recruit]", done: S => me(S).recruited >= 1 || S.round > 1 || after(S, "place", 1),
+    allow: a => (a.type === "place" || a.type === "recruit") ? null : MSG("msg_recruit") }),
   doing("place2", { hl: () => "[data-tut=workers]", done: S => after(S, "place", 1), allow: a => (a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
-  doing("build", { hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"), done: S => after(S, "build", 1),
+  doing("build", { rv: () => lean() ? "build_lean" : "build", hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"), done: S => lean() ? builtInManage(S, 1) : after(S, "build", 1),
     allow: (a, S) => a.type === "build" ? null : a.type === "done" ? ((me(S).builds >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : MSG("msg_build_first")) : MSG("msg_build") }),
   info("build_rd", { hl: () => "[data-spot=rd]" }),
-  doing("rest1", { hl: () => "[data-tut=workers]", done: S => after(S, "rest", 1), allow: a => a.type === "train" ? MSG("msg_train_later") : (a.type === "done" || a.type === "fire" || a.type === "swapObj" || a.type === "swapMile" || a.type === "claim") ? null : MSG("msg_rest") }),
+  doing("rest1", { rv: () => lean() ? "rest1_lean" : "rest1", hl: () => "[data-tut=workers]", done: S => after(S, "rest", 1), allow: a => a.type === "train" ? MSG("msg_train_later") : (a.type === "done" || a.type === "fire" || a.type === "swapObj" || a.type === "swapMile" || a.type === "claim") ? null : MSG("msg_rest") }),
   doing("miles", { only: () => !E.rawConfig().flowV2, hl: () => "[data-tut=miles]", done: S => after(S, "milestones", 1), allow: a => (a.type === "claim" || a.type === "done") ? null : MSG("msg_miles") }),
   info("upkeep", { hl: () => "[data-tut=steps]" }),
   info("gates", { hl: () => "[data-tut=gates]" }),
   /* ---- round 2: recruit, rest, crunch ---- */
-  play("r2hire", { hl: () => "[data-tut=hand]", done: S => reachedRound(S, 2, "place") }),
-  doing("r2recruit", { hl: () => "[data-tut=recruit]", done: S => me(S).recruited >= 1 || S.round > 2,
+  play("r2hire", { only: () => !lean(), hl: () => "[data-tut=hand]", done: S => reachedRound(S, 2, "place") }),
+  doing("r2recruit", { rv: () => lean() ? "r2recruit_lean" : "r2recruit", hl: () => "[data-tut=recruit]", done: S => me(S).recruited >= 1 || S.round > 2,
     allow: (a, S) => (a.type === "place" || a.type === "recruit") ? null : a.type === "pass" ? MSG("msg_recruit") : MSG("msg_recruit") }),
-  doing("r2place", { hl: () => "[data-tut=workers]", done: S => reachedRound(S, 2, "build"), allow: a => (a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
-  doing("r2crunch", { hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"), done: S => reachedRound(S, 2, "rest"),
+  doing("r2place", { hl: () => "[data-tut=workers]", done: S => reachedRound(S, 2, lean() ? "rest" : "build"), allow: a => (a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
+  doing("r2crunch", { hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"), done: S => lean() ? builtInManage(S, 2, true) : reachedRound(S, 2, "rest"),
     allow: (a, S) => a.type === "build" ? (a.crunch || (S.cfg.rdCrunch && me(S).rd) ? null : MSG("msg_crunch")) : a.type === "done" ? ((me(S).cs.crunched >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : MSG("msg_crunch")) : null }),
   play("r3", { hl: () => null, done: S => S.round >= 4 }),
   /* ---- production ---- */
   softInfo("gateresult", { hl: () => "[data-tut=gates]" }),
   softInfo("hype_bank", { hl: () => "[data-tut=tracks]", only: () => !!E.rawConfig().hypeBank }),
   softInfo("crisis", { hl: () => "[data-tut=crisis]" }),
-  play("r4play", { hl: () => null, done: S => reachedRound(S, 4, "rest") }),
+  play("r4play", { rv: () => lean() ? "r4play_lean" : "r4play", hl: () => null, done: S => reachedRound(S, 4, "rest") }),
   doing("promote", { rv: () => (U().S && U().S.cfg.train) ? "promote_train" : "promote", hl: () => "[data-tut=rest]", done: S => me(S).workers.some(w => w.lvl === "Sr") || (S.cfg.flowV2 ? S.round > 4 : reachedRound(S, 4, "milestones")),
     allow: (a, S) => a.type === "claim" ? null : a.type === "train" ? (S.cfg.train && !trigOk(S, me(S).workers.find(w => w.id === a.worker) || {}) && eligibleJr(S).some(w => trigOk(S, w)) ? MSG("msg_promote_fit") : null) : a.type === "promote" ? (eligibleJr(S).some(w => trigOk(S, w)) && !trigOk(S, me(S).workers.find(w => w.id === a.worker) || {}) ? MSG("msg_promote_fit") : null) : a.type === "done" ? (eligibleJr(S).length ? MSG(S.cfg.train ? "msg_promote_train" : "msg_promote") : null) : MSG(S.cfg.train ? "msg_promote_train" : "msg_promote") }),
-  doing("trigger", { hl: () => "[data-tut=workers]", done: S => me(S).rs.triggers >= 1 || reachedRound(S, 5, "build") || (S.round >= 5 && !sysOpt(S)),
+  doing("trigger", { hl: () => "[data-tut=workers]", done: S => me(S).rs.triggers >= 1 || reachedRound(S, 5, lean() ? "rest" : "build") || (S.round >= 5 && !sysOpt(S)),
     allow: (a, S) => a.type === "place" ? (srIds(S).includes(a.worker) && !String(a.target).startsWith("sys:") ? MSG("msg_trigger") : null) : a.type === "pass" ? MSG("msg_trigger") : null }),
   play("prod", { hl: () => null, done: S => S.round >= 9 }),
   softInfo("polish", { hl: () => "[data-tut=gates]" }),
   play("polishfree", { hl: () => null, done: S => S.round >= 12 }),
   /* ---- launch and hand-over ---- */
-  doing("convert", { hl: () => ".spot[data-id=convert]", done: S => me(S).cs.converted > 0 || reachedRound(S, 12, "build") || (S.round === 12 && S.step === "place" && !convOpt(S)),
+  doing("convert", { hl: () => ".spot[data-id=convert]", done: S => me(S).cs.converted > 0 || reachedRound(S, 12, lean() ? "rest" : "build") || (S.round === 12 && S.step === "place" && !convOpt(S)),
     allow: a => a.type === "pass" ? MSG("msg_convert") : null }),
   info("handover", { final: true, soft: true, hl: () => null, allow: () => null })
 ];
@@ -312,7 +331,7 @@ STEPS = (E.rawConfig().varC ? STEPS_C : STEPS_A).filter(s => !s.only || s.only()
 /* ---------- lifecycle ---------- */
 SI.tutNew = function () {
   const isC = !!E.rawConfig().varC;
-  STEPS = isC ? STEPS_C : STEPS_A; SI.tutSteps = STEPS; loadRows();
+  STEPS = (isC ? STEPS_C : STEPS_A).filter(s => !s.only || s.only()); SI.tutSteps = STEPS; loadRows();
   const cfg = isC ? Object.assign(E.defaultConfig(), SI.TUT_CONFIG_C) : Object.assign(E.rawConfig(), SI.TUT_CONFIG);
   const S = E.newGame([{ name: "You", bot: false }, { name: "Rival", bot: true }], { seed: SI.TUT_SEED, config: cfg, data: E.clone(E.defaultData(cfg)) });
   // rig: the first face-up pool shows a mix of all four categories (cards are drawn from the end of the deck)
@@ -336,7 +355,7 @@ SI.tutTick = function () {
   const key = st.id + ":" + S.round;
   if (st.id === "build" || st.id === "r2crunch") {
     if (!T.gaveFree && st.id === "build" || (st.id === "r2crunch" && !T.gave[key])) {
-      if (actorIsMe(S) && !S.dq.length && S.step === "build") {
+      if (actorIsMe(S) && !S.dq.length && (S.step === "build" || (S.cfg.leanRound && S.step === "rest"))) {
         T.gaveFree = true; T.gave[key] = true;
         if (!canBuildAny(S, false) && me(S).freeBuilds < 1) me(S).freeBuilds = 1;
         if (st.id === "r2crunch") me(S).gold += (S.cfg.crunchGold || 2) + 2;   // so a gold crunch is affordable
@@ -369,7 +388,7 @@ SI.tutLockMode = function () {
 SI.tutAllowsDetail = function () {
   const u = U(), T = u.tut; if (!T || T.auto || !u.S) return true;
   if (T.rev != null) return false;
-  const i = SI.tutSteps.findIndex(s => s.id === "draft"); return i < 0 || T.idx >= i;
+  const i = SI.tutSteps.findIndex(s => s.id === (lean() ? "recruit1" : "draft")); return i < 0 || T.idx >= i;
 };
 SI.tutBack = function () { const T = U().tut; if (!T) return; if (T.rev == null) T.rev = Math.max(0, T.idx - 1); else T.rev = Math.max(0, T.rev - 1); };
 SI.tutFwd = function () { const T = U().tut; if (!T || T.rev == null) return; T.rev++; if (T.rev >= T.idx) T.rev = null; };
@@ -446,7 +465,7 @@ const PARTS = [
 SI.tutScoreExplainer = function (S) {
   const r = S.scores.find(x => x.id === 0); if (!r) return "";
   const isC = !!S.cfg.varC, note = isC ? esc(rw("explain_note").text) : "The bot played your studio after the tutorial, so this score shows the rules rather than your skill. Start a real game to play for it.";
-  const PT = PARTS.map(p => isC ? [p[0], rw("explain_" + p[0]).title || p[1], rw("explain_" + p[0]).text || p[2]] : p);
+  const PT = PARTS.filter(p => !(S.cfg.cultureFold && p[0] === "culture")).map(p => isC ? [p[0], rw("explain_" + p[0]).title || p[1], rw("explain_" + p[0]).text || p[2]] : p);
   const q = r.parts;
   if (S.cfg.poolScoring) { const pl = q.pool, row = (n, x, vp, why) => `<tr><td style="white-space:nowrap">${n}</td><td class="mono" style="text-align:right;padding:0 10px">${x.total} pts</td><td class="mono" style="text-align:right;padding:0 10px">${vp.toFixed(1)} VP</td><td class="mute" style="font-size:12px;text-align:left">${why}</td></tr>`;
     return `<div class="explain"><h3>How your ${b(Math.round(r.total) + " VP")} was made</h3><p class="mute" style="margin:2px 0 8px">Everything you do feeds one of two pools. Your VP is your share of each pool.</p><table class="scoretbl"><tbody>${row("Progress pool", pl.P, q.prodShare, "Progress " + Math.round(pl.P.base) + " + systems " + Math.round(pl.P.sys) + " + objectives " + Math.round(pl.P.obj + pl.P.syn) + (pl.P.adj ? " + gates/events " + Math.round(pl.P.adj) : "") + " − Debt " + Math.round(-pl.P.debt))}${row("Hype pool", pl.H, q.hypeStrength, "Hype + Marketing " + Math.round(pl.H.base) + " + systems " + Math.round(pl.H.sys) + " + objectives " + Math.round(pl.H.obj + pl.H.syn) + (pl.H.adj ? " + spotlight " + Math.round(pl.H.adj) : ""))}</tbody></table><p class="mute" style="margin-top:8px">${note}</p></div>`; }

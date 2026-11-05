@@ -127,6 +127,9 @@ E.newGame = function (seats, opts) {
     const cats = shuffle(S, Object.keys(D0.categories));
     for (let i = 0; i < cfg.startWorkers; i++) { const ds = D0.categories[cats[i % cats.length]].discs.filter(d => d !== "QA"); p.workers.push({ id: S.wid++, disc: ds[rint(S, ds.length)], lvl: "Jr", fat: 0, placed: false, as: null, worked: false }); }
   });
+  if (cfg.recruitOnly) data.milestones.forEach(m => { if (m.name === "Hiring Spree") m.text = "Have 6+ workers at the same time"; });
+  if (cfg.recruitOnly) data.crisis.forEach(c => { c.text = c.text.replace("Hiring costs +1G", "Recruiting costs +1G"); }); // one recruit a round makes "4 hires in a round" impossible
+  if (cfg.cultureFold) data.crisis.forEach(c => { c.text = c.text.replace("positive Culture (+1 or better) ignore this", "Burnout 2 or less ignore this").replace("with negative Culture (-1 or worse)", "with Burnout 4 or more").replace("Players with positive Culture lose no workers", "Players with Burnout 2 or less lose no workers").replace("-1 Culture", "+1 Burnout").replace("+1 Culture", "-1 Burnout"); });
   if (cfg.mileGoldAdj) data.milestones.forEach(m => { if (cfg.mileGoldAdj[m.name]) m.gold = Math.max(1, m.gold + cfg.mileGoldAdj[m.name]); });
   S.decks.mile = shuffle(S, data.milestones.map((m, i) => i));
   S.decks.obj = {};
@@ -154,6 +157,8 @@ E.phaseOfRound = PHASE_OF_ROUND;
 // cultureFold (R5): Culture is not a separate track. Every Culture gain eases Burnout, every loss adds Burnout; readers see a virtual Culture of (base - Burnout).
 const cul = (S, p) => S.cfg.cultureFold ? (S.cfg.cultureFoldBase || 5) - (p.burnout || 0) : p.culture;
 E.cultureOf = cul;
+// cultureFold: the three Culture-gated Crisis cards are re-read as Burnout bands so they still bite (protected = Burnout 2 or less, Departure = Burnout 4+, Burnout Wave = Burnout 3+)
+const protectedFromCrisis = (S, p) => S.cfg.cultureFold ? (p.burnout || 0) <= 2 : p.culture >= (S.mod.protect || 1);
 function statChange(S, pi, stat, d) {
   if (stat === "mktg" && S.cfg.mergeMktg) stat = "hype";
   if (stat === "culture" && S.cfg.cultureFold) { stat = "burnout"; d = -d; }
@@ -230,7 +235,7 @@ function hireCost(S, pi, lvl) {
   const p = P(S, pi), c = S.cfg;
   if (lvl === "Jr" && p.contract > 0) return 0;
   let base = lvl === "Jr" ? c.jrCost : (S.phase === 2 ? c.srCostPolish : c.srCost);
-  if (S.mod.hireAdd && p.culture < (S.mod.protect || 1)) base += S.mod.hireAdd;
+  if (S.mod.hireAdd && !protectedFromCrisis(S, p)) base += S.mod.hireAdd;
   base -= Math.min(p.hireDiscount, 1);
   return Math.max(1, base);
 }
@@ -423,7 +428,7 @@ function rollRecruit(S) {
   log(S, "RECRUITMENT: " + S.recruit.map(o => dn(o.disc)).join(", ") + " available");
 }
 // recruitLadder (L2): each worker taken from the pool this round makes the next one dearer; the Talent spot's extra recruit is 1G cheaper
-E.recruitCost = function (S, pi) { const p = P(S, pi), c = S.cfg; const taken = (S.recruit || []).filter(o => o.by != null).length; return Math.max(0, (c.recruitCost == null ? 3 : c.recruitCost) + (c.recruitLadder || 0) * taken - Math.min(p.hireDiscount || 0, 1)); };
+E.recruitCost = function (S, pi) { const p = P(S, pi), c = S.cfg; const taken = (S.recruit || []).filter(o => o.by != null).length; return Math.max(0, (c.recruitCost == null ? 3 : c.recruitCost) + (c.recruitLadder || 0) * taken + (S.mod && S.mod.hireAdd && !protectedFromCrisis(S, p) ? S.mod.hireAdd : 0) - Math.min(p.hireDiscount || 0, 1)); };
 E.canRecruit = function (S, pi, idx) {
   const p = P(S, pi); if (!S.cfg.varC || S.step !== "place") return { ok: false, reason: "Not available" };
   if (S.phase === 3 && !S.cfg.recruitInLaunch) return { ok: false, reason: "No hiring in Launch" };
@@ -1202,7 +1207,7 @@ const CRISIS_START = {
   raid(S, c, order) { order.forEach(pi => S.dq.push({ t: "raidHire", p: pi })); },
   creep(S, c, order) { order.forEach(pi => S.dq.push({ t: "choose", p: pi, card: "creep", options: c.options.map(o => Object.assign({}, o)) })); },
   departure(S, c, order) {
-    order.forEach(pi => { const p = P(S, pi); if (cul(S, p) <= -1 && p.workers.some(w => w.lvl === "Sr")) S.dq.push({ t: "pickWorker", p: pi, srOnly: true, reason: "Key Employee Departure" }); });
+    order.forEach(pi => { const p = P(S, pi); if ((S.cfg.cultureFold ? (p.burnout || 0) >= 4 : p.culture <= -1) && p.workers.some(w => w.lvl === "Sr")) S.dq.push({ t: "pickWorker", p: pi, srOnly: true, reason: "Key Employee Departure" }); });
   },
   conference(S, c) { S.sched.push({ kind: "conference", round: S.round, params: c.params }); },
   breakthrough(S, c, order) { S.bids = {}; order.forEach(pi => S.dq.push({ t: "bid", p: pi, purpose: "auction", card: c.id })); S.dq.push({ t: "auto", fn: "auction", args: { card: c.id } }); },
@@ -1210,7 +1215,7 @@ const CRISIS_START = {
     order.forEach(pi => {
       const p = P(S, pi); const over = p.workers.filter(w => w.fat >= 2).length, tired = p.workers.filter(w => w.fat >= 1).length;
       if (tired >= c.params.tired) { gain(S, pi, "culture", -1); log(S, p.name + " has " + tired + " tired workers: -1 Culture"); }
-      if (over >= c.params.overTired && cul(S, p) < 1) S.dq.push({ t: "pickWorker", p: pi, reason: "Burnout Wave" });
+      if (over >= c.params.overTired && !protectedFromCrisis(S, p)) S.dq.push({ t: "pickWorker", p: pi, reason: "Burnout Wave" });
     });
   },
   bug(S, c, order) {
@@ -1306,7 +1311,7 @@ const MILE_CHECK = {
   "Exactly Five": (S, p) => p.workers.length === 5,
   "Lean Operation": (S, p) => p.rs.placed === 2 && p.workers.length >= 5,
   "All-Star Team": (S, p) => sr(p) >= 3,
-  "Hiring Spree": (S, p) => p.rs.hires >= 4,
+  "Hiring Spree": (S, p) => S.cfg.recruitOnly ? p.workers.length >= 6 : p.rs.hires >= 4,
   "Diverse Perspectives": (S, p) => new Set(p.workers.map(w => w.disc)).size >= 7,
   "Talent Scout": (S, p) => (p.cs.recruits || 0) >= 5,
   "Mentor Program": (S, p) => jr(p) >= 2 && sr(p) >= 2,
