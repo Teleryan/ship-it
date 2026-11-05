@@ -217,6 +217,8 @@ function tokens(S) {
   t.restMiles = v2 ? "\n\n<b>This is the Clean up step: Rest and Milestones together.</b> Your Milestones sit at the top, like your hand did in Hire. They are bonus goals, such as \"have 3 Seniors\". When one is met it shows <b>MET</b>: press <b>Cash in</b> to take the gold. A milestone can only be completed during its phase window." : "";
   t.upkeepV2 = v2 ? "\n\nFrom now on every round <b>opens with Upkeep</b>, before Income. There is no Upkeep in round 1." : "";
   const td = c.trainDuration || 1; t.trainAway = td > 1 ? "sits out the next " + td + " rounds" : "sits out the next round";
+  t.promoLesson = c.trainNeeded > 1 ? " For this lesson one of your Juniors has already trained " + (c.trainNeeded - 1) + " time" + (c.trainNeeded > 2 ? "s" : "") + "." : "";
+  t.promoRest = c.promoByRest ? " A Junior who worked and then sits out a round can also be promoted without training." : "";
   t.restTeam = fmt(rw(c.train ? "rest_train" : "rest_nontrain").text, t);
   ["burnStats", "burnRest", "burnUpkeep"].forEach(k => { t[k] = c.burnout ? fmt(rw("burn_" + k.slice(4).toLowerCase()).text, t) : ""; });
   t.gateResult = done ? fmt(rw(done.passed.includes(0) ? "gate_pass" : "gate_miss").text, t) : "";

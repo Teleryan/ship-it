@@ -329,6 +329,14 @@ function roundSetup(S) {
   if (S.cfg.burnout) burnBands(S);
 }
 
+// Variant D: a Junior can be promoted after enough trainings, or (promoByRest) after working and then sitting out a round, once they are no more than Tired
+const restedJr = w => !!w.worked && !w.placed && !w.build && !w.trainNow && (w.fat || 0) <= 1;
+function trainPromoWhy(S, w) {
+  const c = S.cfg; if ((w.trained || 0) >= c.trainNeeded) return "";
+  if (c.promoByRest && restedJr(w)) return "";
+  return "Needs " + c.trainNeeded + " training" + (c.trainNeeded === 1 ? "" : "s") + (c.promoByRest ? ", or a round of rest after working" : "") + " (trained " + (w.trained || 0) + ")";
+}
+E.trainPromoWhy = trainPromoWhy;
 const trainDur = S => Math.max(1, Math.floor(S.cfg.trainDuration || 1));
 /* ---------- Variant D: Burnout track ---------- */
 // Burnout (0 to burnMax) is a personal token. Printed bands: Energized (Burnout 0 and Culture high) pays Gold, Strained costs extra Hype at upkeep,
@@ -984,7 +992,7 @@ function restAction(S, a, p) {
       const w = p.workers.find(x => x.id === a.worker); if (!w || w.lvl !== "Jr") return err("Pick a Junior worker");
       if (!srAllowed(S)) return err("No Senior workers in Concept");
       if (p.promos >= c.promotionsPerRest) return err("Promotion limit reached");
-      if (c.train) { if ((w.trained || 0) < c.trainNeeded) return err("Needs " + c.trainNeeded + " training sessions first (this worker has " + (w.trained || 0) + ")"); }
+      if (c.train) { const why = trainPromoWhy(S, w); if (why) return err(why); }
       else if (c.promoNeedsRest && (w.placed || !w.worked)) return err("Needs a worker that has worked and is resting this round");
       const cost = c.promoFree ? 0 : promoCost(S); if (p.gold < cost) return err("Needs " + cost + "G");
       gain(S, pi, "gold", -cost); w.lvl = "Sr"; w.trained = 0; p.promos++; p.cs.promotions++; log(S, p.name + " promotes " + dn(w.disc) + " to Sr"); return { ok: true };

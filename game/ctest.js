@@ -109,6 +109,11 @@ const SA=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:3});ok(!SA.cf
  const cfg={varC:1,burnout:1,train:1,flowV2:1,draftMiniDelta:-1};const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true},{name:'C',bot:true}],{seed:5,config:cfg});let g=0,sizes=[];
  while(g++<9000&&!S.over&&S.round<6){if(S.step==='bid'&&S.dq[0]&&S.dq[0].t==='bid'&&sizes.every(x=>x[0]!==S.round))sizes.push([S.round,S.draft.cards.length]);const a=B.decide(S);if(!a)break;E.act(S,a)}
  const mid=sizes.find(x=>x[0]===2);ok(mid&&mid[1]===2,'round 2 bid shows a face-up draft of players - 1 cards (3 players -> 2)');}
+{ // promote after resting (promoByRest): worked, then sat out a round, at most Tired
+ const mk=f=>{const S=E.newGame([{name:'A',bot:true},{name:'B',bot:true}],{seed:11,config:{varC:1,burnout:1,train:1,promoByRest:f}});let g=0;while(g++<4000&&!(S.round>=4&&S.step==='rest'&&!S.dq.length)){const a=B.decide(S);if(!a)break;E.act(S,a)}return S};
+ for(const f of [0,1]){const S=mk(f),pi=E.currentActor(S),p=S.players[pi];p.workers.forEach(w=>{w.lvl='Jr';w.trained=0;w.placed=false;w.build=null;w.training=false;w.trainNow=false;w.worked=true;w.fat=1});p.promos=0;p.gold=10;
+  const w=p.workers[0];const r=E.act(S,{type:'promote',p:pi,worker:w.id});ok(r.ok===!!f,'promoByRest '+f+': a Tired Junior who worked and sat out '+(f?'can':'cannot')+' be promoted');
+  if(f){const w2=p.workers[1];w2.fat=2;const r2=E.act(S,{type:'promote',p:pi,worker:w2.id});ok(!r2.ok||p.promos>0,'rule still respects the promotion limit');p.promos=0;const w3=p.workers[2];w3.fat=2;ok(!E.act(S,{type:'promote',p:pi,worker:w3.id}).ok,'an Over-Tired Junior needs more rest first');}}}
 { // Variant D: Insight is off the board at every player count
  for(const n of [2,3,4,5,6]){const seats=[];for(let i=0;i<n;i++)seats.push({name:'P'+i,bot:true});
   const D=E.newGame(seats,{seed:3,config:{varC:1,smallDrop:['insight'],smallMax:6}}); let any=false; for(let ph=0;ph<4;ph++){D.phase=ph; if(E.activeSpots(D).some(x=>x.id==='insight'))any=true}

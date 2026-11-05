@@ -267,7 +267,7 @@ function rest(S, p) {
   if (c.promoFree) {
     const srN = p.workers.filter(w => w.lvl === "Sr").length, cap = 1 + Math.floor(p.workers.length * W.srCap);
     if (c.train) {
-      const rdy = p.workers.find(w => w.lvl === "Jr" && (w.trained || 0) >= c.trainNeeded);
+      const rdy = p.workers.find(w => w.lvl === "Jr" && !E.trainPromoWhy(S, w));
       if (rdy && p.promos < c.promotionsPerRest && srN < cap && E.srAllowed(S) && S.phase < 3 && (!PF || E.rnd(S) < PF.promoP)) return { type: "promote", p: p.id, worker: rdy.id };
       const tr = p.workers.find(w => w.lvl === "Jr" && !w.placed && !w.build && !w.training && (w.trained || 0) < c.trainNeeded);
       if (tr && (p.rs.trains || 0) < Math.min(c.trainsPerRest, 1) && srN < cap && S.round < 11 && S.phase < 3 && p.gold >= W.promoGold - 2 && p.workers.length >= 4 && (!PF || E.rnd(S) < PF.promoP)) return { type: "train", p: p.id, worker: tr.id };
