@@ -105,21 +105,17 @@ E.newGame = function (seats, opts) {
   const S = {
     v: 1, seed: (opts.seed != null ? opts.seed : (Math.random() * 2 ** 31) | 0), cfg, data,
     round: 1, phase: 0, step: "setup", cur: 0, order: [], passed: [], log: [], dq: [], bids: {}, wid: 1,
-    players: [], occ: {}, mod: {}, sched: [], pool: [], draft: { cards: [] }, discard: [], crisisCard: null,
+    players: [], occ: {}, mod: {}, sched: [], pool: [], crisisCard: null,
     sysAvail: {}, invest: null, winner: null, scores: null, decks: {}, over: false
   };
   const N = seats.length;
   seats.forEach((s, i) => S.players.push({
     id: i, name: s.name || ("Player " + (i + 1)), bot: !!s.bot, color: ["#e74c3c","#3498db","#27ae60","#f39c12","#9b59b6","#16a085"][i],
     gold: cfg.startGold, ideas: 0, code: 0, process: 0, buzz: 0, prod: 0, mktg: 0, hype: 0, debt: 0, culture: 0, vpAdj: 0,
-    workers: [], hand: [], systems: [], building: [], recruited: 0, objectives: [], dropped: [], miles: [], claimed: [],
-    hireDiscount: 0, contract: 0, padj: 0, hadj: 0, burnout: 0, freeBuilds: 0, rd: false, flags: {}, swapObj: 0, swapMile: 0, promos: 0, hunts: 0, builds: 0,
+    workers: [], systems: [], building: [], recruited: 0, objectives: [], dropped: [], miles: [], claimed: [],
+    hireDiscount: 0, burnout: 0, freeBuilds: 0, rd: false, flags: {}, swapObj: 0, swapMile: 0, promos: 0, hunts: 0, builds: 0,
     rs: {}, cs: { promotions: 0, fired: 0, reachGold: 0, noGoldBuilds: 0, bigBuild: false, hypeEver: false, debtEver: false, hypeStreak: 0, cashedTotal: 0 }
   }));
-  // discipline deck
-  const cards = []; let n = 1;
-  DISCS.forEach(d => { const cnt = (cfg.deckBase != null ? cfg.deckBase : D0.deck.base) + (N >= 3 ? (cfg.deckExtra != null ? cfg.deckExtra : D0.deck.extra) : 0); for (let i = 0; i < cnt; i++) cards.push({ id: "C" + n++, disc: d }); });
-  S.decks.disc = shuffle(S, cards);
   if (cfg.startWorkers) S.players.forEach(p => { // L2: no hand to hire from, so each studio opens with a small team: one Junior from each of a few different categories
     const cats = shuffle(S, Object.keys(D0.categories));
     for (let i = 0; i < cfg.startWorkers; i++) { const ds = D0.categories[cats[i % cats.length]].discs.filter(d => d !== "QA"); p.workers.push({ id: S.wid++, disc: ds[rint(S, ds.length)], lvl: "Jr", fat: 0, placed: false, as: null, worked: false }); }
@@ -149,49 +145,36 @@ E.newGame = function (seats, opts) {
 const P = (S, i) => S.players[i];
 E.phaseOfRound = PHASE_OF_ROUND;
 // cultureFold (R5): Culture is not a separate track. Every Culture gain eases Burnout, every loss adds Burnout; readers see a virtual Culture of (base - Burnout).
-const cul = (S, p) => S.cfg.cultureFold ? (S.cfg.cultureFoldBase || 5) - (p.burnout || 0) : p.culture;
+const cul = (S, p) => S.cfg.cultureFoldBase - (p.burnout || 0);
 E.cultureOf = cul;
 // cultureFold: the three Culture-gated Crisis cards are re-read as Burnout bands so they still bite (protected = Burnout 2 or less, Departure = Burnout 4+, Burnout Wave = Burnout 3+)
-const protectedFromCrisis = (S, p) => S.cfg.cultureFold ? (p.burnout || 0) <= 2 : p.culture >= (S.mod.protect || 1);
+const protectedFromCrisis = (S, p) => (p.burnout || 0) <= 2;
 function statChange(S, pi, stat, d) {
-  if (stat === "mktg" && S.cfg.mergeMktg) stat = "hype";
-  if (stat === "culture" && S.cfg.cultureFold) { stat = "burnout"; d = -d; }
+  if (stat === "culture") { stat = "burnout"; d = -d; }
   const p = P(S, pi); if (!d) return 0;
   const cfg = S.cfg; const before = p[stat];
   let v = before + d;
-  if (stat === "culture") v = clamp(v, cfg.culMin, cfg.culMax);
-  else if (stat === "burnout") v = clamp(v, 0, cfg.burnMax || 6);
+  if (stat === "burnout") v = clamp(v, 0, cfg.burnMax || 6);
   else if (RES.includes(stat)) v = clamp(v, 0, cfg.resCap || 99);
   else v = Math.max(0, v);
   if (stat === "gold") {
     if (!S._nt) { if (d > 0) p.rs.gained = (p.rs.gained || 0) + d; else p.rs.spent = (p.rs.spent || 0) - d; } // income, bids and milestone gold are not "gained" or "spent" for milestones
   }
-  p[stat] = v; const real = v - before; if (S.cfg.mergeMktg) p.mktg = p.hype;
+  p[stat] = v; const real = v - before;
   if (stat === "debt") { if (v > 0) p.cs.debtEver = true; if (real < 0) p.rs.debtRemoved = (p.rs.debtRemoved || 0) - real; }
   if (stat === "hype") { if (v > 0) p.cs.hypeEver = true; if (real > 0) p.rs.hypeGained = (p.rs.hypeGained || 0) + real; }
   if (stat === "prod" && S.invest && !S.invest.rewarded && v >= S.invest.firstAt) {
-    S.invest.rewarded = true; adjTrack(S, p.id, "P", S.invest.reward); log(S, p.name + " is first to " + S.invest.firstAt + " Progress: +" + S.invest.reward + " VP (Investor Pressure)");
+    S.invest.rewarded = true; p.vpAdj += S.invest.reward; log(S, p.name + " is first to " + S.invest.firstAt + " Progress: +" + S.invest.reward + " VP (Investor Pressure)");
   }
   return real;
 }
 E.statChange = statChange;
 const gain = (S, pi, stat, d) => statChange(S, pi, stat, d);
-// VP-like adjustments: in pool scoring they feed the Progress ("P") or Hype ("H") pool as points instead of VP
-function adjTrack(S, pi, track, amt) { const p = P(S, pi); if (S.cfg.poolScoring) { const k = track === "H" ? "hadj" : "padj"; p[k] = (p[k] || 0) + amt; } else p.vpAdj += amt; }
-const reqTrack = r => /Hype|Marketing|Mktg/.test(r) ? "H" : "P";
-function gateSplit(S, id, reqs, pts) { const n = { P: 0, H: 0 }; reqs.forEach(r => n[reqTrack(r)]++); const tot = n.P + n.H; if (!tot) return; ["P", "H"].forEach(k => { if (n[k]) adjTrack(S, id, k, Math.round(pts * n[k] / tot)); }); }
+const addVP = (S, pi, amt) => { P(S, pi).vpAdj += amt; };
 
 function drawMile(S, pi, silent) {
   const dk = S.decks.mile; if (!dk.length) return null;
   const c = dk.pop(); P(S, pi).miles.push(c); if (!silent) log(S, P(S, pi).name + " draws a milestone"); return c;
-}
-function drawDisc(S, n) {
-  const out = [];
-  for (let i = 0; i < n; i++) {
-    if (!S.decks.disc.length) { if (!S.discard.length) break; S.decks.disc = shuffle(S, S.discard.splice(0)); }
-    out.push(S.decks.disc.pop());
-  }
-  return out;
 }
 // which disciplines may this worker act as (wild workers declare when placed / built-with)
 function actsAs(w) { const d = D0.disciplines[w.disc]; return d.wild ? d.wild.concat([w.disc]) : [w.disc]; }
@@ -219,21 +202,11 @@ function crewFor(p, req) {
 E.crewFor = crewFor;
 function sysCount(p, cat) { return p.systems.filter(s => s.cat === cat).length; }
 function debtPct(S, p) {
-  if (!S.cfg.debtMode) return p.debt;
   if (p.prod <= 0) return p.debt > 0 ? 100 : 0;
   return (p.debt / p.prod) * 100;
 }
 E.debtPct = debtPct;
 function srAllowed(S) { return S.phase >= 1 || S.cfg.srAllowedPreProd; }
-function hireCost(S, pi, lvl) {
-  const p = P(S, pi), c = S.cfg;
-  if (lvl === "Jr" && p.contract > 0) return 0;
-  let base = lvl === "Jr" ? c.jrCost : (S.phase === 2 ? c.srCostPolish : c.srCost);
-  if (S.mod.hireAdd && !protectedFromCrisis(S, p)) base += S.mod.hireAdd;
-  base -= Math.min(p.hireDiscount, 1);
-  return Math.max(1, base);
-}
-E.hireCost = hireCost;
 const promoCost = S => S.cfg["promoCost" + S.phase];
 E.promoCost = promoCost;
 E.promoGold = S => (S.cfg.promoGoldByN && S.cfg.promoGoldByN[S.players.length] != null) ? S.cfg.promoGoldByN[S.players.length] : (S.cfg.promoFree ? 0 : promoCost(S));
@@ -281,7 +254,7 @@ function beginPhase(S) {
     log(S, p.name + " swaps " + old.length + " expired milestone" + (old.length > 1 ? "s" : ""));
   });
   if (S.phase === 2 && S.invest) { // Investor Pressure resolves at the end of Production
-    S.players.forEach(p => { if (p.prod < S.invest.need) { adjTrack(S, p.id, "P", -S.invest.penalty); log(S, p.name + " missed Investor Pressure target: -" + S.invest.penalty + " VP"); } });
+    S.players.forEach(p => { if (p.prod < S.invest.need) { addVP(S, p.id, -S.invest.penalty); log(S, p.name + " missed Investor Pressure target: -" + S.invest.penalty + " VP"); } });
     S.invest = null;
   }
   S.step = "crisis";
@@ -317,7 +290,7 @@ function roundSetup(S) {
     cand.slice(0, kc).forEach(sp => { S.closed[sp.id] = 1; });
     log(S, "INDUSTRY NEWS: " + cand.slice(0, kc).map(sp => sp.row + " (" + (sp.fx || sp.note || sp.id) + ")").join("; ") + " closed this round");
   }
-  if (S.cfg.varC) { completeBuilds(S); rollRecruit(S); S.players.forEach(p => { p.cs.crewRounds = (p.cs.crewRounds || 0) + p.workers.filter(w => w.build).length; }); }
+  { completeBuilds(S); rollRecruit(S); S.players.forEach(p => { p.cs.crewRounds = (p.cs.crewRounds || 0) + p.workers.filter(w => w.build).length; }); }
   log(S, "--- ROUND " + S.round + " (" + D0.phases[S.phase].name + ") ---");
   S.players.forEach(p => {
     S._nt = 1; gain(S, p.id, "gold", S.cfg.income);
@@ -357,7 +330,7 @@ E.burnBand = function (S, p) {
 function burnBands(S) {
   S.players.forEach(p => {
     const c = S.cfg;
-    if (E.burnBand(S, p) === "Energized" && c.energizedGold) { S._nt = 1; gain(S, p.id, "gold", c.energizedGold); S._nt = 0; log(S, p.name + " is Energized (Burnout " + p.burnout + (S.cfg.cultureFold ? "" : ", Culture " + p.culture) + "): +" + c.energizedGold + "G"); }
+    if (E.burnBand(S, p) === "Energized" && c.energizedGold) { S._nt = 1; gain(S, p.id, "gold", c.energizedGold); S._nt = 0; log(S, p.name + " is Energized (Burnout " + p.burnout + (", Culture " + cul(S, p)) + "): +" + c.energizedGold + "G"); }
     if (p.burnout >= c.burnQuitAt && p.workers.length > 1) {
       const q = p.workers.filter(w => !w.build).sort((a, b) => (a.lvl === "Sr") - (b.lvl === "Sr") || b.fat - a.fat || a.id - b.id)[0];
       if (q) { log(S, p.name + " Meltdown: a " + q.lvl + " " + dn(q.disc) + " quits"); removeWorker(S, p.id, q.id); p.burnout = Math.min(p.burnout, c.burnQuitReset); }
@@ -384,22 +357,20 @@ function completeBuilds(S) {
     });
   });
 }
-E.recruitSize = function (S) { const n = S.players.length, c = S.cfg; if (c.recruitDelta) return Math.max(1, Math.min(n + c.recruitDelta, 8)); return n <= 2 ? (c.recruitSize2 || 2) : n <= 4 ? (c.recruitSize34 || 3) : (c.recruitSize56 || 4); };
+E.recruitSize = function (S) { const n = S.players.length, c = S.cfg; return n <= 2 ? (c.recruitSize2 || 2) : n <= 4 ? (c.recruitSize34 || 3) : (c.recruitSize56 || 4); };
 // A fresh shared pool every round: some categories, one random discipline from each. Take one by paying Gold (no worker needed).
 function rollRecruit(S) {
   if (S.recruitRound === S.round) return; S.recruitRound = S.round;
   const size = E.recruitSize(S), cats = shuffle(S, Object.keys(D0.categories));
   const left = {}; cats.forEach(cat => { left[cat] = D0.categories[cat].discs.filter(d => !(S.phase === 0 && d === "QA" && !S.cfg.qaAllowedPreProd)); });
   S.recruit = [];
-  if (S.cfg.recruitDelta) { // pool sized to the player count: cycle the categories, a different discipline each time
-    let guard = 0; while (S.recruit.length < size && guard++ < 40) { const cat = cats[(guard - 1) % cats.length]; const ds = left[cat]; if (!ds.length) continue; const d = ds.splice(rint(S, ds.length), 1)[0]; S.recruit.push({ cat, disc: d, by: null }); }
-  } else cats.slice(0, size).forEach(cat => { const ds = left[cat]; S.recruit.push({ cat, disc: ds[rint(S, ds.length)], by: null }); });
+  cats.slice(0, size).forEach(cat => { const ds = left[cat]; S.recruit.push({ cat, disc: ds[rint(S, ds.length)], by: null }); });
   log(S, "RECRUITMENT: " + S.recruit.map(o => dn(o.disc)).join(", ") + " available");
 }
 // recruitLadder (L2): each worker taken from the pool this round makes the next one dearer; the Talent spot's extra recruit is 1G cheaper
 E.recruitCost = function (S, pi) { const p = P(S, pi), c = S.cfg; const taken = (S.recruit || []).filter(o => o.by != null).length; return Math.max(0, (c.recruitCost == null ? 3 : c.recruitCost) + (c.recruitLadder || 0) * taken + (S.mod && S.mod.hireAdd && !protectedFromCrisis(S, p) ? S.mod.hireAdd : 0) - Math.min(p.hireDiscount || 0, 1)); };
 E.canRecruit = function (S, pi, idx) {
-  const p = P(S, pi); if (!S.cfg.varC || S.step !== "place") return { ok: false, reason: "Not available" };
+  const p = P(S, pi); if (S.step !== "place") return { ok: false, reason: "Not available" };
   if (S.phase === 3 && !S.cfg.recruitInLaunch) return { ok: false, reason: "No hiring in Launch" };
   if (S.cfg.recruitMinRound && S.round < S.cfg.recruitMinRound) return { ok: false, reason: "Recruiting opens in round " + S.cfg.recruitMinRound };
   const o = (S.recruit || [])[idx]; if (!o) return { ok: false, reason: "No such offer" };
@@ -426,7 +397,7 @@ function startPlace(S) {
 function canAnyPlace(S, pi) {
   if (P(S, pi).flags.skipLaunch && S.phase === 3) return false;
   const p = P(S, pi);
-  if (S.cfg.varC && (S.recruit || []).some((o, i) => E.canRecruit(S, pi, i).ok)) return true;
+  if ((S.recruit || []).some((o, i) => E.canRecruit(S, pi, i).ok)) return true;
   const buy = S.cfg.wsMax && E.canBuyWs(S, pi).ok;
   return p.workers.some(w => !w.placed && placementOptions(S, pi, w).some(o => o.ok || (buy && o.wsNeed)));
 }
@@ -454,7 +425,6 @@ function endOfRound(S) {
     if (h.kind === "award") awardResolve(S, h);
     return false;
   });
-  if (S.cfg.raceScoring && S.cfg.raceEnd && raceCheck(S)) { endGame(S); return true; }
   if (S.round === 1) drawGates(S);
   if (S.round >= PHASE_ENDS[3] || PHASE_OF_ROUND(S.round + 1) !== S.phase) resolveGate(S);
   if (S.cfg.hypeBank && S.phase < 3 && PHASE_OF_ROUND(S.round + 1) !== S.phase) { // lock in: when a phase closes, Hype is banked as Marketing, which never fades
@@ -508,7 +478,7 @@ function roundEnd(S) {
 /* Publisher gates: a review at the end of each phase. Meet every requirement: funding tranche (+ VP). Miss: VP penalty. Best Progress among those who pass: bonus VP. */
 /* Publisher gates are drawn once per game, at the end of round 1: one review per phase, picked from the pool for that phase. */
 function drawGates(S) {
-  if (!S.cfg.gatesEnabled || S.gateSet) return;
+  if (S.gateSet) return;
   const pool = S.data.gatePool || [];
   if (!S.cfg.gatesRandom || !pool.length) { S.gateSet = (S.data.publisherGates || []).slice(); applyGateLevels(S); return; }
   S.gateSet = [0, 1, 2, 3].map(ph => { const opts = pool.filter(x => x.phase === ph); return opts.length ? opts[rint(S, opts.length)] : (S.data.publisherGates || []).find(x => x.phase === ph); }).filter(Boolean);
@@ -536,23 +506,17 @@ function applyGateLevels(S) {
 }
 E.gateList = function (S) { return S.gateSet || (S.cfg.gatesRandom && (S.data.gatePool || []).length ? null : (S.data.publisherGates || [])); };
 function resolveGate(S) {
-  if (!S.cfg.gatesEnabled) return;
   drawGates(S);
   const g = (S.gateSet || []).find(x => x.phase === S.phase); if (!g) return;
   S.gates = S.gates || [];
   const passed = [], failed = [];
   S.players.forEach(p => { (g.reqs.every(r => reqCheck(S, p, r)) ? passed : failed).push(p.id); });
-  if (S.cfg.poolScoring) {
-    passed.forEach(id => { if (g.fund) gain(S, id, "gold", g.fund); if (S.cfg.poolPassPts !== 0) gateSplit(S, id, g.reqs, Math.round((g.pts || 0) * (S.cfg.poolGateMult == null ? 1 : S.cfg.poolGateMult))); });
-    failed.forEach(id => { const pl = P(S, id), cap = S.cfg.poolGateCap || 99, amt = Math.max(0, Math.min(Math.round((g.pts || 0) * (S.cfg.poolGateMult == null ? 1 : S.cfg.poolGateMult)), cap - (pl.gateLoss || 0))); pl.gateLoss = (pl.gateLoss || 0) + amt; gateSplit(S, id, g.reqs.filter(r => !reqCheck(S, pl, r)), -amt); if (S.cfg.gateContract) pl.contract = (pl.contract || 0) + 1; });
-  } else {
   passed.forEach(id => { if (g.fund) gain(S, id, "gold", g.fund); if (g.vp) P(S, id).vpAdj += g.vp; });
-  failed.forEach(id => { const pl = P(S, id), cap = S.cfg.gateLossCap || 99, pen = Math.max(0, Math.min(g.penalty, cap - (pl.gateLoss || 0))); pl.gateLoss = (pl.gateLoss || 0) + pen; pl.vpAdj -= pen; if (S.cfg.gateContract) pl.contract = (pl.contract || 0) + 1; });
-  }
+  failed.forEach(id => { const pl = P(S, id), cap = S.cfg.gateLossCap || 99, pen = Math.max(0, Math.min(g.penalty, cap - (pl.gateLoss || 0))); pl.gateLoss = (pl.gateLoss || 0) + pen; pl.vpAdj -= pen; });
   let best = null;
-  if (passed.length) { const mx = Math.max.apply(null, passed.map(id => P(S, id).prod)); const tops = passed.filter(id => P(S, id).prod === mx); if (tops.length === 1 && S.cfg.gateBestVP && S.players.length >= (S.cfg.awardMinN || 0)) { best = tops[0]; adjTrack(S, best, "P", S.cfg.poolScoring ? S.cfg.poolFavPts : S.cfg.gateBestVP); } }
+  if (passed.length) { const mx = Math.max.apply(null, passed.map(id => P(S, id).prod)); const tops = passed.filter(id => P(S, id).prod === mx); if (tops.length === 1 && S.cfg.gateBestVP && S.players.length >= (S.cfg.awardMinN || 0)) { best = tops[0]; P(S, best).vpAdj += S.cfg.gateBestVP; } }
   S.gates.push({ phase: S.phase, name: g.name, lvl: g.lvl || "M", passed, failed, best });
-  log(S, "GATE: " + g.name + " (" + g.reqs.join(", ") + "). Passed: " + (passed.map(id => P(S, id).name).join(", ") || "nobody") + (best != null ? ". Publisher's favorite: " + P(S, best).name : "") + (failed.length ? ". Missed (-" + (S.cfg.poolScoring ? (g.pts + " pts") : (g.penalty + " VP")) + "): " + failed.map(id => P(S, id).name).join(", ") : ""));
+  log(S, "GATE: " + g.name + " (" + g.reqs.join(", ") + "). Passed: " + (passed.map(id => P(S, id).name).join(", ") || "nobody") + (best != null ? ". Publisher's favorite: " + P(S, best).name : "") + (failed.length ? ". Missed (-" + (g.penalty + " VP") + "): " + failed.map(id => P(S, id).name).join(", ") : ""));
 }
 function refillMarket(S) {
   const size = S.cfg.marketSize; if (!size) return;
@@ -634,7 +598,7 @@ function spotUsableBase(S, pi, w, spot) {
   if (spot.special === "convert") { const rk = RES_OF[CAT_OF(as[0])], rate = S.cfg.convertRate || 3; if (Math.floor((p[rk] || 0) / rate) < 1) return { ok: false, reason: "Needs " + rate + " " + RES_NAME[rk] + " to convert" }; }
   if (spot.cost && spot.cost.gold > p.gold) return { ok: false, reason: "Needs " + spot.cost.gold + "G" };
   if (spot.cost && spot.cost.res && E.resTotal(p) < spot.cost.res) return { ok: false, reason: "Needs " + spot.cost.res + " skills" };
-  if (spot.special === "talent" && S.cfg.varC) {
+  if (spot.special === "talent") {
     if (S.phase === 3 && !S.cfg.recruitInLaunch) return { ok: false, reason: "No hiring in Launch" };
     if (S.cfg.recruitMinRound && S.round < S.cfg.recruitMinRound) return { ok: false, reason: "Recruiting opens in round " + S.cfg.recruitMinRound };
     if (!(S.recruit || []).some(o => o.by == null)) return { ok: false, reason: "Nobody left in the recruitment pool" };
@@ -764,7 +728,7 @@ function doPlace(S, pi, wid, target, o) {
   // specials
   switch (spot.special) {
     case "workshop": spendRes(S, p, spot.cost.res); break;
-    case "talent": p.hireDiscount += 1; if (S.cfg.varC) { p.recruitExtra = (p.recruitExtra || 0) + 1; log(S, p.name + " may recruit one more worker from the pool this round (1G off)"); } break;
+    case "talent": p.hireDiscount += 1; p.recruitExtra = (p.recruitExtra || 0) + 1; log(S, p.name + " may recruit one more worker from the pool this round (1G off)"); break;
     case "team": gain(S, pi, "gold", -spot.cost.gold); gain(S, pi, "culture", S.cfg.teamEventCulture); if (S.cfg.burnout) gain(S, pi, "burnout", -(S.cfg.burnTeamRelief || 1)); break;
     case "outsource": { const Nn = S.players.length, bn = (m, k) => S.cfg[m] && S.cfg[m][Nn] != null ? S.cfg[m][Nn] : S.cfg[k]; gain(S, pi, "gold", w.lvl === "Sr" ? (bn("outsourceSrByN", "outsourceSr") == null ? 5 : bn("outsourceSrByN", "outsourceSr")) : (bn("outsourceJrByN", "outsourceJr") == null ? 3 : bn("outsourceJrByN", "outsourceJr"))); break; }
     case "rd": p.rd = true; p.rdDisc = S.cfg.rdDiscount || 0; break;
@@ -834,8 +798,8 @@ E.buildDelay = function (S, p, crunch, def) { return 1 + E.buildRounds(S, p, cru
 E.crunchWorker = function (p) { const c = p.workers.filter(w => w.fat < 2).sort((x, y) => x.fat - y.fat || x.id - y.id); return c[0] || null; };
 E.canBuild = function (S, pi, name, free, crunch) {
   const p = P(S, pi), def = sysDef(S, name); if (!def) return { ok: false, reason: "Unknown tile" };
-  const nb = S.cfg.varC ? (p.building || []) : [];
-  if (S.cfg.varC) {
+  const nb = p.building || [];
+  {
     const d = E.buildDelay(S, p, crunch, def);
     if (S.round + d > PHASE_ENDS[3]) return { ok: false, reason: (crunch || (p.rd && S.cfg.rdCrunch)) ? "Would not finish before the game ends" : "Too late for a normal build" + (S.round + (S.cfg.crunchDelay || 1) <= 12 ? " (rush it with crunch)" : " (nothing finishes in time)") };
     if (crunch === "gold" && !(p.rd && S.cfg.rdCrunch) && p.gold < (S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold) + E.buildCost(S, p, def, free).gold) return { ok: false, reason: "Crunch costs " + (S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold) + "G more" };
@@ -843,13 +807,11 @@ E.canBuild = function (S, pi, name, free, crunch) {
   }
   if (!S.sysAvail[name]) return { ok: false, reason: "Already taken" };
   if (S.cfg.marketSize && !(S.market[def.cat] || []).includes(name)) return { ok: false, reason: "Not in the market right now" };
-  if (S.phase === 3 && false) return { ok: false, reason: "No building in Launch" };
   if (!free && p.builds >= maxBuilds(S, p)) return { ok: false, reason: "Build limit reached" };
   if (S.cfg.maxSystems && p.systems.length + nb.length >= S.cfg.maxSystems) return { ok: false, reason: "Studio is full (" + S.cfg.maxSystems + " systems)" };
   if (sysCount(p, def.cat) + nb.filter(x => x.cat === def.cat).length >= S.cfg.slotsPerCategory) return { ok: false, reason: def.cat + " slots full" };
   const b = parseBuild(def.build);
-  if (S.cfg.varC && b.reqs.length && !crewFor(p, b.reqs)) { return ownsDiscs(p, b.reqs) ? { ok: false, reason: "Workers busy building: need free " + b.reqs.map(r => (D0.disciplines[r] || {}).name || r).join(" and ") } : { ok: false, reason: "Needs workers: " + b.reqs.map(r => (D0.disciplines[r] || {}).name || r).join(" and ") }; }
-  if (!S.cfg.varC && !ownsDiscs(p, b.reqs)) return { ok: false, reason: "Needs workers: " + b.reqs.map(r => (D0.disciplines[r] || {}).name || r).join(" and ") };
+  if (b.reqs.length && !crewFor(p, b.reqs)) { return ownsDiscs(p, b.reqs) ? { ok: false, reason: "Workers busy building: need free " + b.reqs.map(r => (D0.disciplines[r] || {}).name || r).join(" and ") } : { ok: false, reason: "Needs workers: " + b.reqs.map(r => (D0.disciplines[r] || {}).name || r).join(" and ") }; }
   const bc = E.buildCost(S, p, def, free);
   if (b.cur === "M" && !free && !bc.coverable) return { ok: false, reason: "You have " + RES.filter(k => bc.short[k] > 0).map(k => (bc.need[k] - bc.short[k]) + " of " + bc.need[k] + " " + RES_NAME[k]).join(", ") };
   if (b.cur === "G" && p.gold < b.cost) return { ok: false, reason: "Needs " + b.cost + "G" };
@@ -868,7 +830,7 @@ function doBuild(S, pi, name, useFree, crunchIn) {
   if (!free && b.cur === "M") { if (bc.gold) { gain(S, pi, "gold", -bc.gold); p.rs.spent += bc.gold; } if (bc.shortN) log(S, p.name + " covers " + bc.shortN + " missing skill(s) with " + bc.subGold + "G"); }
   if (free) { p.freeBuilds--; } else { p.builds++; if (p.rdDisc) { log(S, p.name + " uses the R&D discount (-" + p.rdDisc + " skills)"); p.rdDisc = 0; } }
   S.sysAvail[name] = false; if (S.market && S.market[def.cat]) { S.market[def.cat] = S.market[def.cat].filter(x => x !== name); refillMarket(S); }
-  if (S.cfg.varC) {
+  {
     const rush = !!crunch || (p.rd && S.cfg.rdCrunch), d = E.buildDelay(S, p, crunch, def), crewIds = E.buildRounds(S, p, crunch, def) > 0 ? (crewFor(p, b.reqs) || []) : [];
     crewIds.forEach(id => { p.workers.find(q => q.id === id).build = name; });
     if (crunch === "gold" && !(p.rd && S.cfg.rdCrunch)) { const cg = S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold; gain(S, pi, "gold", -cg); p.rs.spent += cg; }
@@ -1066,7 +1028,7 @@ const CRISIS_START = {
   raid(S, c, order) { order.forEach(pi => S.dq.push({ t: "raidHire", p: pi })); },
   creep(S, c, order) { order.forEach(pi => S.dq.push({ t: "choose", p: pi, card: "creep", options: c.options.map(o => Object.assign({}, o)) })); },
   departure(S, c, order) {
-    order.forEach(pi => { const p = P(S, pi); if ((S.cfg.cultureFold ? (p.burnout || 0) >= 4 : p.culture <= -1) && p.workers.some(w => w.lvl === "Sr")) S.dq.push({ t: "pickWorker", p: pi, srOnly: true, reason: "Key Employee Departure" }); });
+    order.forEach(pi => { const p = P(S, pi); if ((p.burnout || 0) >= 4 && p.workers.some(w => w.lvl === "Sr")) S.dq.push({ t: "pickWorker", p: pi, srOnly: true, reason: "Key Employee Departure" }); });
   },
   conference(S, c) { S.sched.push({ kind: "conference", round: S.round, params: c.params }); },
   breakthrough(S, c, order) { S.bids = {}; order.forEach(pi => S.dq.push({ t: "bid", p: pi, purpose: "auction", card: c.id })); S.dq.push({ t: "auto", fn: "auction", args: { card: c.id } }); },
@@ -1115,7 +1077,7 @@ const CRISIS_CHOICE = {
   },
   buyout(S, p, k, d) {
     const pl = P(S, p); const cp = S.data.crisis.find(c => c.id === "buyout").params;
-    if (k === "accept") { const bvp = S.cfg.buyoutVP != null ? S.cfg.buyoutVP : cp.vp; adjTrack(S, pl.id, "P", bvp); log(S, pl.name + " accepts the buyout: +" + bvp + " VP"); if (pl.objectives.length) S.dq.unshift({ t: "dropObj", p, left: Math.min(cp.remove, pl.objectives.length) }); }
+    if (k === "accept") { const bvp = S.cfg.buyoutVP != null ? S.cfg.buyoutVP : cp.vp; addVP(S, pl.id, bvp); log(S, pl.name + " accepts the buyout: +" + bvp + " VP"); if (pl.objectives.length) S.dq.unshift({ t: "dropObj", p, left: Math.min(cp.remove, pl.objectives.length) }); }
   },
   raid() {}
 };
@@ -1152,7 +1114,7 @@ function conferenceResolve(S, h) {
 }
 function awardResolve(S, h) {
   const r = rankAward(S, p => p.hype, h.params.v);
-  Object.keys(r.out).forEach(id => { adjTrack(S, +id, "H", r.out[id]); });
+  Object.keys(r.out).forEach(id => { addVP(S, +id, r.out[id]); });
   log(S, "AWARD NOMINATION: " + S.players.map(p => p.name + " +" + (r.out[p.id] || 0) + "VP").join(", "));
 }
 
@@ -1170,7 +1132,7 @@ const MILE_CHECK = {
   "Exactly Five": (S, p) => p.workers.length === 5,
   "Lean Operation": (S, p) => p.rs.placed === 2 && p.workers.length >= 5,
   "All-Star Team": (S, p) => sr(p) >= 3,
-  "Hiring Spree": (S, p) => S.cfg.recruitOnly ? p.workers.length >= 6 : p.rs.hires >= 4,
+  "Hiring Spree": (S, p) => p.workers.length >= 6,
   "Diverse Perspectives": (S, p) => new Set(p.workers.map(w => w.disc)).size >= 7,
   "Talent Scout": (S, p) => (p.cs.recruits || 0) >= 5,
   "Mentor Program": (S, p) => jr(p) >= 2 && sr(p) >= 2,
@@ -1257,96 +1219,38 @@ function rankScore(vals, table, inverse) { // vals: per player value; inverse: l
   return out;
 }
 function lossTable(max, N) { const t = []; for (let k = 0; k < N; k++) t.push(N > 1 ? Math.round(max * (N - 1 - k) / (N - 1)) : 0); return t; } // rank 1 = worst
-function raceCheck(S) {
-  const c = S.cfg; const q = S.players.filter(p => p.prod >= c.progTarget && p.hype >= c.hypeTarget);
-  if (!q.length) return false;
-  const key = p => p.prod + p.hype; const mx = Math.max.apply(null, q.map(key)); const top = q.filter(p => key(p) === mx);
-  if (top.length === 1 && c.raceTriggerVP) top[0].vpAdj += c.raceTriggerVP;
-  log(S, "RACE END: " + q.map(p => p.name).join(", ") + " reached the Progress " + c.progTarget + " and Hype " + c.hypeTarget + " targets" + (top.length === 1 && c.raceTriggerVP ? ". " + top[0].name + " ships first: +" + c.raceTriggerVP + " VP" : ""));
-  S.raceEnded = true; return true;
-}
-function bandVP(bands, pct) { let v = 0; bands.forEach(b => { if (pct >= b[0]) v = b[1]; }); return v; }
 E.score = function (S) {
   const c = S.cfg, N = S.players.length;
-  const totP = S.players.reduce((a, p) => a + p.prod, 0), totM = S.players.reduce((a, p) => a + p.mktg, 0);
-  const norm = c.scoreShareNormalize ? N / 4 : 1;
-  return S.players.map(p => {
-    const dp = debtPct(S, p); const thr = dp < c.cleanThresh ? "CLEAN" : dp <= c.stdThresh ? "STANDARD" : dp <= c.roughThresh ? "ROUGH" : "BLOCKED";
-    const dbl = p.flags.doubleThresh ? 2 : 1;
-    const shareP = totP ? p.prod / totP * 100 : 0, shareM = totM ? p.mktg / totM * 100 : 0;
+  const pv = S.players.map(q => q.prod), hv = S.players.map(q => q.hype + Math.floor(q.mktg * c.mktgToHype)), dv = S.players.map(q => q.debt);
+  const tab = rankTable(c, N), lt = lossTable(c.debtLossByN && c.debtLossByN[N] != null ? c.debtLossByN[N] : c.debtLossMax, N);
+  const progRank = rankScore(pv, tab), hypeRank = rankScore(hv, tab), debtRank = rankScore(dv, lt, false);
+  return S.players.map((p, pl) => {
+    const dp = debtPct(S, p), dbl = p.flags.doubleThresh ? 2 : 1;
+    const thr = dp < c.cleanThresh ? "CLEAN" : dp <= c.stdThresh ? "STANDARD" : dp <= c.roughThresh ? "ROUGH" : "BLOCKED";
     const s = {};
-    s.prodShare = Math.round(shareP * c.scoreShareScale * norm * 10) / 10;
-    s.mktShare = Math.round(shareM * c.scoreShareScale * norm * 10) / 10;
-    if (c.raceScoring && !c.poolScoring) {
-      const pv = S.players.map(q => q.prod), hv = S.players.map(q => q.hype + Math.floor(q.mktg * (c.mergeMktg ? 0 : c.mktgToHype))), dv = S.players.map(q => q.debt), cv = S.players.map(q => q.culture);
-      const tab = rankTable(c, N), pl = S.players.indexOf(p);
-      s.prodShare = rankScore(pv, tab)[pl] + (c.raceLinDiv ? Math.floor(p.prod / c.raceLinDiv) : 0); s.mktShare = 0;
-      const hr = rankScore(hv, tab)[pl] + (c.raceLinDiv ? Math.floor(hv[pl] / c.raceLinDiv) : 0);
-      s.raceHype = hr;
-      s.raceDebt = -rankScore(dv, lossTable(c.debtLossByN && c.debtLossByN[N] != null ? c.debtLossByN[N] : c.debtLossMax, N), false)[pl];
-      s.raceCult = c.cultureFold ? 0 : c.cultAbsVP ? (c.cultAbsVP[String(clamp(p.culture, -3, 5))] || 0) : -rankScore(cv, lossTable(c.cultLossByN && c.cultLossByN[N] != null ? c.cultLossByN[N] : c.cultLossMax, N), true)[pl];
-    }
-    if (c.trackScoring && !c.raceScoring) {
-      const net = Math.max(0, p.prod - p.debt); s.netProg = net;
-      const tv = (v, t) => v < t.start ? 0 : Math.min(t.max, (Math.floor((v - t.start) / t.step) + 1) * t.vp);
-      const mt = c.mktTrack[N <= 2 ? "2" : N <= 4 ? "3" : "5"];
-      const bk = N <= 2 ? "2" : N <= 4 ? "3" : "5"; s.prodShare = tv(net, c.progTrack[bk]); s.mktShare = tv(p.mktg, mt);
-      const netOf = q => Math.max(0, q.prod - q.debt);
-      if (c.trackLeaderVP) {
-        const mx = Math.max.apply(null, S.players.map(netOf)); if (net === mx && mx > 0 && S.players.filter(q => netOf(q) === mx).length === 1) s.prodShare += c.trackLeaderVP;
-        const mm = Math.max.apply(null, S.players.map(q => q.mktg)); if (p.mktg === mm && mm > 0 && S.players.filter(q => q.mktg === mm).length === 1) s.mktShare += c.trackLeaderVP;
-      }
-    }
-    const effHype = thr === "ROUGH" ? p.hype * (dbl === 2 ? c.roughHypeMult / 2 : c.roughHypeMult) : p.hype;
-    const hypePct = clamp(effHype / c.hypeCap * 100, 0, 100); const prodPct = clamp(p.prod / c.prodCap * 100, 0, 100);
-    s.hypeStrength = bandVP(c.hypeBands, hypePct);
-    const diff = hypePct - prodPct, db = c.deliveryBands;
-    s.delivery = diff <= 0 ? db.delivered : diff <= db.nearMax ? db.near : diff <= db.farMax ? db.far : db.backlash;
-    s.debtPenalty = c.trackScoring ? 0 : -Math.min(c.debtPenaltyCap, Math.round(dp * c.debtPenaltyMult * dbl));
-    s.culture = c.cultureFold ? 0 : (c.cultureVP[String(clamp(p.culture, c.culMin, c.culMax))] || 0);
-    s.burnout = c.burnout && c.burnVP ? (c.burnVP[String(clamp(p.burnout || 0, 0, c.burnMax || 6))] || 0) : 0;
-    // objectives & synergy
+    // Race scoring: Progress, Hype and Debt are ranked against the other studios (plus a small linear share of your own Progress/Hype)
+    s.prodShare = progRank[pl] + Math.floor(p.prod / c.raceLinDiv); s.mktShare = 0;
+    s.hypeStrength = hypeRank[pl] + Math.floor(hv[pl] / c.raceLinDiv);
+    s.debtPenalty = -debtRank[pl];
+    s.delivery = 0; s.culture = 0; s.launch = 0; s.reach = 0;
+    s.burnout = c.burnVP[String(clamp(p.burnout || 0, 0, c.burnMax))] || 0;
     s.objectives = 0; s.synergy = 0; s.objList = [];
     p.objectives.forEach(id => {
       const st = E.objectiveStatus(S, p.id, id), o = S.data.objectives[id];
       s.objList.push({ id, name: o.name, met: st.met, vp: o.vp });
       const unmet = st.reqs.filter(x => !x.ok).length;
-      if (!st.met && c.objPartial && st.reqs.length >= 2 && unmet === 1) { const h = Math.floor(o.vp / 2 * (c.objVPMult == null ? 1 : c.objVPMult)); s.objectives += h; s.objList[s.objList.length - 1].partial = h; }
+      if (!st.met && c.objPartial && st.reqs.length >= 2 && unmet === 1) { const h = Math.floor(o.vp / 2 * c.objVPMult); s.objectives += h; s.objList[s.objList.length - 1].partial = h; }
       if (st.met) {
-        s.objectives += o.vp * (c.objVPMult == null ? 1 : c.objVPMult);
-        if (c.synergyOn) p.systems.forEach(sy => { const d = sysDef(S, sy.name); if (c.varC ? (o.res && E.sysMainRes(d) === o.res) : d.sym.some(x => o.sym.includes(x))) s.synergy += d.syn * (c.synergyMult == null ? 1 : c.synergyMult); });
+        s.objectives += o.vp * c.objVPMult;
+        if (c.synergyOn) p.systems.forEach(sy => { const d = sysDef(S, sy.name); if (o.res && E.sysMainRes(d) === o.res) s.synergy += d.syn * c.synergyMult; });
       }
     });
-    s.systems = Math.round(p.systems.reduce((a, sy) => a + sysDef(S, sy.name).vp, 0) * (c.sysVPMult == null ? 1 : c.sysVPMult) * 10) / 10;
-    const reachN = p.systems.filter(y => y.cat === "Reach").length;
-    const mostReach = Math.max.apply(null, S.players.map(q => q.systems.filter(y => y.cat === "Reach").length));
-    const tiedAtMost = S.players.filter(q => q.systems.filter(y => y.cat === "Reach").length === mostReach).length;
-    s.reach = (c.reachMajorVP && reachN >= 2 && reachN === mostReach && tiedAtMost === 1) ? c.reachMajorVP : 0;
-    s.launch = thr === "CLEAN" ? c.cleanBonus : thr === "BLOCKED" ? -c.blockedPenalty * dbl : 0;
+    s.systems = Math.round(p.systems.reduce((a, sy) => a + sysDef(S, sy.name).vp, 0) * c.sysVPMult * 10) / 10;
     s.gold = Math.floor(p.gold / c.goldPerVP);
     s.crisis = p.vpAdj;
-    if (c.poolScoring) {
-      // Environment B: everything feeds two zero-sum pools. Debt subtracts from Progress.
-      const calc = q => {
-        const r = { P: { base: q.prod, sys: 0, obj: 0, syn: 0, adj: q.padj || 0, debt: -q.debt * (c.poolDebtMult || 1) }, H: { base: q.hype + q.mktg, sys: 0, obj: 0, syn: 0, adj: q.hadj || 0, debt: 0 } };
-        const reachQ = q.systems.filter(y => y.cat === "Reach").length, mostR = Math.max.apply(null, S.players.map(z => z.systems.filter(y => y.cat === "Reach").length));
-        if (c.reachMajorVP && reachQ >= 2 && reachQ === mostR && S.players.filter(z => z.systems.filter(y => y.cat === "Reach").length === mostR).length === 1) r.H.adj += c.reachMajorVP;
-        q.systems.forEach(sy => { const d = sysDef(S, sy.name), t = (d.cat === "Reach" || d.cat === "Revenue") ? "H" : "P"; r[t].sys += d.vp * c.poolSysMult; });
-        q.objectives.forEach(id => {
-          const st = E.objectiveStatus(S, q.id, id), o = S.data.objectives[id]; if (!st.met) return;
-          const pts = o.vp * c.poolObjMult, h = o.type === "Audience" ? pts : o.type === "Wild" ? Math.floor(pts / 2) : 0; r.H.obj += h; r.P.obj += pts - h;
-          if (c.synergyOn) q.systems.forEach(sy => { const d = sysDef(S, sy.name); if (d.sym.some(x => o.sym.includes(x))) r[(d.cat === "Reach" || d.cat === "Revenue") ? "H" : "P"].syn += d.syn * (c.synergyMult == null ? 1 : c.synergyMult) * c.poolSysMult; });
-        });
-        ["P", "H"].forEach(k => { r[k].total = Math.max(0, Math.round(Object.keys(r[k]).reduce((a, x) => a + r[k][x], 0))); });
-        return r;
-      };
-      const all = S.players.map(calc), tp = all.reduce((a, r) => a + r.P.total, 0), th = all.reduce((a, r) => a + r.H.total, 0), pl = S.players.indexOf(p), mine = all[pl];
-      s.pool = mine; const pot = (c.poolPotN && c.poolPotN[N]) || c.poolPot; s.prodShare = Math.round(tp ? mine.P.total / tp * pot * N * 10 : 0) / 10; s.hypeStrength = Math.round(th ? mine.H.total / th * pot * N * 10 : 0) / 10; s.mktShare = 0;
-    }
-    if (c.poolScoring) { s.burnout = 0; s.delivery = 0; s.debtPenalty = 0; s.culture = 0; s.launch = 0; s.gold = 0; s.objectives = 0; s.synergy = 0; s.systems = 0; s.reach = 0; s.crisis = 0; }
-    if (c.raceScoring && !c.poolScoring) { s.delivery = 0; s.hypeStrength = s.raceHype; s.debtPenalty = s.raceDebt; s.culture = s.raceCult; s.launch = 0; }
-    s.total = Math.round((s.prodShare + s.mktShare + s.hypeStrength + s.delivery + s.debtPenalty + s.culture + (s.burnout || 0) + s.objectives + s.synergy + s.systems + s.launch + s.gold + s.crisis + s.reach) * 10) / 10;
-    s.threshold = thr; s.debtPct = Math.round(dp * 10) / 10; s.hypePct = Math.round(hypePct); s.prodPct = Math.round(prodPct);
+    s.total = Math.round((s.prodShare + s.hypeStrength + s.debtPenalty + s.burnout + s.objectives + s.synergy + s.systems + s.gold + s.crisis) * 10) / 10;
+    const effHype = thr === "ROUGH" ? p.hype * (dbl === 2 ? c.roughHypeMult / 2 : c.roughHypeMult) : p.hype;
+    s.threshold = thr; s.debtPct = Math.round(dp * 10) / 10; s.hypePct = Math.round(clamp(effHype / c.hypeCap * 100, 0, 100)); s.prodPct = Math.round(clamp(p.prod / c.prodCap * 100, 0, 100));
     return { id: p.id, name: p.name, parts: s, total: s.total };
   });
 };
