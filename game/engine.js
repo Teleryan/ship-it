@@ -244,7 +244,7 @@ E.currentActor = function (S) {
   E.useCfg(S.cfg);
   if (S.over) return -1;
   if (S.dq.length) { const d = S.dq[0]; return d.p == null ? -1 : d.p; }
-  if (["draft","hire","build","rest","milestones","place"].includes(S.step)) return S.order[S.cur] != null ? S.order[S.cur] : -1;
+  if (S.step === "rest" || S.step === "place") return S.order[S.cur] != null ? S.order[S.cur] : -1;
   return -1;
 };
 
@@ -259,8 +259,7 @@ E.advance = function (S) {
     switch (S.step) {
       case "setup": beginPhase(S); continue;
       case "crisis": afterCrisis(S); continue;
-      case "draft": if (!S.draft.cards.length) { afterDraft(S); continue; } if (S.cur >= S.order.length) S.cur = 0; return;
-      case "hire": case "build": case "rest": case "milestones":
+      case "rest":
         if (S.cur >= S.order.length) { nextStep(S); continue; }
         return;
       case "place": placeAdvance(S); if (S.step === "place") return; continue;
@@ -293,25 +292,9 @@ function beginPhase(S) {
   S.crisisCard = null;
 }
 
-function afterCrisis(S) {
-  // Reveal -> Bid -> Draft
-  const c = S.cfg, N = S.players.length;
-  const per = S.phase === 0 ? (N === 2 ? c.draftPre2 : c.draftPre) : S.phase === 1 ? (N === 2 ? c.draftProd2 : c.draftProd) : S.phase === 2 ? (N === 2 ? c.draftPol2 : c.draftPol) : c.draftLaunch;
-  const picks = c.recruitOnly ? 0 : per * N, pool = c.draftPool > 0 ? c.draftPool : 0;
-  // draftPool > 0: a fixed-size face-up pool that refills after every pick; otherwise deal exactly per x players cards
-  S.draft = { cards: picks ? drawDisc(S, pool || picks) : [], per, left: pool ? picks : null };
-  log(S, "REVEAL: " + S.draft.cards.length + " discipline cards dealt face up" + (pool ? " (pool refills to " + pool + " after each pick)" : ""));
-  if (c.flowV2) roundSetup(S); // Income first, then the Bid
-  startBid(S);
-}
-
-function beginDraft(S) {
-  if (S.draft.cards.length) { S.step = "draft"; S.cur = 0; log(S, "DRAFT: take 1 card each in turn order" + (S.draft.left != null ? " (" + S.draft.left + " picks, pool refills)" : " until depleted")); }
-  else afterDraft(S);
-}
-// flowV2 (Variant D): Upkeep opens the round, Income comes next, then the Bid; the draft and Hire follow the bid
-function afterDraft(S) { if (S.cfg.recruitOnly) { S.step = "place"; startPlace(S); } else if (S.cfg.flowV2) { S.step = "hire"; S.cur = 0; } else beginRound(S); }
-// Catch-up order (v2): no blind bid. The studio with the fewest VP right now acts first; ties go to the smaller team, then a coin flip. Round 1 keeps the setup order.
+// A new round opens (Upkeep ran first, except round 1): Income and salaries, turn order, then Place
+function afterCrisis(S) { roundSetup(S); catchUpOrder(S); S.step = "place"; startPlace(S); }
+// Catch-up order: no blind bid. The studio with the fewest VP right now acts first; ties go to the smaller team, then a coin flip. Round 1 keeps the setup order.
 function catchUpOrder(S) {
   if (S.round <= 1 && !S.lastOrderSet) { S.lastOrderSet = 1; return; }
   const sc = E.score(S).map(x => x.total), ids = S.players.map(p => p.id), key = i => [sc[i], P(S, i).workers.length, rnd(S)], k = {}; ids.forEach(i => k[i] = key(i));
@@ -319,14 +302,6 @@ function catchUpOrder(S) {
   S.order = ids; S.lastBids = {};
   log(S, "TURN ORDER (catch-up, fewest VP first): " + ids.map(i => P(S, i).name).join(" > "));
 }
-function startBid(S) {
-  if (S.cfg.catchUpOrder) { S.bids = {}; if (S.cfg.varC) rollRecruit(S); catchUpOrder(S); beginDraft(S); return; }
-  S.step = "bid"; S.bids = {}; if (S.cfg.varC) rollRecruit(S);
-  S.order.forEach(pi => S.dq.push({ t: "bid", p: pi, purpose: "turn" }));
-  S.dq.push({ t: "auto", fn: "turnOrder" });
-}
-
-function beginRound(S) { roundSetup(S); S.step = "hire"; S.cur = 0; }
 function roundSetup(S) {
   S.players.forEach(p => {
     p.rs = { spent: 0, gained: 0, spentRes: 0, hires: 0, placed: 0, triggers: 0, builds: 0, debtRemoved: 0, hypeGained: 0, discards: 0, cashed: 0, debtStart: p.debt };
@@ -434,25 +409,14 @@ E.canRecruit = function (S, pi, idx) {
   return { ok: true, cost };
 };
 
-function nextStep(S) {
-  const prev = S.step; S.cur = 0;
-  if (prev === "hire") {
-    if (S.phase === 3) { S.step = "place"; startPlace(S); return; }
-    S.step = "place"; startPlace(S);
-  } else if (prev === "build") beginRest(S);
-  else if (prev === "rest") {
-    S.players.forEach(p => { p.cs.hypeStreak = p.hype >= 10 ? p.cs.hypeStreak + 1 : 0; });
-    if (S.cfg.flowV2) return roundEnd(S); // Rest and Milestones are one step
-    S.step = "milestones";
-  } else if (prev === "milestones") { upkeep(S); }
+function nextStep(S) { // the Manage step is over: close the round
+  S.cur = 0;
+  S.players.forEach(p => { p.cs.hypeStreak = p.hype >= 10 ? p.cs.hypeStreak + 1 : 0; });
+  roundEnd(S);
 }
 
 function beginRest(S) {
   S.step = "rest"; S.cur = 0;
-  S.players.forEach(p => {
-    p.swapObj = S.cfg.noSwaps ? 0 : p.workers.filter(w => (w.disc === "PX") && ((w.lvl === "Sr" && w.placed) || (w.lvl === "Jr" && !w.placed))).length;
-    p.swapMile = S.cfg.noSwaps ? 0 : p.workers.filter(w => (w.disc === "DATA") && ((w.lvl === "Sr" && w.placed) || (w.lvl === "Jr" && !w.placed))).length;
-  });
 }
 function startPlace(S) {
   S.passed = []; S.cur = 0;
@@ -475,9 +439,8 @@ function placeAdvance(S) {
     if (!canAnyPlace(S, pi)) { S.passed.push(pi); continue; }
     S.cur = idx; return;
   }
-  // everyone passed -> build
-  if (S.cfg.leanRound) { log(S, "MANAGE: build, train, promote and cash in milestones"); return beginRest(S); } // L1: Build, Rest and Milestones are one step
-  S.step = "build"; S.cur = 0; log(S, "BUILD SYSTEMS");
+  // everyone passed -> the Manage step: build, train, promote and cash in milestones in one turn each
+  log(S, "MANAGE: build, train, promote and cash in milestones"); beginRest(S);
 }
 function bumpPlace(S) { S.cur = (S.cur + 1) % S.order.length; }
 
@@ -533,26 +496,14 @@ function upkeepPlayers(S) {
   });
   log(S, "UPKEEP: Hype -" + S.cfg.hypeDecay + ", Culture toward 0, workers recover");
 }
-function upkeep(S) {
-  if (endOfRound(S)) return;
-  upkeepPlayers(S);
-  if (S.round >= PHASE_ENDS[3]) return endGame(S);
-  S.round++;
-  if (PHASE_OF_ROUND(S.round) !== S.phase) beginPhase(S);
-  else if (S.cfg.bidEveryRound) { S.draft = { cards: [], per: 0, left: null }; S.step = "bid"; S.bids = {}; if (S.cfg.varC) rollRecruit(S); S.order.forEach(pi => S.dq.push({ t: "bid", p: pi, purpose: "turn" })); S.dq.push({ t: "auto", fn: "turnOrder" }); }
-  else { S.step = "x"; beginRound(S); }
-}
-// flowV2: the round closes (gates), the next round opens with Upkeep (not in round 1), then Income and the Bid. No Upkeep after the last round.
+// The round closes (gates), the next round opens with Upkeep (not in round 1), then Income and turn order. No Upkeep after the last round.
 function roundEnd(S) {
   if (endOfRound(S)) return;
   if (S.round >= PHASE_ENDS[3]) return endGame(S);
   S.round++;
   upkeepPlayers(S);
   if (PHASE_OF_ROUND(S.round) !== S.phase) return beginPhase(S);
-  const n = S.cfg.draftMiniDelta && !S.cfg.recruitOnly ? Math.max(1, S.players.length + S.cfg.draftMiniDelta) : 0; // a small face-up draft every other round: one card fewer than players
-  S.draft = { cards: n ? drawDisc(S, n) : [], per: 1, left: null };
-  if (n) log(S, "REVEAL: " + n + " discipline cards dealt face up (one fewer than players: the last player in turn order gets none)");
-  roundSetup(S); startBid(S);
+  roundSetup(S); catchUpOrder(S); S.step = "place"; startPlace(S);
 }
 /* Publisher gates: a review at the end of each phase. Meet every requirement: funding tranche (+ VP). Miss: VP penalty. Best Progress among those who pass: bonus VP. */
 /* Publisher gates are drawn once per game, at the end of round 1: one review per phase, picked from the pool for that phase. */
@@ -949,52 +900,7 @@ E.act = function (S, a) {
 function stepAction(S, a, actor) {
   const pi = a.p; const p = P(S, pi);
   if (pi !== actor) return err("Not your turn");
-  switch (S.cfg.leanRound && S.step === "rest" && (a.type === "build" || a.type === "refresh") ? "build" : S.step) {
-    case "draft": {
-      if (a.type !== "pick") return err("Pick a card");
-      const i = a.idx; if (i == null || i < 0 || i >= S.draft.cards.length) return err("Bad card");
-      const c = S.draft.cards.splice(i, 1)[0]; p.hand.push(c); log(S, p.name + " shortlists " + dn(c.disc));
-      if (S.draft.left != null) {
-        S.draft.left--;
-        if (S.draft.left > 0) S.draft.cards.push.apply(S.draft.cards, drawDisc(S, 1));
-        else { S.discard.push.apply(S.discard, S.draft.cards); S.draft.cards = []; }
-      }
-      S.cur = (S.cur + 1) % S.order.length; return { ok: true };
-    }
-    case "hire": {
-      if (a.type === "done") { S.cur++; return { ok: true }; }
-      if (a.type === "train") return restAction(S, a, p);
-      if (a.type === "discard" && !S.cfg.hireDiscard) return err("Discarding cards is not part of this version");
-      if (a.type === "discard") {
-        const i = p.hand.findIndex(c => c.id === a.card); if (i < 0) return err("Not in hand");
-        S.discard.push(p.hand.splice(i, 1)[0]); gain(S, pi, "gold", S.cfg.discardGold); p.rs.discards++; return { ok: true };
-      }
-      if (a.type === "hire") {
-        if (S.phase === 3) return err("No hiring in Launch");
-        const i = p.hand.findIndex(c => c.id === a.card); if (i < 0) return err("Not in hand");
-        const lvl = a.lvl === "Sr" ? "Sr" : "Jr"; const disc = p.hand[i].disc;
-        if (lvl === "Sr" && S.cfg.srPromoteOnly) return err("Senior workers are promoted, not hired");
-        if (lvl === "Sr" && !srAllowed(S)) return err("No Senior workers in Concept");
-        if (S.phase === 0 && disc === "QA" && !S.cfg.qaAllowedPreProd) return err("No Quality workers in Concept");
-        const cost = hireCost(S, pi, lvl);
-        if (a.train) { // hire and train in one step: pay hire + training, the new Junior sits out this round and the next
-          if (!S.cfg.train) return err("Training is not part of these rules");
-          if (S.cfg.trainEarly === 0) return err("Training happens in the Clean up step");
-          if (lvl !== "Jr") return err("Only Juniors train");
-          if (S.round >= PHASE_ENDS[3]) return err("The game ends this round: no time to train");
-          if ((p.rs.trains || 0) >= S.cfg.trainsPerRest) return err("Training limit reached this round");
-          if (p.gold < cost + S.cfg.trainCost) return err("Needs " + (cost + S.cfg.trainCost) + "G (hire " + cost + " + train " + S.cfg.trainCost + ")");
-        }
-        if (p.gold < cost) return err("Not enough gold");
-        gain(S, pi, "gold", -cost); if (lvl === "Jr" && p.contract > 0) { p.contract--; log(S, p.name + " uses the Contract Team: free Junior"); } else if (p.hireDiscount > 0) p.hireDiscount--;
-        const nw = { id: S.wid++, disc, lvl, fat: 0, placed: false, as: null }; p.workers.push(nw); S.discard.push(p.hand.splice(i, 1)[0]); p.rs.hires++;
-        log(S, p.name + " hires " + lvl + " " + disc + " (" + cost + "G)");
-        if (a.train) { gain(S, pi, "gold", -S.cfg.trainCost); gain(S, pi, "culture", S.cfg.trainCulture); nw.training = true; nw.trainNow = true; nw.trainLeft = trainDur(S) - 1; nw.trained = 1; p.rs.trains = (p.rs.trains || 0) + 1; p.cs.trainings = (p.cs.trainings || 0) + 1;
-          log(S, p.name + " trains the new Junior " + dn(disc) + " (1/" + S.cfg.trainNeeded + "): -" + S.cfg.trainCost + "G, Culture +" + S.cfg.trainCulture + ". They sit out " + (trainDur(S) > 1 ? "this round and the next " + (trainDur(S) - 1) : "this round")); }
-        return { ok: true };
-      }
-      return err("Invalid hire action");
-    }
+  switch (S.step) {
     case "place": {
       if (a.type === "pass") { S.passed.push(pi); return { ok: true }; }
       if (a.type === "recruit") {
@@ -1007,30 +913,10 @@ function stepAction(S, a, actor) {
         const c = E.canBuyWs(S, pi); if (!c.ok) return err(c.reason);
         gain(S, pi, "gold", -c.cost); p.ws++; p.rs.wsBought = (p.rs.wsBought || 0) + 1; log(S, p.name + " powers up a workstation (" + c.cost + "G, " + p.ws + " this round)"); return { ok: true };
       }
-      if (a.type === "train") return restAction(S, a, p);
       if (a.type !== "place") return err("Place a worker or pass");
       const r = doPlace(S, pi, a.worker, a.target, a); if (r.ok) bumpPlace(S); return r;
     }
-    case "build": {
-      if (a.type === "done") { S.cur++; return { ok: true }; }
-      if (a.type === "build") return doBuild(S, pi, a.name, a.free, a.crunch);
-      if (a.type === "refresh") {
-        const def = sysDef(S, a.name); if (!def || !S.cfg.marketSize || !(S.market[def.cat] || []).includes(a.name)) return err("Pick a market tile");
-        if ((p.refreshed || 0) >= (S.cfg.marketRefreshesPerRound || 1)) return err("Already refreshed this round");
-        if (p.gold < S.cfg.marketRefreshGold) return err("Needs " + S.cfg.marketRefreshGold + "G");
-        const dk = S.decks.sys[def.cat]; if (!dk.length) return err("No more " + def.cat + " tiles");
-        gain(S, pi, "gold", -S.cfg.marketRefreshGold); p.refreshed = (p.refreshed || 0) + 1;
-        S.market[def.cat] = S.market[def.cat].filter(x => x !== a.name); dk.unshift(a.name); refillMarket(S);
-        log(S, p.name + " refreshes the " + def.cat + " market (" + a.name + " is replaced)"); return { ok: true };
-      }
-      return err("Invalid build action");
-    }
     case "rest": return restAction(S, a, p);
-    case "milestones": {
-      if (a.type === "done") { S.cur++; return { ok: true }; }
-      if (a.type === "claim") return claimMile(S, p, a);
-      return err("Invalid action");
-    }
   }
   return err("Nothing to do");
 }
@@ -1046,58 +932,35 @@ function claimMile(S, p, a) {
 function restAction(S, a, p) {
   const pi = p.id, c = S.cfg;
   switch (a.type) {
-    case "claim": if (!c.flowV2) return err("Milestones are cashed in at their own step"); return claimMile(S, p, a);
+    case "claim": return claimMile(S, p, a);
     case "done": S.cur++; return { ok: true };
+    case "build": return doBuild(S, pi, a.name, a.free, a.crunch);
+    case "refresh": {
+      const def = sysDef(S, a.name); if (!def || !S.cfg.marketSize || !(S.market[def.cat] || []).includes(a.name)) return err("Pick a market tile");
+      if ((p.refreshed || 0) >= (S.cfg.marketRefreshesPerRound || 1)) return err("Already refreshed this round");
+      if (p.gold < S.cfg.marketRefreshGold) return err("Needs " + S.cfg.marketRefreshGold + "G");
+      const dk = S.decks.sys[def.cat]; if (!dk.length) return err("No more " + def.cat + " tiles");
+      gain(S, pi, "gold", -S.cfg.marketRefreshGold); p.refreshed = (p.refreshed || 0) + 1;
+      S.market[def.cat] = S.market[def.cat].filter(x => x !== a.name); dk.unshift(a.name); refillMarket(S);
+      log(S, p.name + " refreshes the " + def.cat + " market (" + a.name + " is replaced)"); return { ok: true };
+    }
     case "promote": {
       const w = p.workers.find(x => x.id === a.worker); if (!w || w.lvl !== "Jr") return err("Pick a Junior worker");
       if (!srAllowed(S)) return err("No Senior workers in Concept");
       if (p.promos >= c.promotionsPerRest) return err("Promotion limit reached");
-      if (c.train) { const why = trainPromoWhy(S, w); if (why) return err(why); }
-      else if (c.promoNeedsRest && (w.placed || !w.worked)) return err("Needs a worker that has worked and is resting this round");
+      { const why = trainPromoWhy(S, w); if (why) return err(why); }
       const cost = E.promoGold(S); if (p.gold < cost) return err("Needs " + cost + "G");
       gain(S, pi, "gold", -cost); w.lvl = "Sr"; w.trained = 0; p.promos++; p.cs.promotions++; log(S, p.name + " promotes " + dn(w.disc) + " to Sr"); return { ok: true };
     }
-    case "headhunt": {
-      if (p.hunts >= c.headhuntsPerRest) return err("Headhunt limit reached");
-      const t = P(S, a.target); if (!t || t.id === pi) return err("Pick an opponent");
-      if (c.headhuntCatchUp && t.workers.length <= p.workers.length) return err("You can only headhunt from a studio with more workers than yours");
-      const w = t.workers.find(x => x.id === a.worker); if (!w) return err("Pick a worker");
-      if (w.lvl === "Sr" && !srAllowed(S)) return err("No Senior workers in Concept");
-      const cost = promoCost(S) * c.headhuntMult; if (p.gold < cost) return err("Needs " + cost + "G");
-      gain(S, pi, "gold", -cost); gain(S, t.id, "gold", Math.floor(cost * c.headhuntComp));
-      t.workers.splice(t.workers.indexOf(w), 1); w.fat = 0; w.placed = false; w.overWhenPlaced = false; p.workers.push(w); p.hunts++;
-      log(S, p.name + " headhunts " + t.name + "'s " + w.lvl + " " + dn(w.disc) + " for " + cost + "G"); return { ok: true };
-    }
     case "train": {
-      if (!c.train) return err("Training is not part of these rules");
-      if (c.trainEarly === 0 && S.step !== "rest") return err("Training happens in the Clean up step");
       const w = p.workers.find(x => x.id === a.worker); if (!w || w.lvl !== "Jr") return err("Pick a Junior worker");
       if (S.round >= PHASE_ENDS[3]) return err("The game ends this round: no time to train");
       if (w.placed || w.build) return err("A worker who worked or is building cannot train this round");
       if (w.training) return err("Already training");
       if ((p.rs.trains || 0) >= c.trainsPerRest) return err("Training limit reached this round");
       if (p.gold < c.trainCost) return err("Needs " + c.trainCost + "G");
-      gain(S, pi, "gold", -c.trainCost); gain(S, pi, "culture", c.trainCulture); w.training = true; w.trained = (w.trained || 0) + 1; { const early = S.step !== "rest"; if (early && !w.benched) w.trainNow = true; w.trainLeft = early ? trainDur(S) - 1 : trainDur(S); } p.rs.trains = (p.rs.trains || 0) + 1; p.cs.trainings = (p.cs.trainings || 0) + 1;
-      log(S, p.name + " trains a Junior " + dn(w.disc) + " (" + w.trained + "/" + c.trainNeeded + "): -" + c.trainCost + "G, Culture +" + c.trainCulture + (S.step !== "rest" ? ". They train for the rest of this round" + (trainDur(S) > 1 ? " and the next " + (trainDur(S) - 1) : "") : ". They sit out the next " + (trainDur(S) > 1 ? trainDur(S) + " rounds" : "round"))); return { ok: true };
-    }
-    case "fire": {
-      if (c.train) return err("Workers cannot be released in these rules");
-      const w = p.workers.find(x => x.id === a.worker); if (!w) return err("Pick a worker");
-      removeWorker(S, pi, w.id); p.cs.fired++; log(S, p.name + " releases a " + w.lvl + " " + dn(w.disc)); return { ok: true };
-    }
-    case "swapObj": {
-      if (p.swapObj <= 0) return err("Needs a Senior Community worker placed or a rested Junior Community worker");
-      const o = S.data.objectives[a.obj]; if (!o || !p.objectives.includes(a.obj)) return err("Pick one of your objectives");
-      const opts = []; for (let i = 0; i < 2; i++) { const x = S.decks.obj[o.type].pop(); if (x != null) opts.push(x); }
-      if (!opts.length) return err("Deck empty");
-      p.swapObj--; S.dq.unshift({ t: "swapObjPick", p: pi, old: a.obj, opts }); return { ok: true };
-    }
-    case "swapMile": {
-      if (p.swapMile <= 0) return err("Needs a Senior Analytics worker placed or a rested Junior Analytics worker");
-      const idx = p.miles.indexOf(a.mile); if (idx < 0) return err("Pick a hand milestone");
-      const opts = []; for (let i = 0; i < 2; i++) { const x = S.decks.mile.pop(); if (x != null) opts.push(x); }
-      if (!opts.length) return err("Deck empty");
-      p.swapMile--; p.rs.discards++; p.miles.splice(idx, 1); S.dq.unshift({ t: "keepMile", p: pi, opts, keep: 1 }); return { ok: true };
+      gain(S, pi, "gold", -c.trainCost); gain(S, pi, "culture", c.trainCulture); w.training = true; w.trained = (w.trained || 0) + 1; w.trainLeft = trainDur(S); p.rs.trains = (p.rs.trains || 0) + 1; p.cs.trainings = (p.cs.trainings || 0) + 1;
+      log(S, p.name + " trains a Junior " + dn(w.disc) + " (" + w.trained + "/" + c.trainNeeded + "): -" + c.trainCost + "G, Culture +" + c.trainCulture + ". They sit out the next " + (trainDur(S) > 1 ? trainDur(S) + " rounds" : "round")); return { ok: true };
     }
   }
   return err("Invalid rest action");
@@ -1159,12 +1022,6 @@ function resolveDecision(S, a) {
       const pl = P(S, p); const keep = [].concat(a.keep != null ? a.keep : d.opts[0]).slice(0, d.keep);
       d.opts.forEach(id => { if (keep.includes(id)) pl.miles.push(id); else S.decks.mile.unshift(id); }); S.dq.shift(); return { ok: true };
     }
-    case "swapObjPick": {
-      if (a.type !== "swapObjPick") return err("Choose"); const pl = P(S, p);
-      const allowed = [d.old].concat(d.opts); const pick = a.pick; if (!allowed.includes(pick)) return err("Bad choice");
-      allowed.forEach(id => { if (id !== pick) S.decks.obj[S.data.objectives[id].type].unshift(id); });
-      const i = pl.objectives.indexOf(d.old); if (i >= 0) pl.objectives.splice(i, 1); pl.objectives.push(pick); S.dq.shift(); return { ok: true };
-    }
     case "patch": {
       if (a.type === "patchDone") { S.dq.shift(); return { ok: true }; }
       if (a.type !== "patchFix") return err("Spend skills or finish");
@@ -1182,16 +1039,6 @@ function resolveDecision(S, a) {
    AUTO decisions
    ============================================================ */
 const AUTO = {
-  turnOrder(S) {
-    const bids = S.bids; const ids = S.players.map(p => p.id);
-    const key = i => [-(bids[i] || 0), P(S, i).workers.length, rnd(S)];
-    const keys = {}; ids.forEach(i => keys[i] = key(i));
-    ids.sort((a, b) => { for (let k = 0; k < 3; k++) if (keys[a][k] !== keys[b][k]) return keys[a][k] - keys[b][k]; return 0; });
-    ids.forEach((i, k) => { const b = bids[i] || 0; if (b && (!S.cfg.bidWinnerOnly || k === 0)) { S._nt = 1; gain(S, i, "gold", -b); S._nt = 0; } });
-    S.order = ids; S.lastBids = Object.assign({}, bids);
-    log(S, "BLIND BID: " + ids.map(i => P(S, i).name + " (" + (bids[i] || 0) + "G)").join(" > "));
-    S.bids = {}; beginDraft(S);
-  },
   auction(S, args) {
     const bids = S.bids; const ids = S.players.map(p => p.id);
     ids.sort((a, b) => ((bids[b] || 0) - (bids[a] || 0)) || (P(S, a).workers.length - P(S, b).workers.length) || (rnd(S) - 0.5));
