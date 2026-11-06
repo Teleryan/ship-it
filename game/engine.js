@@ -539,7 +539,7 @@ function resolveGate(S) {
   let best = null;
   if (passed.length) { const mx = Math.max.apply(null, passed.map(id => P(S, id).prod)); const tops = passed.filter(id => P(S, id).prod === mx); if (tops.length === 1 && S.cfg.gateBestVP && S.players.length >= (S.cfg.awardMinN || 0)) { best = tops[0]; P(S, best).vpAdj += S.cfg.gateBestVP; P(S, best).vpFav = (P(S, best).vpFav || 0) + S.cfg.gateBestVP; } }
   S.gates.push({ phase: S.phase, name: g.name, lvl: g.lvl || "M", passed, failed, best });
-  log(S, "GATE: " + g.name + " (" + g.reqs.join(", ") + "). Passed: " + (passed.map(id => P(S, id).name).join(", ") || "nobody") + (best != null ? ". Publisher's favorite: " + P(S, best).name : "") + (failed.length ? ". Missed: " + missTxt.join(", ") : "") + (g.fund ? ". Passing studios gain +" + g.fund + "G" : "") + (g.vp ? " and +" + g.vp + " VP" : ""));
+  log(S, "GATE: " + g.name + " (" + g.reqs.join(", ") + "). Passed: " + (passed.map(id => P(S, id).name).join(", ") || "nobody") + (best != null ? ". Publisher's favorite: " + P(S, best).name : "") + (failed.length ? ". Missed: " + missTxt.join(", ") : "") + (passed.length ? ((g.fund ? ". Passing studios gain +" + g.fund + "G" : "") + (g.vp ? (g.fund ? " and" : ". Passing studios gain") + " +" + g.vp + " VP" : "")) : ". Nobody passed, so no reward is paid"));
 }
 function refillMarket(S) {
   const size = S.cfg.marketSize; if (!size) return;
@@ -1098,7 +1098,7 @@ const CRISIS_CHOICE = {
     const pl = P(S, p);
     if (k === "B") { gain(S, p, "prod", 3); gain(S, p, "debt", 5); }
     if (k === "C") { gain(S, p, "hype", -2); gain(S, p, "debt", -3); }
-    if (k === "D") { gain(S, p, "prod", 2); pl.flags.noMentor = true; }
+    if (k === "D") { gain(S, p, "prod", 2); gain(S, p, "debt", 2); }
     log(S, pl.name + " chooses " + k + " (Feature Creep)");
   },
   bug(S, p, k) {
@@ -1273,10 +1273,11 @@ E.score = function (S) {
       const unmet = st.reqs.filter(x => !x.ok).length;
       if (!st.met && c.objPartial && st.reqs.length >= 2 && unmet === 1) { const h = Math.floor(o.vp / 2 * c.objVPMult); s.objectives += h; s.objList[s.objList.length - 1].partial = h; }
       if (st.met) {
-        s.objectives += o.vp * c.objVPMult;
+        const fv = Math.round(o.vp * c.objVPMult); s.objectives += fv; s.objList[s.objList.length - 1].full = fv;
         if (c.synergyOn) p.systems.forEach(sy => { const d = sysDef(S, sy.name); if (o.res && E.sysMainRes(d) === o.res) s.synergy += d.syn * c.synergyMult; });
       }
     });
+    s.synergy = Math.round(s.synergy); // whole VP only, so scoring works with tokens and a pen
     s.systems = Math.round(p.systems.reduce((a, sy) => a + sysDef(S, sy.name).vp, 0) * c.sysVPMult * 10) / 10;
     s.reach = 0;
     if (c.reachMajorVP) { const rc = S.players.map(q => q.systems.filter(y => y.cat === "Reach").length), mx = Math.max.apply(null, rc); if (mx >= 2 && rc[pl] === mx && rc.filter(v => v === mx).length === 1) s.reach = c.reachMajorVP; }

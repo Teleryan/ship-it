@@ -30,7 +30,7 @@ function W(w) { return `#${w.id} ${w.lvl} ${w.disc}${w.as ? "(as " + w.as + ")" 
 const SCORE_LBL = { prodShare: "Progress race", hypeStrength: "Hype race (Hype+Marketing)", debtPenalty: "Debt", burnout: "Burnout", objectives: "Objectives", synergy: "Synergy", systems: "Systems", gold: "Leftover Gold", gateVP: "Gates (pass +VP / miss -VP)", hypeLeadVP: "Hype leader", favVP: "Publisher favourite", cardVP: "Crisis / Investor / Buyout cards", reach: "Reach leader" };
 function scoreTable(S) { return E.score(S).map(s => S.players[s.id].name + " " + s.total + "  (" + Object.keys(s.parts || s).filter(k => SCORE_LBL[k] && (s.parts || s)[k]).map(k => SCORE_LBL[k] + " " + (s.parts || s)[k]).join(", ") + ")").join("\n"); }
 const OB = i => { const ob = D.objectives[i]; return `[${i}] ${ob.name} ${ob.vp}VP needs ${ob.reqs.join(" + ")}`; };
-const MS = i => { const m = (CUR && CUR.data ? CUR.data : D).milestones[i]; return `[${i}] ${m.name}: ${m.text} (+${m.gold}G, phases ${m.phases})`; };
+const MS = i => { const m = (CUR && CUR.data ? CUR.data : D).milestones[i]; return `[${i}] ${m.name}: ${m.text} (+${m.gold}G, claimable in ${[].concat(m.phases).map(i => (D.phases && D.phases[i] || {}).name || i).join(" / ")})`; };
 let CUR = null;
 function view(S) {
   CUR = S;
@@ -38,8 +38,9 @@ function view(S) {
   const p = S.players[ME];
   o.push(`ROUND ${S.round}/12  phase ${S.phase}  step ${S.step}  ${S.over ? "GAME OVER" : "actor: " + (E.currentActor(S) < 0 ? "-" : S.players[E.currentActor(S)].name)}`);
   if (S.over) { S.scores.forEach(s => o.push("FINAL " + S.players[s.id].name + ": " + s.total + "  parts " + JSON.stringify(s.parts))); }
-  o.push("Turn order (set after the Crisis card): " + S.order.map(i => S.players[i].name).join(" > "));
-  const gl = E.gateList(S); if (!gl) o.push("Gates: not drawn yet (drawn at the end of round 1)"); if (gl) o.push("Gates: " + gl.map(g => `P${g.phase} ${g.name} [${g.lvlName || "Medium"}] needs ${g.reqs.join(", ")}; pass: ${g.fund ? "+" + g.fund + " Gold" : ""}${g.vp ? "+" + g.vp + " VP" : ""}; miss: -${g.penalty} VP`).join(" || "));
+  { const cc = S.crisisCard && S.data.crisis.find(c => c.id === S.crisisCard); if (cc) o.push("CRISIS CARD this phase: " + cc.name + " - " + (cc.text || cc.desc || "")); }
+  o.push((S.phase >= 1 ? "Turn order (set after the Crisis card)" : "Turn order (no Crisis card in Concept)") + ": " + S.order.map(i => S.players[i].name).join(" > "));
+  const gl = E.gateList(S); if (!gl) o.push("Gates: not drawn yet (drawn at the end of round 1)"); if (gl) o.push("Gates: " + gl.map(g => `P${g.phase} ${g.name} [${g.lvlName || "Medium"}] needs ${g.reqs.join(", ")}; pass: ${g.fund ? "+" + g.fund + " Gold" : ""}${g.vp ? "+" + g.vp + " VP" : ""}; miss: -${g.penalty} VP (all gate losses together are capped at ${S.cfg.gateLossCap} VP)`).join(" || "));
   o.push("");
   S.players.forEach(q => o.push(`${q.id === ME ? "YOU" : q.name}: ${res(q, S)} | workers ${q.workers.length} (Sr ${q.workers.filter(w => w.lvl === "Sr").length}) | systems ${q.systems.map(s => s.name + (s.t ? "*" : "")).join(", ") || "-"} | building ${(q.building || []).map(b => b.name || JSON.stringify(b)).join(", ") || "-"} | VPadj ${q.vpAdj}` + (q.id === ME ? "" : "")));
   o.push("");
@@ -65,11 +66,11 @@ function view(S) {
       const ok = E.placementOptions(S, ME, w).filter(x => x.ok || x.wsNeed);
       o.push(`  ${W(w)}: ` + (ok.map(x => x.target + (x.wsNeed ? "(needs workstation: buyws first)" : "") + (x.as && x.as.length > 1 ? "{as:" + x.as.join("/") + "}" : "")).join(", ") || "none" + (w.benched ? " (benched: " + w.benched + ")" : w.fat >= 2 ? " (Exhausted: only strike-team partner or skill-less tiles)" : " (no open tile fits this role/level now)")));
     });
-    o.push('Targets are written exactly as listed (spot:ID or sys:N). crew = the PARTNER worker ids only (not the placing worker); an invalid list is rejected. Actions: {"type":"place","p":0,"worker":ID,"target":"TARGET"[,"as":"DISC"][,"crew":[ids]][,"choice":0|1 (for \"A OR B\" tiles such as Crunch Bonus: 0 = first effect, 1 = second)][,"bonus":"mktg" (Senior bonus: +1 Marketing instead of +1 Progress)]} | {"type":"recruit","p":0,"idx":N} | {"type":"buyws","p":0} | {"type":"pass","p":0}');
+    o.push('Targets are written exactly as listed (spot:ID or sys:N). crew = the PARTNER worker ids only (not the placing worker); an invalid list is rejected. A Wild partner is given whichever role the tile needs automatically; \"as\" is only for the placing worker. Actions: {"type":"place","p":0,"worker":ID,"target":"TARGET"[,"as":"DISC"][,"crew":[ids]][,"choice":0|1 (for \"A OR B\" tiles such as Crunch Bonus: 0 = first effect, 1 = second)][,"bonus":"mktg" (Senior bonus: +1 Marketing instead of +1 Progress)]} | {"type":"recruit","p":0,"idx":N} | {"type":"buyws","p":0} | {"type":"pass","p":0}');
   } else if (E.currentActor(S) === ME && S.step === "rest") {
     o.push("MANAGE PHASE. Market: " + JSON.stringify(S.market));
     const names = [].concat.apply([], Object.values(S.market));
-    o.push("Tile details: " + names.map(n => { const s = S.data.systems.find(x => x.name === n); return n + " [" + s.cat + "] build " + s.build + ", trigger " + s.trig + " -> " + (s.fx || s.each || "") + " (VP " + s.vp + ", Debt on finish " + s.debt + ")"; }).join(" ; "));
+    o.push("Tile details: " + names.map(n => { const s = S.data.systems.find(x => x.name === n); const bc = E.buildCost(S, p, s, false); return n + " [" + s.cat + "] COST " + E.resText(bc.need) + " + " + bc.baseGold + "G, team " + bc.b.reqs.join("+") + ", trigger " + s.trig + " -> " + (s.fx || s.each || "") + " (VP " + s.vp + ", Debt on finish " + s.debt + ")"; }).join(" ; "));
     o.push("Buildable now: " + (names.map(n => { const c = E.canBuild(S, ME, n, false, null), cf = (p.freeBuilds > 0) ? E.canBuild(S, ME, n, true, null) : null; return n + (c.ok ? " OK" : cf && cf.ok ? " (OK as your FREE build: add free:true)" : " (no: " + c.reason + ")"); }).join(" ; ")));
     o.push('Actions: {"type":"build","p":0,"name":"TILE","free":false,"crunch":null|"gold"|"fat"[,"crunchWorker":workerId (which worker tires for a fat crunch)][,"crew":[workerIds]]} | {"type":"claim","p":0,"mile":ID} | {"type":"promote","p":0,"worker":ID} | {"type":"train","p":0,"worker":ID} | {"type":"refresh","p":0,"name":"TILE"} | {"type":"done","p":0}');
   }

@@ -761,7 +761,7 @@ function scoreModal(S) {
   <b>Progress and Hype races:</b> VP for your rank, plus 1 VP for every ${c.raceLinDiv} points you have. Hype is ranked together with your Marketing.<br>
   <b>Debt:</b> the most Debt loses the most VP; the least loses none.<br>
   <b>Burnout:</b> costs VP from 2 upward (2: ${c.burnVP[2]}, 3: ${c.burnVP[3]}, 4: ${c.burnVP[4]}, 5: ${c.burnVP[5]}, 6: ${c.burnVP[6]}).<br>
-  <b>Objectives:</b> each completed objective is worth ${Math.round(c.objVPMult * 100)}% of the VP printed on its card.${c.objPartial ? " One missing just one requirement earns half of that." : ""}<br>
+  <b>Objectives:</b> each completed objective scores the VP printed on its card.${c.objPartial ? " One missing just one requirement earns half of that, rounded down." : ""}<br>
   <b>Systems:</b> printed VP x ${c.sysVPMult}. <b>Gold:</b> 1 VP per ${c.goldPerVP} Gold left.<br>
   <b>Gates and crisis:</b> gate bonuses and penalties (missed gates never cost more than ${c.gateLossCap} VP in total)${awards ? ", +" + c.hypeLeadVP + " VP for the Hype leader at the end of each of the first three phases, +1 VP for the passing studio with the most Progress at each gate" : ""}, and Crisis card results.</div>
   <div style="margin-top:12px;text-align:right"><button class="btn" data-act="close">Close</button></div>`, { wide: true });

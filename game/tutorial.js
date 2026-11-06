@@ -51,7 +51,7 @@ function tokens(S) {
     convertRate: c.convertRate || 3, refreshGold: c.marketRefreshGold, gateName: esc(g.name || ""), gate2Name: esc(g2.name || ""), gateReqs: esc((g.reqs || []).join(", ")),
     gateEnd: (c.phaseEnds || [])[g.phase || 0] || "", gateFund: g.fund || 0, gatePenalty: g.penalty || 0,
     crisisLine: crisis ? ": <b>" + esc(crisis.name) + "</b>. " + esc(crisis.text) : "",
-    nPlayers: S.players.length, goldPerVP: c.goldPerVP || 3, raceFirst: (E.rankTable(c, S.players.length) || [])[0], raceLast: (E.rankTable(c, S.players.length) || []).slice(-1)[0],
+    nPlayers: S.players.length, gateLossCap: c.gateLossCap || 4, goldPerVP: c.goldPerVP || 3, raceFirst: (E.rankTable(c, S.players.length) || [])[0], raceLast: (E.rankTable(c, S.players.length) || []).slice(-1)[0],
     burnVP: Object.keys(c.burnVP || {}).filter(k => (c.burnVP[k] || 0) < 0).map(k => "Burnout " + k + ": " + c.burnVP[k]).join(", "), cultureBase: c.cultureFoldBase,
     hypeBank: c.hypeBank || 0, trainCost: c.trainCost, trainCulture: c.trainCulture, trainNeeded: c.trainNeeded,
     freeBuild: p.freeBuilds ? "<br><br><b>A free build is on the house this round.</b>" : "",
