@@ -98,7 +98,9 @@ E.newGame = function (seats, opts) {
   const data = Object.assign(E.defaultData(cfg), opts.data || {});
   const N0 = seats.length;
   if (cfg.spotFxAdj) data.spots.forEach(sp => { if (cfg.spotFxAdj[sp.id] != null) sp.fx = cfg.spotFxAdj[sp.id]; });
+  if (cfg.addSpots) cfg.addSpots.forEach(sp => { if (!data.spots.some(x => x.id === sp.id)) data.spots.push(Object.assign({}, sp)); });
   if (cfg.bigAdd && cfg.bigAdd[N0]) cfg.bigAdd[N0].forEach(id => { const sp = data.spots.find(x => x.id === id); if (sp) data.spots.push(Object.assign({}, sp, { id: id + "_b" })); });
+  if (cfg.spotPatch) data.spots.forEach(sp => { const pt = cfg.spotPatch[sp.id]; if (pt) Object.assign(sp, pt); });
   { const o = data.spots.find(x => x.id === "outsource"); if (o) { const jr = cfg.outsourceJrByN && cfg.outsourceJrByN[N0] != null ? cfg.outsourceJrByN[N0] : (cfg.outsourceJr == null ? 3 : cfg.outsourceJr), sr = cfg.outsourceSrByN && cfg.outsourceSrByN[N0] != null ? cfg.outsourceSrByN[N0] : (cfg.outsourceSr == null ? 5 : cfg.outsourceSr); if (jr != null && sr != null) o.note = "Jr +" + jr + "G / Sr +" + sr + "G"; } }
   if (cfg.launchCap) ["party", "press", "platform"].forEach(id => { const sp = data.spots.find(x => x.id === id); if (!sp) return; sp.mode = "single"; for (let k = 1; k < Math.ceil(N0 / 2); k++) data.spots.push(Object.assign({}, sp, { id: id + "_c" + k })); });
   E.useCfg(cfg); E.applyLook(data);
@@ -655,6 +657,7 @@ E.placementOptions = placementOptions;
 function applyFx(S, pi, fx, mult, ctx) {
   const p = P(S, pi); ctx = ctx || {}; const m = mult || 1;
   const stats = Object.assign({}, fx.stats);
+  if (ctx.dock) Object.keys(stats).forEach(k => { if (k !== "debt" && k !== "culture" && stats[k] > 1) stats[k] = Math.max(1, stats[k] - ctx.dock); });
   if (ctx.alt === "fixdebt" && stats.prod > 0) { stats.debt = (stats.debt || 0) - stats.prod; delete stats.prod; }
   if (ctx.alt === "hype" && stats.prod > 0) { stats.hype = (stats.hype || 0) + stats.prod; delete stats.prod; }
   let removedDebt = 0;
@@ -723,9 +726,10 @@ function doPlace(S, pi, wid, target, o) {
   // Sr bonus
   let srb = "";
   if (w.lvl === "Sr" && !spot.special && !spot.r) { const b = o.bonus === "mktg" ? "mktg" : "prod"; gain(S, pi, b, S.cfg.srBonus * mult); srb = " (+" + S.cfg.srBonus + " " + b + ")"; }
+  const exh = over || (plan && plan.ids && plan.ids.some(id => { const q = p.workers.find(x => x.id === id); return q && q.overWhenPlaced; })); const dock = exh && S.cfg.overTileDock ? S.cfg.overTileDock : 0;
   let removed = 0;
-  if (fx.choice) { const pick = fx.choice[o.choice === 1 ? 1 : 0]; removed = applyFx(S, pi, pick, mult, { alt }); }
-  else removed = applyFx(S, pi, fx, mult, { alt: alt });
+  if (fx.choice) { const pick = fx.choice[o.choice === 1 ? 1 : 0]; removed = applyFx(S, pi, pick, mult, { alt, dock }); }
+  else removed = applyFx(S, pi, fx, mult, { alt: alt, dock });
   // discipline perks
   if (as === "ADV" && spot.mkt) gain(S, pi, "hype", 1 * mult);
   if (as === "DES" && p.rs.placed > 1 && !spot.special) {
@@ -755,6 +759,7 @@ function doPlace(S, pi, wid, target, o) {
     case "talent": p.hireDiscount += 1; p.recruitExtra = (p.recruitExtra || 0) + 1; log(S, p.name + " may recruit one more worker from the pool this round (1G off)"); break;
     case "team": gain(S, pi, "gold", -spot.cost.gold); gain(S, pi, "culture", S.cfg.teamEventCulture); gain(S, pi, "burnout", -(S.cfg.burnTeamRelief || 1)); break;
     case "outsource": { const Nn = S.players.length, bn = (m, k) => S.cfg[m] && S.cfg[m][Nn] != null ? S.cfg[m][Nn] : S.cfg[k]; gain(S, pi, "gold", w.lvl === "Sr" ? (bn("outsourceSrByN", "outsourceSr") == null ? 5 : bn("outsourceSrByN", "outsourceSr")) : (bn("outsourceJrByN", "outsourceJr") == null ? 3 : bn("outsourceJrByN", "outsourceJr"))); break; }
+    case "crunchbonus": gain(S, pi, "gold", -spot.cost.gold); break;
     case "rd": p.rd = true; p.rdDisc = S.cfg.rdDiscount || 0; break;
     case "convert": {
       const rk = RES_OF[CAT_OF(as)], rate = S.cfg.convertRate || 3, n = Math.floor((p[rk] || 0) / rate), k = o.conv === "hype" ? "hype" : "prod";
