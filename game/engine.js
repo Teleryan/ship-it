@@ -705,7 +705,7 @@ function doPlace(S, pi, wid, target, o) {
   if (opt.kind === "sys") {
     const def = opt.def; opt.sys.t = true; p.rs.triggers++; p.cs.trigTotal = (p.cs.trigTotal || 0) + 1;
     const fx = E.parseEffect(def.fx || def.each);
-    if (def.fx || def.each) { const eff = def.fx ? fx : E.parseEffect(def.each); applyFx(S, pi, eff, 1, {}); }
+    if (def.fx || def.each) { let eff = def.fx ? fx : E.parseEffect(def.each); if (eff.choice) eff = eff.choice[(typeof o !== "undefined" && o && o.choice === 1) ? 1 : 0]; applyFx(S, pi, eff, 1, {}); }
     log(S, p.name + " triggers " + def.name + " with " + w.lvl + " " + as + " (" + (def.fx || def.each) + ")");
     return { ok: true };
   }
@@ -985,7 +985,7 @@ function resolveDecision(S, a) {
     case "raidHire": {
       if (a.type === "skip") { S.dq.shift(); return { ok: true }; }
       if (a.type !== "raid") return err("Choose a worker to hire");
-      const pl = P(S, p); const lvl = a.lvl === "Sr" ? "Sr" : "Jr"; if (lvl === "Sr" && !srAllowed(S)) return err("No Sr yet");
+      const pl = P(S, p); const lvl = a.lvl === "Sr" && S.pool.length ? "Sr" : "Jr"; if (lvl === "Sr" && !srAllowed(S)) return err("No Sr yet");
       const cost = Math.floor((lvl === "Jr" ? S.cfg.jrCost : S.cfg.srCost) / 2); if (pl.gold < cost) return err("Needs " + cost + "G");
       const pi = S.pool.findIndex(x => x.disc === a.disc && x.lvl === lvl);
       if (pi < 0 && S.pool.length) return err("Not in released pile"); if (pi >= 0) S.pool.splice(pi, 1);
@@ -1247,7 +1247,7 @@ E.score = function (S) {
   const c = S.cfg, N = S.players.length;
   const pv = S.players.map(q => q.prod), hv = S.players.map(q => q.hype + Math.floor(q.mktg * c.mktgToHype)), dv = S.players.map(q => q.debt);
   const tab = rankTable(c, N), lt = lossTable(c.debtLossByN && c.debtLossByN[N] != null ? c.debtLossByN[N] : c.debtLossMax, N);
-  const progRank = rankScore(pv, tab), hypeRank = rankScore(hv, tab), debtRank = rankScore(dv, lt, false);
+  const progRank = rankScore(pv, tab), hypeRank = rankScore(hv, tab), debtRank = rankScore(dv, lt, false).map((x, i) => dv[i] === Math.min.apply(null, dv) ? 0 : x); // best (lowest) Debt, including a tie for it, loses nothing
   return S.players.map((p, pl) => {
     const dp = debtPct(S, p), dbl = p.flags.doubleThresh ? 2 : 1;
     const thr = dp < c.cleanThresh ? "CLEAN" : dp <= c.stdThresh ? "STANDARD" : dp <= c.roughThresh ? "ROUGH" : "BLOCKED";
