@@ -52,7 +52,7 @@ function tokens(S) {
     gateEnd: (c.phaseEnds || [])[g.phase || 0] || "", gateFund: g.fund || 0, gatePenalty: g.penalty || 0,
     crisisLine: crisis ? ": <b>" + esc(crisis.name) + "</b>. " + esc(crisis.text) : "",
     nPlayers: S.players.length, goldPerVP: c.goldPerVP || 3, raceFirst: (E.rankTable(c, S.players.length) || [])[0], raceLast: (E.rankTable(c, S.players.length) || []).slice(-1)[0],
-    burnLine: "<br><b>Burnout</b> and Culture share one track (Culture is " + c.cultureFoldBase + " minus Burnout)" + ": an exhausted studio loses VP at the end (" + [3, 4, 5, 6].map(k => k + ": " + (((c.burnVP || {})[k]) || 0)).join(", ") + ").",
+    burnLine: "<br><b>Burnout</b>: tired workers wear your studio down. It runs from 0 to " + c.burnMax + ", and the higher it is when the game ends, the more VP you lose (" + Object.keys(c.burnVP || {}).filter(k => (c.burnVP[k] || 0) < 0).map(k => "Burnout " + k + ": " + c.burnVP[k]).join(", ") + ").<br><br><b>Culture</b> is the other side of the same track: it equals " + c.cultureFoldBase + " minus your Burnout. Team Events, Training and other Culture gains lower Burnout; Culture losses raise it.",
     hypeBank: c.hypeBank || 0, trainCost: c.trainCost, trainCulture: c.trainCulture, trainNeeded: c.trainNeeded,
     freeBuild: p.freeBuilds ? "<br><br><b>A free build is on the house this round.</b>" : "",
     burnMax: c.burnMax, burnOverStep: c.burnOverStep, burnOverMax: c.burnOverMax, burnUnpaidMin: c.burnUnpaidMin, burnRelief: c.burnRelief, burnTeamRelief: c.burnTeamRelief,
@@ -262,7 +262,10 @@ function tutHighlight0(rootEl) {
     const all = extra ? sel + "," + extra : sel;
     const els = rootEl.querySelectorAll(all); els.forEach(el => el.classList.add("tut-hl")); if (els.length && !u.detail) spotSel = all;
     // bring the highlighted area into view (above the coach box): the page itself or, on desktop, the .left/.right column that scrolls
-    const el = extra ? rootEl.querySelector(extra) : els[0]; if (el && el.getBoundingClientRect && !u.detail) {
+    const el = extra ? rootEl.querySelector(extra) : els[0];
+    // two-column layout: dock the coach box under the other column so it never sits on the highlighted panel
+    { const cb = rootEl.querySelector(".coach:not(.center)"); if (cb) cb.classList.toggle("dockl", !!(el && window.innerWidth > 980 && el.closest(".right"))); }
+    if (el && el.getBoundingClientRect && !u.detail) {
       const coach = rootEl.querySelector(".coach");
       // leave room under the columns for the whole coach box, so the highlighted panel can scroll clear of it
       if (coach) { const need = Math.ceil(coach.getBoundingClientRect().height) + 28; if (rootEl.style.getPropertyValue("--coachH") !== need + "px") rootEl.style.setProperty("--coachH", need + "px"); }

@@ -175,6 +175,7 @@ table.dt input.n{width:62px}
 .coach .cb{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .coach .prog{height:3px;background:var(--line);border-radius:2px;margin-top:12px;overflow:hidden}
 .coach .prog i{display:block;height:100%;background:var(--gold)}
+.coach.dockl{right:auto;left:18px}
 .coach.center{right:auto;bottom:auto;left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,calc(100vw - 36px));padding:22px 24px}
 .coach.center .ctt{font-size:24px}
 .coach-dim{position:fixed;inset:0;background:rgba(5,9,14,.82);z-index:199;pointer-events:none}
