@@ -66,8 +66,6 @@ function tokens(S) {
   const td = c.trainDuration || 1; t.trainAway = td > 1 ? "sits out the next " + td + " rounds" : "sits out the next round";
   t.promoLesson = c.trainNeeded > 1 ? " For this lesson one of your Juniors has already trained " + (c.trainNeeded - 1) + " time" + (c.trainNeeded > 2 ? "s" : "") + "." : "";
   t.promoRest = c.promoByRest ? " A Junior who worked and then sits out a round can also be promoted without training." : "";
-  t.restTeam = fmt(rw("rest_train").text, t);
-  ["burnStats", "burnRest", "burnUpkeep"].forEach(k => { t[k] = fmt(rw("burn_" + k.slice(4).toLowerCase()).text, t); });
   t.gateResult = done ? fmt(rw(done.passed.includes(0) ? "gate_pass" : "gate_miss").text, t) : "";
   t.hint = fmt(rw(hintId(S)).text, t);
   return t;
@@ -104,26 +102,31 @@ let STEPS = [
   info("win_lose", { hl: () => ".pt[data-pid='0'] .stats" }),
   info("loop", { hl: () => "[data-tut=steps]" }),
   doing("objectives", { hl: () => ".modal", done: S => !S.dq.some(d => d.t === "keepObj" && d.p === 0), allow: a => a.type === "keepObj" ? null : MSG("msg_obj") }),
-  info("phasestart", { hl: () => "[data-tut=steps]" }),
+  info("phasestart", { hl: () => ".sg-phase" }),
+  info("order", { hl: () => ".step[data-step=Order]" }),
+  info("team", { hl: () => "[data-tut=workers]" }),
   info("boardintro", { hl: () => "[data-tut=board]" }),
   info("board_backlog", { hl: () => "[data-row=EARN]" }),
   info("board_prototype", { hl: () => "[data-row=PROGRESS]" }),
   info("board_pitch", { hl: () => "[data-row=HYPE]" }),
   info("board_jam", { hl: () => "[data-row=CREW]" }),
   info("board_perks", { hl: () => ".shared" }),
+  info("income", { hl: () => ".pt[data-pid='0'] .st.rs.g" }),
   info("placeintro", { hl: () => "[data-tut=board]" }),
   doing("place1", { hl: () => (U().sel == null ? "[data-tut=workers] .wk:not(.placed)" : ".spot.ok"),
     vid: S => !actorIsMe(S) ? "place1w" : U().detail && U().detail.k === "spot" ? "place1c" : U().detail && U().detail.k === "worker" ? "place1d" : U().sel == null ? "place1" : "place1b",
     done: S => after(S, "place", 1) || (S.round === 1 && S.step === "place" && me(S).rs.placed >= 1),
     allow: a => a.type === "place" ? null : a.type === "pass" ? MSG("msg_place_first") : MSG("msg_place") }),
-  info("stats", { hl: () => ".pt[data-pid='0'] .stats" }),
+  info("stats", { hl: () => ".pt[data-pid='0'] .stats.res" }),
   info("ws1", { hl: () => "[data-tut=ws]" }),
   doing("place2", { hl: () => "[data-tut=workers]", done: S => after(S, "place", 1) || S.round > 1, allow: a => (a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
   doing("build", { hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"), done: S => builtInManage(S, 1),
     allow: (a, S) => a.type === "build" ? null : a.type === "done" ? ((me(S).builds >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : MSG("msg_build_first")) : MSG("msg_build") }),
   info("build_rd", { hl: () => "[data-spot=rd]" }),
-  doing("rest1", { hl: () => "[data-tut=workers]", done: S => after(S, "rest", 1), allow: a => a.type === "train" ? MSG("msg_train_later") : (a.type === "done" || a.type === "claim") ? null : MSG("msg_rest") }),
-  info("upkeep", { hl: () => "[data-tut=steps]" }),
+  info("tired", { hl: () => "[data-tut=workers]" }),
+  info("burnout", { hl: () => ".pt[data-pid='0'] .st.bo" }),
+  doing("rest1", { hl: () => "[data-tut=miles]", done: S => after(S, "rest", 1), allow: a => a.type === "train" ? MSG("msg_train_later") : (a.type === "done" || a.type === "claim") ? null : MSG("msg_rest") }),
+  info("upkeep", { hl: () => ".step[data-step=Upkeep]" }),
   info("gates", { hl: () => "[data-tut=gates]" }),
   /* ---- round 2: recruit, rest, crunch ---- */
   doing("r2recruit", { hl: () => "[data-tut=recruit]", done: S => me(S).recruited >= 1 || S.round > 2,

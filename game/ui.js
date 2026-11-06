@@ -203,8 +203,8 @@ function actorName(S) { const a = E.currentActor(S); return a >= 0 ? S.players[a
 function stepTracker(S) { // Phase start: Crisis, Reveal. Each round: Upkeep (not round 1), Income, Order, Place, Manage
   const pg = ["Crisis", "Reveal"], rg = ["Upkeep", "Income", "Order", "Place", "Manage"];
   const inP = ["setup", "crisis"].includes(S.step), idxR = { place: 3, rest: 4 }[S.step];
-  return `<div class="stepgroup sg-phase" data-tut="steps"><span class="lab">Phase start</span>${pg.map((s, i) => `<span class="step ${inP ? (i === 0 ? "on" : "") : "done"}">${s}</span>`).join("")}</div>
-  <div class="stepgroup sg-round" data-tut="steps"><span class="lab">Round</span>${rg.map((s, i) => `<span class="step ${i === 0 && S.round === 1 ? "" : !inP ? (i === idxR ? "on" : i < idxR ? "done" : "") : ""}" ${i === 0 && S.round === 1 ? 'title="No Upkeep in round 1" style="opacity:.35;text-decoration:line-through"' : ""}>${s}</span>`).join("")}</div>`;
+  return `<div class="stepgroup sg-phase" data-tut="steps"><span class="lab">Phase start</span>${pg.map((s, i) => `<span data-step="${s}" class="step ${inP ? (i === 0 ? "on" : "") : "done"}">${s}</span>`).join("")}</div>
+  <div class="stepgroup sg-round" data-tut="steps"><span class="lab">Round</span>${rg.map((s, i) => `<span data-step="${s}" class="step ${i === 0 && S.round === 1 ? "" : !inP ? (i === idxR ? "on" : i < idxR ? "done" : "") : ""}" ${i === 0 && S.round === 1 ? 'title="No Upkeep in round 1" style="opacity:.35;text-decoration:line-through"' : ""}>${s}</span>`).join("")}</div>`;
 }
 function topbar(S) {
   const ph = PH[S.phase];
@@ -332,7 +332,7 @@ function playerPanel(S) {
   h += "</div>";
   if ((p.building || []).length) h += `<div class="sub">Building (finishes later; no trigger, passive or score until ready)</div><div class="row wrap">${buildingsList(S, p)}</div>`;
   if (priv(S, vi)) {
-    h += `<div class="sub">Milestones (${p.miles.length}) · cash in when met</div><div class="row wrap" ${S.step === "rest" && mine ? "" : 'data-tut="miles"'}>${p.miles.map(id => mileCard(S, id, vi, mine)).join("") || '<span class="mute">None</span>'}</div>`;
+    h += `<div class="sub">Milestones (${p.miles.length}) · cash in when met</div><div class="row wrap" data-tut="miles">${p.miles.map(id => mileCard(S, id, vi, mine)).join("") || '<span class="mute">None</span>'}</div>`;
     h += `<div class="sub">Objectives: scored at end</div><div class="row wrap">${p.objectives.map(id => objCard(S, id, vi, mine)).join("") || '<span class="mute">None</span>'}</div>`;
   } else h += `<p class="mute" style="margin-top:12px">Milestones and objectives are hidden until it is ${esc(p.name)}'s turn.</p>`;
   return h + "</div>";
