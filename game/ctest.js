@@ -195,7 +195,7 @@ for (const card of ['platform', 'creep', 'buyout', 'bug', 'patch', 'raid', 'depa
 { const T = mk(50, 3); T.players.forEach(p => { p.prod = 0; p.hype = 0; p.mktg = 0; p.debt = 0; p.gold = 0; p.vpAdj = 0; p.burnout = 0; p.objectives = []; p.systems = [] });
   T.players[0].prod = 30; T.players[1].prod = 20; T.players[2].prod = 10; const s = E.score(T), tab = E.rankTable(T.cfg, 3);
   ok(s[0].parts.prodShare > s[1].parts.prodShare && s[1].parts.prodShare > s[2].parts.prodShare, 'Progress is scored by rank');
-  ok(s[0].parts.prodShare - Math.floor(30 / T.cfg.raceLinDiv) === tab[0] && s[1].parts.prodShare - Math.floor(20 / T.cfg.raceLinDiv) === tab[1], 'rank table pays first and second place');
+  ok(s[0].parts.prodShare === Math.floor(30 * T.cfg.raceNum / T.cfg.raceDen) && s[1].parts.prodShare === Math.floor(20 * T.cfg.raceNum / T.cfg.raceDen), 'Progress scores 1 VP per raceDen points');
   T.players[1].prod = 30; const s2 = E.score(T); ok(s2[0].parts.prodShare === s2[1].parts.prodShare, 'a tie splits (and rounds down) the rank VP');
   T.players[2].debt = 6; T.players[2].prod = 10; const s3 = E.score(T); ok(s3[2].parts.debtPenalty <= s3[0].parts.debtPenalty, 'the studio with most Debt takes the biggest Debt penalty');
   T.players[0].hype = 9; ok(E.score(T)[0].parts.hypeStrength > E.score(T)[1].parts.hypeStrength, 'Hype is scored by rank');

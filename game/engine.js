@@ -481,6 +481,7 @@ function upkeepPlayers(S) {
       w.overWhenPlaced = false;
     });
     lost.forEach(w => { log(S, p.name + " loses an Exhausted " + w.lvl + " " + dn(w.disc)); removeWorker(S, p.id, w.id); });
+    if (S.cfg.restSkill) { let got = 0; p.workers.forEach(w => { if (!w.placed && !w.build && !w.benched && got < (S.cfg.restSkillMax || 2) && (S.cfg.restSkillAll || w.worked)) { const cs = catsOf(w); const k = RES_OF[cs[0]]; if (k) { gain(S, p.id, k, S.cfg.restSkill); got++; } } }); }
     p.workers.forEach(w => { if (!w.placed && w.fat > 0) w.fat--; });
     p.flags.freeBuildUsed = false;
   });
@@ -526,16 +527,18 @@ function applyGateLevels(S) {
     return Object.assign({}, g, { lvl: L, lvlName: E.GATE_LEVELS[L], reqs: g.reqs.map(r => scaleReq(r, d.thr || 1)), fund: rnd(g.fund, d.reward), vp: S.cfg.gateVpFixed ? g.vp : rnd(g.vp, d.reward), penalty: rnd(g.penalty, d.penalty) });
   });
 }
+E.gateEff = function (S, g) { const c = S.cfg; return { vp: c.gateWin ? (c.gateWin[g.phase] || 0) : (g.vp || 0), miss: c.gatePerReq ? "-" + c.gatePerReq + " VP per requirement missed" : "-" + g.penalty + " VP" }; };
 E.gateList = function (S) { return S.gateSet || (S.cfg.gatesRandom && (S.data.gatePool || []).length ? null : (S.data.publisherGates || [])); };
 function resolveGate(S) {
   drawGates(S);
-  const g = (S.gateSet || []).find(x => x.phase === S.phase); if (!g) return;
+  let g = (S.gateSet || []).find(x => x.phase === S.phase); if (!g) return;
+  if (S.cfg.gatePen || S.cfg.gateWin) { g = Object.assign({}, g); if (S.cfg.gatePen) g.penalty = S.cfg.gatePen[g.phase]; if (S.cfg.gateWin) g.vp = S.cfg.gateWin[g.phase]; }
   S.gates = S.gates || [];
   const passed = [], failed = [];
   S.players.forEach(p => { (g.reqs.every(r => reqCheck(S, p, r)) ? passed : failed).push(p.id); });
   passed.forEach(id => { if (g.fund) gain(S, id, "gold", g.fund); if (g.vp) { P(S, id).vpAdj += g.vp; P(S, id).vpGate = (P(S, id).vpGate || 0) + g.vp; } });
   const missTxt = [];
-  failed.forEach(id => { const pl = P(S, id), cap = S.cfg.gateLossCap || 99, pen = Math.max(0, Math.min(g.penalty, cap - (pl.gateLoss || 0))); pl.gateLoss = (pl.gateLoss || 0) + pen; pl.vpAdj -= pen; pl.vpGate = (pl.vpGate || 0) - pen; missTxt.push(pl.name + " -" + pen + " VP" + (pen < g.penalty ? " (cap of " + cap + " VP reached)" : "")); });
+  failed.forEach(id => { const pl = P(S, id), cap = S.cfg.gateLossCap || 99, pen0 = S.cfg.gatePerReq ? S.cfg.gatePerReq * g.reqs.filter(r => !reqCheck(S, pl, r)).length : g.penalty, pen = Math.max(0, Math.min(pen0, cap - (pl.gateLoss || 0))); pl.gateLoss = (pl.gateLoss || 0) + pen; pl.vpAdj -= pen; pl.vpGate = (pl.vpGate || 0) - pen; missTxt.push(pl.name + " -" + pen + " VP" + (pen < pen0 ? " (cap of " + cap + " VP reached)" : "")); });
   let best = null;
   if (passed.length) { const mx = Math.max.apply(null, passed.map(id => P(S, id).prod)); const tops = passed.filter(id => P(S, id).prod === mx); if (tops.length === 1 && S.cfg.gateBestVP && S.players.length >= (S.cfg.awardMinN || 0)) { best = tops[0]; P(S, best).vpAdj += S.cfg.gateBestVP; P(S, best).vpFav = (P(S, best).vpFav || 0) + S.cfg.gateBestVP; } }
   S.gates.push({ phase: S.phase, name: g.name, lvl: g.lvl || "M", passed, failed, best });
@@ -561,9 +564,9 @@ E.activeSpots = activeSpots; E.RES = RES; E.RES_OF = RES_OF; E.RES_NAME = RES_NA
 function catsOf(w) { const d = D0.disciplines[w.disc]; const out = [d.cat]; (d.wild || []).forEach(x => { const c = CAT_OF(x); if (!out.includes(c)) out.push(c); }); return out; }
 /* Strike Team spots: every way to fill the other slots from rested, unplaced workers. A plan = { ids (sorted), wcat (the category the placing worker fills), cats {id: category} }. */
 function crewPlans(S, p, w, spot) {
-  if (w.fat >= 2) return [];
+  if (w.fat >= (S.cfg.fatMax||2)) return [];
   const overOK = !!S.cfg.overCrew;
-  const others = p.workers.filter(x => x.id !== w.id && !x.placed && !x.build && !x.benched && (x.fat < 2 || overOK));
+  const others = p.workers.filter(x => x.id !== w.id && !x.placed && !x.build && !x.benched && (x.fat < (S.cfg.fatMax||2) || overOK));
   const seen = {}, out = [];
   spot.crew.forEach(alt => {
     const wcs = catsOf(w).slice(); if (alt.includes("Any") && !wcs.some(c => alt.includes(c))) wcs.push(catsOf(w)[0]);
@@ -578,9 +581,9 @@ function crewPlans(S, p, w, spot) {
         }
         others.forEach(x => {
           if (picks.some(y => y.id === x.id)) return;
-          if (x.fat >= 2 && picks.some(y => y.over)) return;
-          if (rest[k] === "Any") { if (x.disc === w.disc || picks.some(y => y.disc === x.disc)) return; go(k + 1, picks.concat({ id: x.id, cat: catsOf(x)[0], disc: x.disc, over: x.fat >= 2 })); return; }
-          if (!catsOf(x).includes(rest[k])) return; go(k + 1, picks.concat({ id: x.id, cat: rest[k], disc: x.disc, over: x.fat >= 2 }));
+          if (x.fat >= (S.cfg.fatMax||2) && picks.some(y => y.over)) return;
+          if (rest[k] === "Any") { if (x.disc === w.disc || picks.some(y => y.disc === x.disc)) return; go(k + 1, picks.concat({ id: x.id, cat: catsOf(x)[0], disc: x.disc, over: x.fat >= (S.cfg.fatMax||2) })); return; }
+          if (!catsOf(x).includes(rest[k])) return; go(k + 1, picks.concat({ id: x.id, cat: rest[k], disc: x.disc, over: x.fat >= (S.cfg.fatMax||2) }));
         });
       })(0, []);
     });
@@ -693,16 +696,16 @@ function doPlace(S, pi, wid, target, o) {
   if (o.as && !opt.as.includes(o.as)) return err("That worker cannot act as " + o.as + " here. Options: " + opt.as.join(", "));
   const as = (o.as && opt.as.includes(o.as)) ? o.as : (w.as && opt.as.includes(w.as)) ? w.as : opt.as[0];
   if (DISCS.includes(w.disc) && D0.disciplines[w.disc].wild) w.as = as;
-  const over = w.fat >= 2;
+  const over = w.fat >= (S.cfg.fatMax||2);
   if (over) { p.rs.overN = (p.rs.overN || 0) + 1; }
-  w.worked = true; w.placed = true; if (over) w.overWhenPlaced = true; w.fat = Math.min(2, w.fat + 1);
+  w.worked = true; w.placed = true; if (over) w.overWhenPlaced = true; w.fat = Math.min(S.cfg.fatMax||2, w.fat + 1);
   let plan = null;
   if (opt.kind === "spot" && opt.spot.crew) {
     const want = Array.isArray(o.crew) ? o.crew.map(Number).sort((x, y) => x - y).join(",") : "";
     plan = opt.plans.find(pl => pl.ids.join(",") === want);
     if (!plan && Array.isArray(o.crew)) return err("That strike team is not allowed. Partners are chosen from: " + opt.plans.map(pl => "[" + pl.ids.join(",") + "]").join(" "));
     if (!plan) plan = opt.plans[0];
-    const names = plan.ids.map(id => { const pw = p.workers.find(x => x.id === id); const pover = pw.fat >= 2; if (pover) { pw.overWhenPlaced = true; p.rs.overN = (p.rs.overN || 0) + 1; log(S, p.name + "'s Exhausted " + pw.lvl + " " + dn(pw.disc) + " joins the strike team (Burnout risk)"); } pw.placed = true; pw.worked = true; pw.fat = Math.min(2, pw.fat + 1); p.rs.placed++; if (opt.spot.r && !pover) gain(S, pi, RES_OF[plan.cats[id]], Math.min(pw.lvl === "Sr" ? S.cfg.resSr : S.cfg.resJr, S.cfg.crewPartnerCap == null ? 9 : S.cfg.crewPartnerCap)); return pw.lvl + " " + pw.disc; });
+    const names = plan.ids.map(id => { const pw = p.workers.find(x => x.id === id); const pover = pw.fat >= (S.cfg.fatMax||2); if (pover) { pw.overWhenPlaced = true; p.rs.overN = (p.rs.overN || 0) + 1; log(S, p.name + "'s Exhausted " + pw.lvl + " " + dn(pw.disc) + " joins the strike team (Burnout risk)"); } pw.placed = true; pw.worked = true; pw.fat = Math.min(S.cfg.fatMax||2, pw.fat + 1); p.rs.placed++; if (opt.spot.r && !pover) gain(S, pi, RES_OF[plan.cats[id]], Math.min(pw.lvl === "Sr" ? S.cfg.resSr : S.cfg.resJr, S.cfg.crewPartnerCap == null ? 9 : S.cfg.crewPartnerCap)); return pw.lvl + " " + pw.disc; });
     log(S, p.name + " forms a strike team for " + opt.spot.id + ": " + w.lvl + " " + dn(w.disc) + " + " + names.join(" + "));
   }
   if (opt.kind === "spot" && S.cfg.wsMax && isMainSpot(S, opt.spot)) p.wsUsed++;
@@ -826,7 +829,8 @@ function maxBuilds(S, p) { return S.cfg.buildsPerRound; }
 /* Rounds until a system is ready. Team rounds (bt, 1-3 by system power) are the rounds its workers stay committed; ready = this round + 1 + team rounds. A rush removes one team round. */
 E.buildRounds = function (S, p, crunch, def) { const bt = def && def.bt != null ? def.bt : (S.cfg.buildDelay || 2) - 1; const rush = crunch || (p && p.rd && S.cfg.rdCrunch); return Math.max(0, bt - (rush ? (S.cfg.rushRounds == null ? 1 : S.cfg.rushRounds) : 0)); };
 E.buildDelay = function (S, p, crunch, def) { return 1 + E.buildRounds(S, p, crunch, def); };
-E.crunchWorker = function (p) { const c = p.workers.filter(w => w.fat < 2).sort((x, y) => x.fat - y.fat || x.id - y.id); return c[0] || null; };
+let FATMAX = 2;
+E.crunchWorker = function (p) { const c = p.workers.filter(w => w.fat < FATMAX).sort((x, y) => x.fat - y.fat || x.id - y.id); return c[0] || null; };
 E.canBuild = function (S, pi, name, free, crunch) {
   const p = P(S, pi), def = sysDef(S, name); if (!def) return { ok: false, reason: "Unknown tile" };
   const nb = p.building || [];
@@ -866,7 +870,7 @@ function doBuild(S, pi, name, useFree, crunchIn, crewPick, crunchWho) {
     const rush = !!crunch || (p.rd && S.cfg.rdCrunch), d = E.buildDelay(S, p, crunch, def), crewIds = E.buildRounds(S, p, crunch, def) > 0 ? (crewFor(p, b.reqs, pick) || crewFor(p, b.reqs) || []) : [];
     crewIds.forEach(id => { p.workers.find(q => q.id === id).build = name; });
     if (crunch === "gold" && !(p.rd && S.cfg.rdCrunch)) { const cg = S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold; gain(S, pi, "gold", -cg); p.rs.spent += cg; }
-    else if (crunch === "fat" && !(p.rd && S.cfg.rdCrunch)) { const cw = (crunchWho != null && p.workers.find(q => q.id === +crunchWho && q.fat < 2)) || E.crunchWorker(p); cw.fat = Math.min(2, cw.fat + 1); log(S, p.name + " crunches: " + cw.lvl + " " + dn(cw.disc) + " is more tired"); }
+    else if (crunch === "fat" && !(p.rd && S.cfg.rdCrunch)) { const cw = (crunchWho != null && p.workers.find(q => q.id === +crunchWho && q.fat < (S.cfg.fatMax||2))) || E.crunchWorker(p); cw.fat = Math.min(S.cfg.fatMax||2, cw.fat + 1); log(S, p.name + " crunches: " + cw.lvl + " " + dn(cw.disc) + " is more tired"); }
     p.building.push({ name, cat: def.cat, rdy: S.round + d, rush, crew: crewIds }); p.rs.crunched = (p.rs.crunched || 0) + (rush ? 1 : 0); if (rush) p.cs.crunched = (p.cs.crunched || 0) + 1;
     log(S, p.name + " starts building " + name + " (" + def.cat + "), ready in round " + (S.round + d) + (crewIds.length ? " (crew: " + crewIds.map(id => { const q = p.workers.find(z => z.id === id); return q.lvl + " " + q.disc; }).join(", ") + ")" : "") + (rush ? " (crunched)" : "") + (free ? " FREE" : ""));
     return { ok: true };
@@ -883,6 +887,7 @@ function doBuild(S, pi, name, useFree, crunchIn, crewPick, crunchWho) {
    ============================================================ */
 function err(m) { return { ok: false, error: m }; }
 E.act = function (S, a) {
+  FATMAX = S.cfg.fatMax || 2;
   if (S.over) return err("Game over");
   if (a && a.type === "endgame") { log(S, "The game was ended early"); endGame(S); return { ok: true }; }
   const actor = E.currentActor(S);
@@ -1066,7 +1071,7 @@ const CRISIS_START = {
   breakthrough(S, c, order) { S.bids = {}; order.forEach(pi => S.dq.push({ t: "bid", p: pi, purpose: "auction", card: c.id })); S.dq.push({ t: "auto", fn: "auction", args: { card: c.id } }); },
   burnout(S, c, order) {
     order.forEach(pi => {
-      const p = P(S, pi); const over = p.workers.filter(w => w.fat >= 2).length, tired = p.workers.filter(w => w.fat >= 1).length;
+      const p = P(S, pi); const over = p.workers.filter(w => w.fat >= (S.cfg.fatMax||2)).length, tired = p.workers.filter(w => w.fat >= 1).length;
       if (tired >= c.params.tired) { gain(S, pi, "culture", -1); log(S, p.name + " has " + tired + " tired workers: -1 Culture"); }
       if (over >= c.params.overTired && !protectedFromCrisis(S, p)) S.dq.push({ t: "pickWorker", p: pi, reason: "Burnout Wave" });
     });
@@ -1223,7 +1228,7 @@ function reqCheck(S, p, r) {
   if ((m = r.match(/^(\d+)\+\s*systems each category$/))) return ["Innovation","Stability","Reach"].every(c => sysCount(p, c) >= +m[1]);
   if ((m = r.match(/^(\d+)\+\s*Sr workers$/))) return sr(p) >= +m[1];
   if ((m = r.match(/^(\d+) or fewer workers$/))) return p.workers.length <= +m[1];
-  if ((m = r.match(/^(\d+)\+\s*(\w+)\s*workers?$/))) { const d = WNAME[m[2]]; return d ? countWeighted(p, d) >= +m[1] : false; }
+  if ((m = r.match(/^(\d+)\+\s*(\w+)\s*workers?$/))) { const d = WNAME[m[2]]; if (d && S.cfg.objCat) { const cat = D0.disciplines[d].cat; return p.workers.reduce((a, w) => a + (catsOf(w).includes(cat) ? (w.lvl === 'Sr' ? 2 : 1) : 0), 0) >= +m[1]; } return d ? countWeighted(p, d) >= +m[1] : false; }
   if ((m = r.match(/^Highest (Progress|Product|Marketing) Share %$/))) { const k = /^Pro/.test(m[1]) ? "prod" : "mktg"; return p[k] > 0 && S.players.every(q => q.id === p.id || q[k] < p[k]); }
   if (/^Launch by Round/.test(r)) return false; // cannot be satisfied: game always runs to Round 12 (flagged in review)
   return false;
@@ -1250,6 +1255,7 @@ function rankScore(vals, table, inverse) { // vals: per player value; inverse: l
   while (r < N) { let t = r; while (t + 1 < N && vals[idx[t + 1]] === vals[idx[r]]) t++; let sum = 0; for (let k = r; k <= t; k++) sum += table[k]; const each = Math.floor(sum / (t - r + 1)); for (let k = r; k <= t; k++) out[idx[k]] = each; r = t + 1; }
   return out;
 }
+function rankIdx(vals, i) { const better = vals.filter(v => v > vals[i]).length, tied = vals.filter(v => v === vals[i]).length; return Math.min(vals.length - 1, better + Math.floor((tied - 1) / 2)); }
 function lossTable(max, N) { const t = []; for (let k = 0; k < N; k++) t.push(N > 1 ? Math.round(max * (N - 1 - k) / (N - 1)) : 0); return t; } // rank 1 = worst
 E.score = function (S) {
   const c = S.cfg, N = S.players.length;
@@ -1261,8 +1267,13 @@ E.score = function (S) {
     const thr = dp < c.cleanThresh ? "CLEAN" : dp <= c.stdThresh ? "STANDARD" : dp <= c.roughThresh ? "ROUGH" : "BLOCKED";
     const s = {};
     // Race scoring: Progress, Hype and Debt are ranked against the other studios (plus a small linear share of your own Progress/Hype)
-    s.prodShare = progRank[pl] + Math.floor(p.prod / c.raceLinDiv); s.mktShare = 0;
-    s.hypeStrength = hypeRank[pl] + Math.floor(hv[pl] / c.raceLinDiv);
+    if (c.raceNum) { const lin = x => Math.floor(x * c.raceNum / c.raceDen), top = (arr, i) => (c.raceTop && arr[i] === Math.max.apply(null, arr) && arr.filter(v => v === arr[i]).length === 1) ? c.raceTop : 0;
+      s.prodShare = lin(Math.min(p.prod, c.raceCap || 99)) + top(pv, pl) + (c.raceTab && c.raceTab[N] ? c.raceTab[N][rankIdx(pv, pl)] : 0); s.mktShare = 0;
+      s.hypeStrength = lin(Math.min(hv[pl], c.raceCap || 99)) + top(hv, pl) + (c.raceTab && c.raceTab[N] ? c.raceTab[N][rankIdx(hv, pl)] : 0);
+    } else if (c.raceTab && c.raceTab[N]) { s.prodShare = c.raceTab[N][rankIdx(pv, pl)]; s.mktShare = 0; s.hypeStrength = c.raceTab[N][rankIdx(hv, pl)]; }
+    else {
+    s.prodShare = progRank[pl] + (c.raceLinDiv ? Math.floor(p.prod / c.raceLinDiv) : 0); s.mktShare = 0;
+    s.hypeStrength = hypeRank[pl] + Math.floor(hv[pl] / c.raceLinDiv); }
     s.debtPenalty = -debtRank[pl];
     s.delivery = 0; s.culture = 0; s.launch = 0; s.reach = 0;
     s.burnout = c.burnVP[String(clamp(p.burnout || 0, 0, c.burnMax))] || 0;
@@ -1271,6 +1282,7 @@ E.score = function (S) {
       const st = E.objectiveStatus(S, p.id, id), o = S.data.objectives[id];
       s.objList.push({ id, name: o.name, met: st.met, vp: o.vp });
       const unmet = st.reqs.filter(x => !x.ok).length;
+      if (c.objGraded) { const v = (st.reqs.length - unmet) * c.objGraded + (st.met ? (c.objBonus || 0) : 0); s.objectives += v; s.objList[s.objList.length - 1].full = v; if (st.met && c.synergyOn) p.systems.forEach(sy => { const d = sysDef(S, sy.name); if (o.res && E.sysMainRes(d) === o.res) s.synergy += d.syn * c.synergyMult; }); return; }
       if (!st.met && c.objPartial && st.reqs.length >= 2 && unmet === 1) { const h = Math.floor(o.vp / 2 * c.objVPMult); s.objectives += h; s.objList[s.objList.length - 1].partial = h; }
       if (st.met) {
         const fv = Math.round(o.vp * c.objVPMult); s.objectives += fv; s.objList[s.objList.length - 1].full = fv;
@@ -1283,13 +1295,14 @@ E.score = function (S) {
     if (c.reachMajorVP) { const rc = S.players.map(q => q.systems.filter(y => y.cat === "Reach").length), mx = Math.max.apply(null, rc); if (mx >= 2 && rc[pl] === mx && rc.filter(v => v === mx).length === 1) s.reach = c.reachMajorVP; }
     s.gold = Math.floor(p.gold / c.goldPerVP);
     s.crisis = p.vpAdj; s.gateVP = p.vpGate || 0; s.hypeLeadVP = p.vpHL || 0; s.favVP = p.vpFav || 0; s.cardVP = Math.round((p.vpAdj - s.gateVP - s.hypeLeadVP - s.favVP) * 10) / 10;
-    s.total = Math.round((s.prodShare + s.hypeStrength + s.debtPenalty + s.burnout + s.objectives + s.synergy + s.systems + s.reach + s.gold + s.crisis) * 10) / 10;
+    s.total = Math.round(((c.baseVP || 0) + s.prodShare + s.hypeStrength + s.debtPenalty + s.burnout + s.objectives + s.synergy + s.systems + s.reach + s.gold + s.crisis) * 10) / 10;
     const effHype = thr === "ROUGH" ? p.hype * (dbl === 2 ? c.roughHypeMult / 2 : c.roughHypeMult) : p.hype;
     s.threshold = thr; s.debtPct = Math.round(dp * 10) / 10; s.hypePct = Math.round(clamp(effHype / c.hypeCap * 100, 0, 100)); s.prodPct = Math.round(clamp(p.prod / c.prodCap * 100, 0, 100));
     return { id: p.id, name: p.name, parts: s, total: s.total };
   });
 };
 function endGame(S) {
+  if (S.cfg.endBurn && !S.endBurned) { S.endBurned = 1; S.players.forEach(p => { const add = Math.min(S.cfg.burnOverMax || 2, Math.floor((p.rs.overN || 0) / (S.cfg.burnOverStep || 1))); if (add) gain(S, p.id, 'burnout', add); }); }
   S.over = true; S.step = "end"; S.scores = E.score(S);
   const sorted = S.scores.slice().sort((a, b) => b.total - a.total || P(S, a.id).debt - P(S, b.id).debt || P(S, b.id).gold - P(S, a.id).gold);
   S.winner = sorted[0].id; log(S, "GAME OVER. Winner: " + P(S, S.winner).name);

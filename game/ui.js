@@ -294,7 +294,7 @@ function raceRules(S) {
   const c = S.cfg, N = S.players.length, tab = E.rankTable(c, N), ord = ["1st", "2nd", "3rd", "4th", "5th", "6th"];
   const lossT = mx => { const t = []; for (let k = 0; k < N; k++) t.push(N > 1 ? Math.round(mx * (N - 1 - k) / (N - 1)) : 0); return t; };
   const box = (title, body, col) => `<div class="pt" style="border-color:${col};flex:1;min-width:150px"><b style="color:${col}">${title}</b><div class="mute">${body}</div></div>`;
-  return `<div class="row wrap" style="margin-top:8px;gap:6px">${box("PROGRESS RACE", tab.map((v, i) => ord[i] + " " + v).join(" · ") + " VP", "#3498db")}${box("HYPE RACE (Hype + Marketing)", tab.map((v, i) => ord[i] + " " + v).join(" · ") + " VP", "#e67e22")}${box("DEBT (most loses most)", lossT(c.debtLossMax).map((v, i) => (i === N - 1 ? "least" : ord[i] + " most") + " −" + v).join(" · ").replace(/−0/g, "0"), "#c0392b")}${box("CULTURE (least loses most)", lossT(c.cultLossMax).map((v, i) => (i === N - 1 ? "best" : ord[i] + " lowest") + " −" + v).join(" · ").replace(/−0/g, "0"), "#27ae60")}</div><div class="mute" style="font-size:12px;margin-top:4px">Ties split the points. At the end of the game, ${c.mktgToHype === 1 ? "your Marketing is added to your Hype" : "Marketing adds to Hype"} for the Hype race.</div>`;
+  return `<div class="row wrap" style="margin-top:8px;gap:6px">${box("PROGRESS RACE", "1 VP for every " + c.raceDen + " Progress", "#3498db")}${box("HYPE RACE (Hype + Marketing)", "1 VP for every " + c.raceDen + " Hype", "#e67e22")}${box("DEBT (most loses most)", lossT(c.debtLossMax).map((v, i) => (i === N - 1 ? "least" : ord[i] + " most") + " −" + v).join(" · ").replace(/−0/g, "0"), "#c0392b")}${box("CULTURE (least loses most)", lossT(c.cultLossMax).map((v, i) => (i === N - 1 ? "best" : ord[i] + " lowest") + " −" + v).join(" · ").replace(/−0/g, "0"), "#27ae60")}</div><div class="mute" style="font-size:12px;margin-top:4px">At the end of the game, ${c.mktgToHype === 1 ? "your Marketing is added to your Hype" : "Marketing adds to Hype"} for the Hype race.</div>`;
 }
 const launchThresholds = S => raceRules(S);
 function viewIndex(S) {
@@ -314,15 +314,15 @@ function workerCard(S, w, vi, selectable) {
 }
 // the studio's workers sit above the main board so the worker you place is next to the spot you place it on
 function fatigueLine(S, p) {
-  const c = S.cfg, odds = "1 in " + Math.round(6 / Math.max(1, c.lossThreshBase || 1));
+  const c = S.cfg;
   const avail = p.workers.filter(w => !w.placed && !w.build && !w.benched), exh = avail.filter(w => w.fat >= 2);
   const sw = U.sel != null ? p.workers.find(w => w.id === U.sel) : null;
   const oN = p.rs && p.rs.overN || 0, burnAdd = Math.min(c.burnOverMax || 2, Math.floor(oN / (c.burnOverStep || 1)));
   const risky = p.workers.filter(w => w.placed && w.overWhenPlaced).length;
   const bits = [];
-  if (sw && sw.fat >= 2) bits.push(`<b>${esc(dname(sw.disc))} is Exhausted.</b> Placing them is overwork: no skill, +1 Burnout, and a ${odds} chance they quit at Upkeep.`);
+  if (sw && sw.fat >= 2) bits.push(`<b>${esc(dname(sw.disc))} is Exhausted.</b> Placing them is overwork: no skill, +1 Burnout${S.round === 12 ? " (round 12 counts too)" : ""}.`);
   else if (avail.length && exh.length * 2 >= avail.length) bits.push(`${exh.length} of your ${avail.length} available workers are Exhausted. Resting some now keeps them working later.`);
-  if (oN) bits.push(`If you stop now: Burnout +${burnAdd}, ${risky} worker${risky === 1 ? "" : "s"} at risk of quitting (${odds} each).`);
+  if (oN) bits.push(`If you stop now: Burnout +${burnAdd}.`);
   return bits.length ? `<div class="mute" style="font-size:12px;margin-top:8px;line-height:1.5">${bits.join(" ")}</div>` : "";
 }
 function workersPanel(S) {
@@ -371,7 +371,7 @@ function mileCard(S, id, vi, mine) {
 }
 function objCard(S, id, vi, mine) {
   const o = S.data.objectives[id]; const st = E.objectiveStatus(S, vi, id); const n = st.reqs.filter(r => r.ok).length;
-  return `<div class="sys" data-act="detail" data-k="obj" data-id="${id}" data-p="${vi}" style="width:170px;cursor:pointer;border-color:${st.met ? "var(--good)" : "var(--line)"}"><div class="t">${esc(o.name)} ${symTag(o)}</div><div class="meta">${o.type} · ${o.vp} VP · ${n}/${st.reqs.length} met</div></div>`;
+  return `<div class="sys" data-act="detail" data-k="obj" data-id="${id}" data-p="${vi}" style="width:170px;cursor:pointer;border-color:${st.met ? "var(--good)" : "var(--line)"}"><div class="t">${esc(o.name)} ${symTag(o)}</div><div class="meta">${o.type} · up to ${o.vp} VP · ${n}/${st.reqs.length} met</div></div>`;
 }
 function actionArea(S) {
   const a = actorName(S); if (!a || a.bot || S.dq.length) return "";
@@ -404,7 +404,7 @@ function gatesPanel(S) {
     if (done) { const ok = done.passed.includes(vi); state = ok ? `<b style="color:var(--good)">Passed</b>${done.best === vi ? " ★ favorite" : ""}` : `<b style="color:var(--bad)">Missed</b>`; }
     else if (now) state = `<span class="mute">due end of round ${last}</span>`; else state = `<span class="mute">round ${last}</span>`;
     const reqs = done || !now ? g.reqs.map(r => wordIcons(r)).join(", ") : g.reqs.map(r => { const ok = E.reqOk(S, vi, r); return `<span style="color:${ok ? "var(--good)" : "var(--bad)"}">${ok ? "✓" : "✗"} ${wordIcons(r)}</span>`; }).join(" · ");
-    return `<div style="padding:6px 8px;margin-bottom:4px;border-radius:8px;border:1px solid ${now ? "var(--gold)" : "var(--line)"};${now ? "background:rgba(245,197,66,.07)" : ""}"><div class="row" style="justify-content:space-between"><b>${esc(g.name)}${g.lvl && g.lvl !== "M" ? ` <span style="font-size:11px;font-weight:700;color:${g.lvl === "H" ? "var(--bad)" : "var(--good)"}">${g.lvlName}</span>` : ""}</b>${state}</div><div style="font-size:12px;margin-top:2px">${reqs}</div><div class="mute" style="font-size:11px;margin-top:2px">${g.fund ? "Pass: +" + g.fund + ic("gold") : ""}${g.vp ? (g.fund ? ", " : "Pass: ") + "+" + g.vp + " VP" : ""} · Miss: −${g.penalty} VP</div></div>`;
+    return `<div style="padding:6px 8px;margin-bottom:4px;border-radius:8px;border:1px solid ${now ? "var(--gold)" : "var(--line)"};${now ? "background:rgba(245,197,66,.07)" : ""}"><div class="row" style="justify-content:space-between"><b>${esc(g.name)}${g.lvl && g.lvl !== "M" ? ` <span style="font-size:11px;font-weight:700;color:${g.lvl === "H" ? "var(--bad)" : "var(--good)"}">${g.lvlName}</span>` : ""}</b>${state}</div><div style="font-size:12px;margin-top:2px">${reqs}</div><div class="mute" style="font-size:11px;margin-top:2px">${g.fund ? "Pass: +" + g.fund + ic("gold") : ""}${E.gateEff(S, g).vp ? (g.fund ? ", " : "Pass: ") + "+" + E.gateEff(S, g).vp + " VP" : ""} · Miss: ${E.gateEff(S, g).miss.replace("-", "−")}</div></div>`;
   }).join("");
   let hor = "";
   if (S.cfg.crisisEnabled && S.phase < 3 && S.decks.crisis[S.phase] && S.decks.crisis[S.phase].length) { const id = S.decks.crisis[S.phase][S.decks.crisis[S.phase].length - 1]; const c = S.data.crisis.find(x => x.id === id); if (c) hor = `<div class="mute" style="margin-top:6px;font-size:12px"><b>On the horizon</b> (next phase): ${esc(c.name)}</div>`; }
@@ -422,7 +422,7 @@ function racePanel(S) {
       return `<div class="lane" title="${esc(r.p.name)}: ${r.v}${r.x ? " + " + r.x + " Marketing" : ""}"><span class="rk">${mx0 ? rank : "–"}</span><span class="dot" style="background:${r.p.color}"></span><span class="ln">${esc(r.p.name)}</span><div class="bar"><i style="width:${pc(r.v)};background:${r.p.color}"></i>${r.x ? `<i class="x" style="left:${pc(r.v)};width:${pc(r.x)};background:${r.p.color}"></i>` : ""}${gate ? `<u style="left:${pc(gate)}"></u>` : ""}</div><b class="mono">${r.v + r.x}</b></div>`; }).join("");
     return `<div class="trk"><div class="th">${ic(key)}<b>${title}</b>${gate ? `<span class="mute">gate ${gate}+</span>` : ""}</div>${body}</div>`;
   };
-  return `<div class="panel" data-tut="tracks"><h3>Race tracks <span class="mute" style="text-transform:none;letter-spacing:0">rank earns VP</span></h3>${lane("progress", "Progress", p => p.prod)}${lane("hype", "Hype", p => p.hype, p => Math.floor(p.mktg * (c.mergeMktg ? 0 : c.mktgToHype)))}</div>`;
+  return `<div class="panel" data-tut="tracks"><h3>Race tracks <span class="mute" style="text-transform:none;letter-spacing:0">1 VP per ${c.raceDen} points</span></h3>${lane("progress", "Progress", p => p.prod)}${lane("hype", "Hype", p => p.hype, p => Math.floor(p.mktg * (c.mergeMktg ? 0 : c.mktgToHype)))}</div>`;
 }
 function playersPanel(S) {
   const stand = (S.round >= 4 && !["setup", "end"].includes(S.step)) ? E.score(S) : null;
@@ -488,7 +488,7 @@ function stepScreens(S) {
     out.push({ key: "phase", step: "Reveal", title: `${esc(ph.name)} begins <span class="mute" style="font-size:14px;font-weight:400">· rounds ${rng(S.phase)[0]}${rng(S.phase)[1] !== rng(S.phase)[0] ? "–" + rng(S.phase)[1] : ""}</span>`, body: `<p>${esc(PHASE_GOAL[S.phase] || "")}</p>${g ? `<div class="dsec"><h4>Publisher Gate due at the end of this phase</h4><div><b>${esc(g.name)}</b> [${esc(g.lvlName || "Medium")}]: needs ${esc((g.reqs || []).join(", "))}<br>Pass: ${g.fund ? "+" + g.fund + " Gold" : ""}${g.vp ? "+" + g.vp + " VP" : ""} · Miss: −${g.penalty} VP (never more than ${S.cfg.gateLossCap} VP in total)</div></div>` : ""}${newSp.length ? `<div class="dsec"><h4>New on the board this phase</h4><div class="mute" style="font-size:13px">${newSp.map(esc).join(" · ")}</div></div>` : ""}` });
   }
   if (r > 1 && rn) {
-    out.push({ key: "upkeep", step: "Upkeep", title: "Upkeep", body: `<p class="mute">What happened between rounds: Hype fades, Burnout moves, tired workers recover or quit.</p><table class="tbl" style="width:100%">${th}<tbody>${row("Hype", "fades each round", n => n.hype ? sg(n.hype) : "-")}${row("Burnout", "from last round's work", n => (n.burn ? sg(n.burn) : "-") + `<div class="mute" style="font-size:11px">${esc(n.band || "")}</div>`)}${row("Workers lost", "Exhausted workers who quit", n => n.lost ? sg(-n.lost) : "-")}</tbody></table>` });
+    out.push({ key: "upkeep", step: "Upkeep", title: "Upkeep", body: `<p class="mute">What happened between rounds: Hype fades, Burnout moves, tired workers recover.</p><table class="tbl" style="width:100%">${th}<tbody>${row("Hype", "fades each round", n => n.hype ? sg(n.hype) : "-")}${row("Burnout", "from last round's work", n => (n.burn ? sg(n.burn) : "-") + `<div class="mute" style="font-size:11px">${esc(n.band || "")}</div>`)}${row("Workers lost", "Exhausted workers who quit", n => n.lost ? sg(-n.lost) : "-")}</tbody></table>` });
   }
   if (rn) {
     out.push({ key: "income", step: "Income", title: "Income and salaries", body: `<table class="tbl" style="width:100%">${th}<tbody>${row("Income", "everyone, plus systems", n => `<span style="color:var(--good,#6c6)">${sg(n.income || 0)}G</span>`)}${row("Salaries", "every worker is paid", n => (n.salary ? `<span style="color:var(--bad,#e66)">${sg(-n.salary)}G</span>` : "0G") + (n.short ? `<div class="mute" style="font-size:11px">short by ${n.short}G</div>` : ""))}${cols.some(c => c.n.bonus) ? row("Bonuses", "Burnout band and systems", n => n.bonus ? sg(n.bonus) + "G" : "-") : ""}<tr><td><b>Gold now</b></td>${cols.map(c => `<td style="text-align:right"><b>${c.n.goldNow != null ? c.n.goldNow : c.p.gold}G</b></td>`).join("")}</tr></tbody></table>` });
@@ -644,9 +644,8 @@ function detailModal() {
   switch (d.k) {
     case "worker": {
       const pi = +d.p; const w = P(pi).workers.find(x => x.id === +d.id); if (!w) return closeOnly();
-      const qOdds = "1 in " + Math.round(6 / Math.max(1, S.cfg.lossThreshBase || 1));
       const fatTxt = ["<b>Fresh:</b> ready to work", "<b>Tired:</b> worked last round. Works normally", "<b>Exhausted:</b> worked two rounds in a row"][w.fat];
-      const fatNext = ["Placing them makes them Tired", "Placing them is fine, but then they are Exhausted. Resting recovers one step", "Placing them again is <b>overwork</b>: no skill earned, +1 Burnout, and a " + qOdds + " chance they quit at Upkeep. Resting recovers one step"][w.fat];
+      const fatNext = ["Placing them makes them Tired", "Placing them is fine, but then they are Exhausted. Resting recovers one step", "Placing them again is <b>overwork</b>: no skill earned and +1 Burnout. Resting recovers one step"][w.fat];
       const abil = (w.disc === "PX" || w.disc === "DATA") ? ((w.lvl === "Sr" && w.placed) || (w.lvl === "Jr" && !w.placed) ? "<b>Ability ready:</b> triggers at Rest" : "<b>Ability not active:</b> " + (w.lvl === "Jr" ? "a Junior must rest (stay unplaced)" : "a Senior must be placed")) : "";
       h += discHead(w.disc) + `<div class="dtitle">${w.lvl === "Sr" ? "Senior" : "Junior"} ${esc(dname(w.disc))}</div>`
         + sec("What they do", utilLines(w.disc))
@@ -690,7 +689,7 @@ function detailModal() {
       break; }
     case "obj": {
       const id = +d.id, o = S.data.objectives[id]; if (!o) return closeOnly(); const st = E.objectiveStatus(S, +d.p, id);
-      h += `<div class="dtitle">${esc(o.name)} ${symTag(o)}</div><p class="mute">${o.type} objective · ${o.vp} VP at the end if completed</p>${st.reqs.map(r => `<p style="color:${r.ok ? "var(--good)" : "var(--ink)"}">${r.ok ? "✓" : "○"} ${esc(r.r)}</p>`).join("")}${o.res ? `<p class="mute">Skill: ${ICN[o.res]}. Built systems whose main skill is ${ICN[o.res]} earn synergy VP once this is completed.</p>` : ""}`;
+      h += `<div class="dtitle">${esc(o.name)} ${symTag(o)}</div><p class="mute">${o.type} objective · ${S.cfg.objGraded} VP per requirement met, +${S.cfg.objBonus} if all</p>${st.reqs.map(r => `<p style="color:${r.ok ? "var(--good)" : "var(--ink)"}">${r.ok ? "✓" : "○"} ${esc(r.r)}</p>`).join("")}${o.res ? `<p class="mute">Skill: ${ICN[o.res]}. Built systems whose main skill is ${ICN[o.res]} earn synergy VP once this is completed.</p>` : ""}`;
       break; }
     case "crisis": { const c = S.crisisCard && S.data.crisis.find(x => x.id === S.crisisCard); if (!c) return closeOnly(); h += crisisCardHtml(c); break; }
     default: return closeOnly();
@@ -758,12 +757,12 @@ function scoreModal(S) {
   return modalShell(`<h2>Score if the game ended now</h2><p class="mute">Races are ranked against the other studios, so these numbers move every round.</p>
   <div class="scroll-y"><table class="scoretbl"><thead><tr><th>Studio</th>${cols.map(k => `<th>${k[1]}</th>`).join("")}<th>TOTAL</th></tr></thead><tbody>${body}</tbody></table></div>
   <div class="mute" style="font-size:12px;margin-top:10px;line-height:1.5">
-  <b>Progress and Hype races:</b> VP for your rank, plus 1 VP for every ${c.raceLinDiv} points you have. Hype is ranked together with your Marketing.<br>
+  <b>Progress and Hype:</b> 1 VP for every ${c.raceDen} points you have. Your Marketing counts as Hype. Every studio starts at ${c.baseVP} VP.<br>
   <b>Debt:</b> the most Debt loses the most VP; the least loses none.<br>
   <b>Burnout:</b> costs VP from 2 upward (2: ${c.burnVP[2]}, 3: ${c.burnVP[3]}, 4: ${c.burnVP[4]}, 5: ${c.burnVP[5]}, 6: ${c.burnVP[6]}).<br>
-  <b>Objectives:</b> each completed objective scores the VP printed on its card.${c.objPartial ? " One missing just one requirement earns half of that, rounded down." : ""}<br>
+  <b>Objectives:</b> ${c.objGraded} VP for each requirement you meet, plus ${c.objBonus} more if you meet them all.<br>
   <b>Systems:</b> printed VP x ${c.sysVPMult}. <b>Gold:</b> 1 VP per ${c.goldPerVP} Gold left.<br>
-  <b>Gates and crisis:</b> gate bonuses and penalties (missed gates never cost more than ${c.gateLossCap} VP in total)${awards ? ", +" + c.hypeLeadVP + " VP for the Hype leader at the end of each of the first three phases, +1 VP for the passing studio with the most Progress at each gate" : ""}, and Crisis card results.</div>
+  <b>Gates and crisis:</b> each requirement you miss at a gate costs ${c.gatePerReq} VP, passing the last gate pays +${(c.gateWin || [0,0,0,0])[3]} VP, plus Crisis card results.</div>
   <div style="margin-top:12px;text-align:right"><button class="btn" data-act="close">Close</button></div>`, { wide: true });
 }
 function resultsModal() {

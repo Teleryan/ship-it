@@ -40,7 +40,7 @@ function view(S) {
   if (S.over) { S.scores.forEach(s => o.push("FINAL " + S.players[s.id].name + ": " + s.total + "  parts " + JSON.stringify(s.parts))); }
   { const cc = S.crisisCard && S.data.crisis.find(c => c.id === S.crisisCard); if (cc) o.push("CRISIS CARD this phase: " + cc.name + " - " + (cc.text || cc.desc || "")); }
   o.push((S.phase >= 1 ? "Turn order (set after the Crisis card)" : "Turn order (no Crisis card in Concept)") + ": " + S.order.map(i => S.players[i].name).join(" > "));
-  const gl = E.gateList(S); if (!gl) o.push("Gates: not drawn yet (drawn at the end of round 1)"); if (gl) o.push("Gates: " + gl.map(g => `P${g.phase} ${g.name} [${g.lvlName || "Medium"}] needs ${g.reqs.join(", ")}; pass: ${g.fund ? "+" + g.fund + " Gold" : ""}${g.vp ? "+" + g.vp + " VP" : ""}; miss: -${g.penalty} VP (all gate losses together are capped at ${S.cfg.gateLossCap} VP)`).join(" || "));
+  const gl = E.gateList(S); if (!gl) o.push("Gates: not drawn yet (drawn at the end of round 1)"); if (gl) o.push("Gates: " + gl.map(g => `P${g.phase} ${g.name} [${g.lvlName || "Medium"}] needs ${g.reqs.join(", ")}; pass: ${g.fund ? "+" + g.fund + " Gold" : ""}${E.gateEff(S, g).vp ? " +" + E.gateEff(S, g).vp + " VP" : ""}; miss: ${E.gateEff(S, g).miss}`).join(" || "));
   o.push("");
   S.players.forEach(q => o.push(`${q.id === ME ? "YOU" : q.name}: ${res(q, S)} | workers ${q.workers.length} (Sr ${q.workers.filter(w => w.lvl === "Sr").length}) | systems ${q.systems.map(s => s.name + (s.t ? "*" : "")).join(", ") || "-"} | building ${(q.building || []).map(b => b.name || JSON.stringify(b)).join(", ") || "-"} | VPadj ${q.vpAdj}` + (q.id === ME ? "" : "")));
   o.push("");

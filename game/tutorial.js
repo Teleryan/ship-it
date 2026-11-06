@@ -49,7 +49,7 @@ function tokens(S) {
     recruitCost: c.recruitCost, recruitN: S.recruit ? S.recruit.length : E.recruitSize(S),
     buildDelay: c.buildDelay, crunchGold: c.crunchGold, buildsPerRound: c.buildsPerRound, bank: p.ideas + p.code + p.process + p.buzz,
     convertRate: c.convertRate || 3, refreshGold: c.marketRefreshGold, gateName: esc(g.name || ""), gate2Name: esc(g2.name || ""), gateReqs: esc((g.reqs || []).join(", ")),
-    gateEnd: (c.phaseEnds || [])[g.phase || 0] || "", gateFund: g.fund || 0, gatePenalty: g.penalty || 0,
+    gateEnd: (c.phaseEnds || [])[g.phase || 0] || "", gateFund: g.fund || 0, gatePenalty: g.penalty || 0, gateMiss: E.gateEff(S, g).miss.replace("-", "lose "), gateVP: E.gateEff(S, g).vp, baseVP: c.baseVP || 0, raceDen: c.raceDen || 3, objPer: c.objGraded || 1, objBonus: c.objBonus || 0,
     crisisLine: crisis ? ": <b>" + esc(crisis.name) + "</b>. " + esc(crisis.text) : "",
     nPlayers: S.players.length, gateLossCap: c.gateLossCap || 4, goldPerVP: c.goldPerVP || 3, raceFirst: (E.rankTable(c, S.players.length) || [])[0], raceLast: (E.rankTable(c, S.players.length) || []).slice(-1)[0],
     burnVP: Object.keys(c.burnVP || {}).filter(k => (c.burnVP[k] || 0) < 0).map(k => "Burnout " + k + ": " + c.burnVP[k]).join(", "), cultureBase: c.cultureFoldBase,
