@@ -35,7 +35,7 @@ function view(S) {
   o.push(`ROUND ${S.round}/12  phase ${S.phase}  step ${S.step}  ${S.over ? "GAME OVER" : "actor: " + (E.currentActor(S) < 0 ? "-" : S.players[E.currentActor(S)].name)}`);
   if (S.over) { S.scores.forEach(s => o.push("FINAL " + S.players[s.id].name + ": " + s.total + "  parts " + JSON.stringify(s.parts))); }
   o.push("Turn order: " + S.order.map(i => S.players[i].name).join(" > "));
-  const gl = E.gateList(S); if (!gl) o.push("Gates: not drawn yet (drawn at the end of round 1)"); if (gl) o.push("Gates: " + gl.map(g => `P${g.phase} ${g.name} [${g.lvlName || "Medium"}] needs ${g.reqs.join(", ")}; fund ${g.fund} VP ${g.vp} penalty ${g.penalty}`).join(" || "));
+  const gl = E.gateList(S); if (!gl) o.push("Gates: not drawn yet (drawn at the end of round 1)"); if (gl) o.push("Gates: " + gl.map(g => `P${g.phase} ${g.name} [${g.lvlName || "Medium"}] needs ${g.reqs.join(", ")}; pass: ${g.fund ? "+" + g.fund + " Gold" : ""}${g.vp ? "+" + g.vp + " VP" : ""}; miss: -${g.penalty} VP`).join(" || "));
   o.push("");
   S.players.forEach(q => o.push(`${q.id === ME ? "YOU" : q.name}: ${res(q, S)} | workers ${q.workers.length} (Sr ${q.workers.filter(w => w.lvl === "Sr").length}) | systems ${q.systems.map(s => s.name + (s.t ? "*" : "")).join(", ") || "-"} | building ${(q.building || []).map(b => b.name || JSON.stringify(b)).join(", ") || "-"} | VPadj ${q.vpAdj}` + (q.id === ME ? "" : "")));
   o.push("");
