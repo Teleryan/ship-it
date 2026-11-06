@@ -39,7 +39,7 @@ r("place1w","Step 14 · first worker (Rival's turn)","Place your first worker","
 r("stats","Step 16 · numbers","Your skills","Next",
 "The spot paid out right away. The four icons in your studio panel are your **skills**: Ideas, Code, Process and Buzz. They come from Backlog spots, you spend them on systems that need that discipline, and they carry over between rounds.");
 r("place2","Step 15 · keep placing","Keep placing, or pass","",
-"Each worker can work **once per round**.\n\nYou do not have to place everyone. **A worker you leave unplaced rests** and recovers from tiredness. When you are finished, press **Pass**.");
+"Each worker can work **once per round**.\n\nYou do not have to place everyone. **A worker you leave unplaced rests** and recovers from tiredness. If none of your remaining workers fits an open tile, your turn ends and they rest. When you are finished, press **Pass**.");
 r("build_rd","Step 18 · R&D (after the build)","R&D: build faster","Next",
 "**R&D** speeds up building. Send two workers from different disciplines (Creative + Development, or Operations + Marketing) and **system development is 1 round shorter** for whatever you start building that round. You also skip the Gold fee for crunch.");
 r("tired","Step 21 · tired workers","Tired workers","Next",

@@ -70,6 +70,14 @@ const P = i => U.S.players[i];
 /* ---------- plumbing ---------- */
 function toast(m, ms) { U.toast = m; render(); clearTimeout(U.toastT); U.toastT = setTimeout(() => { U.toast = null; render(); }, ms || 2600); }
 // Tell every player when someone else takes a worker from the shared Recruitment pool (a bot, or another seat online)
+let noticeSeen = 0;
+function noteNotices() { // a player was turned into "done placing" because no tile fits their remaining workers
+  const S = U.S; if (!S || U.screen !== "game") return;
+  const ns = S.notices || []; if (noticeSeen > ns.length) noticeSeen = 0;
+  const fresh = ns.slice(noticeSeen); noticeSeen = ns.length;
+  const mine = fresh.filter(n => U.net ? U.net.mine.includes(n.p) : !S.players[n.p].bot);
+  if (mine.length) setTimeout(() => toast(mine[mine.length - 1].t + ".", 7000), 0);
+}
 function noteRecruits() {
   const S = U.S; if (!S || !S.recruit || U.tut || U.screen !== "game") return;
   if (!U.recSeen || U.recSeen.r !== S.round) { U.recSeen = { r: S.round, ids: {} }; S.recruit.forEach((o, i) => { if (o.by != null) U.recSeen.ids[i] = 1; }); return; }
@@ -662,7 +670,7 @@ function fixSeg(s, keys, m) {
 /* ---------- main render ---------- */
 function render() {
   if (U.S && U.S.data && E.applyLook) E.applyLook(U.S.data);
-  noteRecruits();
+  noteRecruits(); noteNotices();
   const keepFocus = document.activeElement && document.activeElement.id; const val = keepFocus ? document.activeElement.value : null;
   if (U.screen === "gate") $root.innerHTML = SI.copyFix(gateView());
   else if (U.screen === "menu") $root.innerHTML = SI.copyFix(menuView() + (U.modal === "studio" && U.owner ? "\u0001" + studioModal() + "\u0002" : U.modal === "master" && U.owner ? "\u0001" + masterModal() + "\u0002" : U.modal === "cleardata" ? clearDataModal() : ""));

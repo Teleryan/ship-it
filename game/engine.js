@@ -407,7 +407,15 @@ function placeAdvance(S) {
   for (let k = 0; k < n; k++) {
     const idx = (S.cur + k) % n; const pi = S.order[idx];
     if (S.passed.includes(pi)) continue;
-    if (!canAnyPlace(S, pi)) { S.passed.push(pi); continue; }
+    if (!canAnyPlace(S, pi)) {
+      S.passed.push(pi);
+      const left = P(S, pi).workers.filter(w => !w.placed).length;
+      if (left) { // tell the player why their turn ended
+        const msg = P(S, pi).name + (left > 1 ? " has " + left + " workers" : " has a worker") + " with no open tile that fits, so " + (left > 1 ? "they rest" : "that worker rests") + " this round";
+        log(S, msg); (S.notices = S.notices || []).push({ r: S.round, p: pi, t: msg });
+      }
+      continue;
+    }
     S.cur = idx; return;
   }
   // everyone passed -> the Manage step: build, train, promote and cash in milestones in one turn each
