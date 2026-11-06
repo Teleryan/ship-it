@@ -319,7 +319,7 @@ function wsLine(S, p) {
 function playerPanel(S) {
   const vi = viewIndex(S); const p = P(vi); const a = E.currentActor(S); const mine = a === vi && !p.bot;
   const sel = mine && S.step === "place" && !S.dq.length;
-  let h = `<div class="panel"><h3><span style="color:${p.color}">${esc(p.name)}'s systems and goals</span><span class="mute" style="text-transform:none;letter-spacing:0">${p.systems.length} systems</span></h3>`;
+  let h = `<div class="panel" data-tut="mine"><h3><span style="color:${p.color}">${esc(p.name)}'s systems and goals</span><span class="mute" style="text-transform:none;letter-spacing:0">${p.systems.length} systems</span></h3>`;
   // systems
   h += `<div class="sub">Systems <span class="dim">(slots ${S.cfg.slotsPerCategory}/category)</span></div><div class="row wrap">`;
   if (!p.systems.length) h += '<span class="mute">None built.</span>';

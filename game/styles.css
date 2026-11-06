@@ -447,7 +447,7 @@ table.dt input.n{width:62px}
 }
 /* the 170px bottom pad only exists to clear the tutorial coach card */
 .left,.right{padding-bottom:24px}
-.tutmode .left,.tutmode .right{padding-bottom:170px}
+.tutmode .left,.tutmode .right{padding-bottom:var(--coachH,170px)}
 .brow .spots{grid-template-columns:repeat(auto-fill,minmax(128px,1fr))}
 .spot .chip{font-size:11px}
 /* studio tiles: every number carries a visible label (icons alone were only explained by hover tooltips) */
@@ -486,7 +486,7 @@ table.dt input.n{width:62px}
   .right>.pnl-log{order:9}
   .studios{flex-direction:row;overflow-x:auto;scroll-snap-type:x proximity;gap:8px;padding:0 10px 4px 0;-webkit-overflow-scrolling:touch}
   .studios>.pt{flex:0 0 min(300px,86%);scroll-snap-align:start}
-  .tutmode .main{padding-bottom:170px}
+  .tutmode .main{padding-bottom:var(--coachH,170px)}
 }
 @media (max-width:600px){
   .turnbanner .who{font-size:18px}

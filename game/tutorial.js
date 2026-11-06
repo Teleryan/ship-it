@@ -100,7 +100,7 @@ let STEPS = [
   /* ---- how you win, before phases and rounds ---- */
   info("win_vp", { center: true, hl: () => null }),
   info("win_races", { hl: () => "[data-tut=tracks]" }),
-  info("win_build", { hl: () => "[data-tut=market]" }),
+  info("win_build", { hl: () => "[data-tut=mine]" }),
   info("win_lose", { hl: () => ".pt[data-pid='0'] .stats" }),
   info("loop", { hl: () => "[data-tut=steps]" }),
   doing("objectives", { hl: () => ".modal", done: S => !S.dq.some(d => d.t === "keepObj" && d.p === 0), allow: a => a.type === "keepObj" ? null : MSG("msg_obj") }),
@@ -263,7 +263,10 @@ function tutHighlight0(rootEl) {
     const els = rootEl.querySelectorAll(all); els.forEach(el => el.classList.add("tut-hl")); if (els.length && !u.detail) spotSel = all;
     // bring the highlighted area into view (above the coach box): the page itself or, on desktop, the .left/.right column that scrolls
     const el = extra ? rootEl.querySelector(extra) : els[0]; if (el && el.getBoundingClientRect && !u.detail) {
-      const coach = rootEl.querySelector(".coach"), cr = coach ? coach.getBoundingClientRect() : null;
+      const coach = rootEl.querySelector(".coach");
+      // leave room under the columns for the whole coach box, so the highlighted panel can scroll clear of it
+      if (coach) { const need = Math.ceil(coach.getBoundingClientRect().height) + 28; if (rootEl.style.getPropertyValue("--coachH") !== need + "px") rootEl.style.setProperty("--coachH", need + "px"); }
+      const cr = coach ? coach.getBoundingClientRect() : null;
       const sc = el.closest(".left,.right"), scrolls = sc && sc.scrollHeight > sc.clientHeight + 2 && getComputedStyle(sc).overflowY !== "visible";
       const box = scrolls ? sc.getBoundingClientRect() : { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth };
       const top = Math.max(box.top, 0) + 16;
