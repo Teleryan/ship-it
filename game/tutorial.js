@@ -290,7 +290,7 @@ function tutHighlight0(rootEl) {
 SI.tutAuto = function () { const u = U(), T = u.tut; T.auto = true; u.S.players[0].bot = true; };
 const PARTS = [
   ["prodShare", "Progress race", "VP for where your Progress ranks against the other studios: 1st place pays most, ties split the points."],
-  ["hypeStrength", "Hype race", "Where your Hype ranks. At the end of the game your Marketing is added to your Hype, so Marketing is permanent buzz while Hype itself fades every round."],
+  ["hypeStrength", "Hype race", "Where your Hype ranks. At the end of the game your Wishlists are added to your Hype, so Wishlists are permanent while Hype itself fades every round."],
   ["debtPenalty", "Tech Debt", "The studio with the most Debt loses the most VP; the studio with the least loses none. Debt comes from crunched spots and some systems; Quality workers, Engineers and Stability systems clear it."],
   ["culture", "Culture", "The studio with the lowest Culture loses the most VP; the best loses none. Good culture also helps workers stay."],
   ["objectives", "Objectives", "Your secret goals. VP only for the ones you completed."],
@@ -305,7 +305,7 @@ SI.tutScoreExplainer = function (S) {
   const PT = PARTS.filter(p => p[0] !== "culture").map(p => [p[0], rw("explain_" + p[0]).title || p[1], rw("explain_" + p[0]).text || p[2]]);
   const q = r.parts;
   return `<div class="explain"><h3>How your ${b(Math.round(r.total) + " VP")} was made</h3>
-  <p class="mute" style="margin:2px 0 8px">Your row, in plain language. You finished with ${b(S.players[0].debt + " Debt")} and ${b(S.players[0].mktg + " Marketing")}.</p>
+  <p class="mute" style="margin:2px 0 8px">Your row, in plain language. You finished with ${b(S.players[0].debt + " Debt")} and ${b(S.players[0].mktg + " Wishlists")}.</p>
   <table class="scoretbl"><tbody>${PT.map(p => `<tr><td style="white-space:nowrap">${esc(p[1])}</td><td class="mono" style="text-align:right;padding:0 10px">${(+q[p[0]]).toFixed(0)}</td><td class="mute" style="font-size:12px;text-align:left">${esc(p[2])}</td></tr>`).join("")}</tbody></table>
   <p class="mute" style="margin-top:8px">${note}</p></div>`;
 };

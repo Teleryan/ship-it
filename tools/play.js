@@ -24,10 +24,10 @@ function botsUntilMe(S) {
     const r = B.step(S); if (!r.ok) { console.log("BOT ERROR", JSON.stringify(r)); return; }
   }
 }
-function res(p, S) { return `Gold ${p.gold} | Ideas ${p.ideas} Code ${p.code} Process ${p.process} Buzz ${p.buzz} | Progress ${p.prod} Marketing ${p.mktg} Hype ${p.hype} | Debt ${p.debt} | Culture ${E.cultureOf(S, p)} Burnout ${p.burnout}`; }
+function res(p, S) { return `Gold ${p.gold} | Ideas ${p.ideas} Code ${p.code} Process ${p.process} Buzz ${p.buzz} | Progress ${p.prod} Wishlists ${p.mktg} Hype ${p.hype} | Debt ${p.debt} | Culture ${E.cultureOf(S, p)} Burnout ${p.burnout}`; }
 const FATN = ["Fresh", "Tired", "EXHAUSTED (no skill if placed, +Burnout, quit risk)"];
 function W(w) { return `#${w.id} ${w.lvl} ${w.disc}${w.as ? "(as " + w.as + ")" : ""} ${FATN[w.fat]}${w.placed ? " PLACED" : ""}${w.training ? " TRAINING (sits out)" : ""}${w.benched ? " BENCHED: " + w.benched + " (cannot be placed this round)" : ""}${w.build ? " BUILDING " + w.build + " (locked until done)" : ""}`; }
-const SCORE_LBL = { prodShare: "Progress race", hypeStrength: "Hype race (Hype+Marketing)", debtPenalty: "Debt", burnout: "Burnout", objectives: "Objectives", synergy: "Synergy", systems: "Systems", gold: "Leftover Gold", gateVP: "Gates (pass +VP / miss -VP)", hypeLeadVP: "Hype leader", favVP: "Publisher favourite", cardVP: "Crisis / Investor / Buyout cards", reach: "Reach leader" };
+const SCORE_LBL = { prodShare: "Progress race", hypeStrength: "Hype race (Hype+Wishlists)", debtPenalty: "Debt", burnout: "Burnout", objectives: "Objectives", synergy: "Synergy", systems: "Systems", gold: "Leftover Gold", gateVP: "Gates (pass +VP / miss -VP)", hypeLeadVP: "Hype leader", favVP: "Publisher favourite", cardVP: "Crisis / Investor / Buyout cards", reach: "Reach leader" };
 function scoreTable(S) { return E.score(S).map(s => S.players[s.id].name + " " + s.total + "  (" + Object.keys(s.parts || s).filter(k => SCORE_LBL[k] && (s.parts || s)[k]).map(k => SCORE_LBL[k] + " " + (s.parts || s)[k]).join(", ") + ")").join("\n"); }
 const OB = i => { const ob = D.objectives[i]; return `[${i}] ${ob.name} ${ob.vp}VP needs ${ob.reqs.join(" + ")}`; };
 const MS = i => { const m = (CUR && CUR.data ? CUR.data : D).milestones[i]; return `[${i}] ${m.name}: ${m.text} (+${m.gold}G, claimable in ${[].concat(m.phases).map(i => (D.phases && D.phases[i] || {}).name || i).join(" / ")})`; };
@@ -66,7 +66,7 @@ function view(S) {
       const ok = E.placementOptions(S, ME, w).filter(x => x.ok || x.wsNeed);
       o.push(`  ${W(w)}: ` + (ok.map(x => x.target + (x.wsNeed ? "(needs workstation: buyws first)" : "") + (x.as && x.as.length > 1 ? "{as:" + x.as.join("/") + "}" : "")).join(", ") || "none" + (w.benched ? " (benched: " + w.benched + ")" : w.fat >= 2 ? " (Exhausted: only strike-team partner or skill-less tiles)" : " (no open tile fits this role/level now)")));
     });
-    o.push('Targets are written exactly as listed (spot:ID or sys:N). crew = the PARTNER worker ids only (not the placing worker); an invalid list is rejected. A Wild partner is given whichever role the tile needs automatically; \"as\" is only for the placing worker. Actions: {"type":"place","p":0,"worker":ID,"target":"TARGET"[,"as":"DISC"][,"crew":[ids]][,"choice":0|1 (for \"A OR B\" tiles such as Crunch Bonus: 0 = first effect, 1 = second)][,"bonus":"mktg" (Senior bonus: +1 Marketing instead of +1 Progress)]} | {"type":"recruit","p":0,"idx":N} | {"type":"buyws","p":0} | {"type":"pass","p":0}');
+    o.push('Targets are written exactly as listed (spot:ID or sys:N). crew = the PARTNER worker ids only (not the placing worker); an invalid list is rejected. A Wild partner is given whichever role the tile needs automatically; \"as\" is only for the placing worker. Actions: {"type":"place","p":0,"worker":ID,"target":"TARGET"[,"as":"DISC"][,"crew":[ids]][,"choice":0|1 (for \"A OR B\" tiles such as Crunch Bonus: 0 = first effect, 1 = second)][,"bonus":"mktg" (Senior bonus: +1 Wishlists instead of +1 Progress)]} | {"type":"recruit","p":0,"idx":N} | {"type":"buyws","p":0} | {"type":"pass","p":0}');
   } else if (E.currentActor(S) === ME && S.step === "rest") {
     o.push("MANAGE PHASE. Market: " + JSON.stringify(S.market));
     const names = [].concat.apply([], Object.values(S.market));

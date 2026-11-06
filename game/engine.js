@@ -37,7 +37,7 @@ const RES = ["ideas", "code", "process", "buzz"];
 const RES_OF = { Creative: "ideas", Development: "code", Operations: "process", Marketing: "buzz" };
 const RES_NAME = { ideas: "Ideas", code: "Code", process: "Process", buzz: "Buzz" };
 const CAT_OF = d => D0.disciplines[d].cat;
-const STAT_KEY = { ideas:"ideas", code:"code", process:"process", buzz:"buzz", progress:"prod", marketing:"mktg", prod:"prod", mktg:"mktg", hype:"hype", culture:"culture", cult:"culture", debt:"debt" };
+const STAT_KEY = { ideas:"ideas", code:"code", process:"process", buzz:"buzz", progress:"prod", marketing:"mktg", wishlists:"mktg", wishlist:"mktg", prod:"prod", mktg:"mktg", hype:"hype", culture:"culture", cult:"culture", debt:"debt" };
 E.parseEffect = function (str) {
   const fx = { stats:{}, gold:0, draws:{ mile:0 }, keepMile:0, choice:null, per:null, notes:[] };
   if (!str) return fx;
@@ -47,7 +47,7 @@ E.parseEffect = function (str) {
   }
   str.split(",").map(s => s.trim()).filter(Boolean).forEach(tok => {
     let m;
-    if ((m = tok.match(/^([+-]\d+)\s*(Progress|Prod|Marketing|Mktg|Hype|Culture|Cult|Debt|Ideas|Code|Process|Buzz)$/i))) {
+    if ((m = tok.match(/^([+-]\d+)\s*(Progress|Prod|Marketing|Wishlists|Wishlist|Mktg|Hype|Culture|Cult|Debt|Ideas|Code|Process|Buzz)$/i))) {
       const k = STAT_KEY[m[2].toLowerCase()]; fx.stats[k] = (fx.stats[k] || 0) + parseInt(m[1], 10);
     } else if ((m = tok.match(/^([+-]\d+)G\s+per\s+(\w+)(?:\s*\(max\s*(\d+)G\))?$/i))) {
       fx.per = { gold: parseInt(m[1], 10), of: m[2], max: m[3] ? parseInt(m[3], 10) : 99 };
@@ -453,8 +453,8 @@ function endOfRound(S) {
     const mx = Math.max.apply(null, S.players.map(q => q.hype)), tops = S.players.filter(q => q.hype === mx);
     if (tops.length === 1 && mx >= (S.cfg.hypeLeadMin || 1) && S.players.length >= (S.cfg.awardMinN || 0)) { tops[0].vpAdj += S.cfg.hypeLeadVP; tops[0].vpHL = (tops[0].vpHL || 0) + S.cfg.hypeLeadVP; S.hypeLead = (S.hypeLead || []).concat([{ phase: S.phase, id: tops[0].id, vp: S.cfg.hypeLeadVP }]); log(S, "HYPE LEADER: " + tops[0].name + " has the most Hype (" + mx + ") at the end of " + D0.phases[S.phase].name + ": +" + S.cfg.hypeLeadVP + " VP"); }
   }
-  if (S.cfg.hypeBank && S.phase < 3 && PHASE_OF_ROUND(S.round + 1) !== S.phase) { // lock in: when a phase closes, Hype is banked as Marketing, which never fades
-    S.players.forEach(q => { const x = Math.min(S.cfg.hypeBank, q.hype); if (x > 0) { q.hype -= x; q.mktg += x; log(S, q.name + " banks " + x + " Hype as Marketing"); } });
+  if (S.cfg.hypeBank && S.phase < 3 && PHASE_OF_ROUND(S.round + 1) !== S.phase) { // lock in: when a phase closes, Hype is banked as Wishlists, which never fade
+    S.players.forEach(q => { const x = Math.min(S.cfg.hypeBank, q.hype); if (x > 0) { q.hype -= x; q.mktg += x; log(S, q.name + " banks " + x + " Hype as Wishlists"); } });
   }
   return false;
 }
@@ -512,7 +512,7 @@ function drawGates(S) {
    Easy and Hard scale the numeric targets (Progress, Marketing, Hype up with level; Debt limits tighten with level) and the funding, VP and miss penalty. */
 function scaleReq(r, thr) {
   let m; const sc = n => Math.max(1, thr < 1 ? Math.floor(n * thr) : Math.ceil(n * thr));
-  if ((m = r.match(/^(\d+)\+(\s*(?:Progress|Product|Marketing|Mktg)(?: value)?)$/))) return sc(+m[1]) + "+" + m[2];
+  if ((m = r.match(/^(\d+)\+(\s*(?:Progress|Product|Marketing|Wishlists|Mktg)(?: value)?)$/))) return sc(+m[1]) + "+" + m[2];
   if ((m = r.match(/^(\d+)\+(\s*Hype(?: at Launch)?)$/))) return sc(+m[1]) + "+" + m[2];
   if ((m = r.match(/^Debt\s*<\s*(\d+)%$/))) return "Debt < " + Math.max(5, Math.min(95, Math.round(+m[1] / thr))) + "%";
   return r;
@@ -1092,7 +1092,7 @@ const CRISIS_START = {
 const CRISIS_CHOICE = {
   platform(S, p, k) {
     const pl = P(S, p);
-    if (k === "C") { gain(S, p, "mktg", 2); gain(S, p, "culture", -1); log(S, pl.name + " hedges: +2 Mktg, -1 Culture"); }
+    if (k === "C") { gain(S, p, "mktg", 2); gain(S, p, "culture", -1); log(S, pl.name + " hedges: +2 Wishlists, -1 Culture"); }
     else if (k === "B") {
       const fresh = S.decks.obj.Platform.pop(); const old = pl.objectives.find(id => S.data.objectives[id].type === "Platform");
       if (fresh == null) { log(S, "Platform deck empty"); return; }
@@ -1218,7 +1218,7 @@ E.milestoneMet = (S, pi, idx) => { const m = S.data.milestones[idx]; const f = M
 const WNAME = { Engineer:"ENG", Artist:"ART", Art:"ART", Design:"DES", Designer:"DES", Analytics:"DATA", DATA:"DATA", PX:"PX", Community:"PX", Adv:"ADV", Advertising:"ADV", QA:"QA", Quality:"QA" };
 function reqCheck(S, p, r) {
   let m;
-  if ((m = r.match(/^(\d+)\+\s*(Progress|Product|Marketing|Mktg)(?: value)?$/))) return (/^Pro/.test(m[2]) ? p.prod : p.mktg) >= +m[1];
+  if ((m = r.match(/^(\d+)\+\s*(Progress|Product|Marketing|Wishlists|Mktg)(?: value)?$/))) return (/^Pro/.test(m[2]) ? p.prod : p.mktg) >= +m[1];
   if ((m = r.match(/^(\d+)\+\s*Hype(?: at Launch)?$/))) return p.hype >= +m[1];
   if ((m = r.match(/^Debt\s*<\s*(\d+)%$/))) return debtPct(S, p) < +m[1];
   if ((m = r.match(/^(\d+)%\s*Tech Debt at Launch$/))) return debtPct(S, p) <= +m[1] && p.debt === 0;
@@ -1229,7 +1229,7 @@ function reqCheck(S, p, r) {
   if ((m = r.match(/^(\d+)\+\s*Sr workers$/))) return sr(p) >= +m[1];
   if ((m = r.match(/^(\d+) or fewer workers$/))) return p.workers.length <= +m[1];
   if ((m = r.match(/^(\d+)\+\s*(\w+)\s*workers?$/))) { const d = WNAME[m[2]]; if (d && S.cfg.objCat) { const cat = D0.disciplines[d].cat; return p.workers.reduce((a, w) => a + (catsOf(w).includes(cat) ? (w.lvl === 'Sr' ? 2 : 1) : 0), 0) >= +m[1]; } return d ? countWeighted(p, d) >= +m[1] : false; }
-  if ((m = r.match(/^Highest (Progress|Product|Marketing) Share %$/))) { const k = /^Pro/.test(m[1]) ? "prod" : "mktg"; return p[k] > 0 && S.players.every(q => q.id === p.id || q[k] < p[k]); }
+  if ((m = r.match(/^Highest (Progress|Product|Marketing|Wishlists) Share %$/))) { const k = /^Pro/.test(m[1]) ? "prod" : "mktg"; return p[k] > 0 && S.players.every(q => q.id === p.id || q[k] < p[k]); }
   if (/^Launch by Round/.test(r)) return false; // cannot be satisfied: game always runs to Round 12 (flagged in review)
   return false;
 }

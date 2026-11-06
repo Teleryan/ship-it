@@ -34,7 +34,7 @@ function summary(gs) {
   const byN = {}; done.forEach(g => { (byN[g.n] = byN[g.n] || []).push(g); });
   const rows = Object.keys(byN).sort().map(n => {
     const a = byN[n], win = a.map(g => Math.max.apply(null, g.scores.map(s => s.total))), gp = a.map(gap).filter(x => x != null);
-    return { n, games: a.length, avgWin: avg(win), medWin: med(win), band: win.filter(v => v >= 100 && v <= 140).length / a.length, gap: med(gp), minWin: Math.min.apply(null, win), maxWin: Math.max.apply(null, win), rounds: avg(a.map(g => g.rounds)), mins: avg(a.map(g => (g.endedAt - g.startedAt) / 60000)) };
+    return { n, games: a.length, avgWin: avg(win), medWin: med(win), band: win.filter(v => v >= 38 && v <= 68).length / a.length, gap: med(gp), minWin: Math.min.apply(null, win), maxWin: Math.max.apply(null, win), rounds: avg(a.map(g => g.rounds)), mins: avg(a.map(g => (g.endedAt - g.startedAt) / 60000)) };
   });
   // win rate by persona (bots), by seat position, by turn order slot
   const persona = {}, order = {};
@@ -60,7 +60,7 @@ function renderAnalytics() {
   const envs = ["all"].concat(Array.from(new Set(all.map(g => g.env)))), tunes = ["all"].concat(Array.from(new Set(all.map(g => g.tuned)))), modes = ["all", "hotseat", "online"];
   let h = `<div class="row wrap" style="gap:8px;margin-bottom:10px"><label class="mute">Environment</label><select data-mf="env">${opts(envs, m.f.env)}</select><label class="mute">Mode</label><select data-mf="mode">${opts(modes, m.f.mode)}</select><label class="mute">Tuning</label><select data-mf="tuned">${opts(tunes, m.f.tuned)}</select><button class="btn sm" data-act="m-refresh">Refresh</button><span class="mute">${gs.length} of ${all.length} games · ${S.done.length} finished · ${S.accts} online accounts</span></div>`;
   if (!gs.length) return h + `<p class="mute">No games recorded yet. Every game played on the hosted site sends a record when it ends (or when someone leaves after round 2).</p>`;
-  h += `<h3>Winning score by player count <span class="mute" style="text-transform:none;letter-spacing:0">(goal: 100–140)</span></h3>` + table(["Players", "Games", "Median winner VP", "Average", "Low – high", "In 100–140", "Median 1st–2nd gap", "Avg minutes"],
+  h += `<h3>Winning score by player count <span class="mute" style="text-transform:none;letter-spacing:0">(goal: 38–68)</span></h3>` + table(["Players", "Games", "Median winner VP", "Average", "Low – high", "In 38–68", "Median 1st–2nd gap", "Avg minutes"],
     S.rows.map(r => [r.n, r.games, f1(r.medWin), f1(r.avgWin), `${f1(r.minWin)} – ${f1(r.maxWin)}`, Math.round(r.band * 100) + "%", f1(r.gap), f1(r.mins)]));
   h += `<h3>Who wins</h3>` + table(["Player type", "Seats played", "Win rate", "Average VP"], Object.keys(S.persona).sort().map(k => { const p = S.persona[k]; return [esc(k), p.g, pct(p.w, p.g), f1(p.vp / p.g)]; }));
   h += `<div class="mute" style="margin:6px 0">Turn order slot (slot/players): ` + Object.keys(S.order).sort().map(k => `<b>${k}</b> ${pct(S.order[k].w, S.order[k].g)} (${S.order[k].g})`).join(" · ") + `</div>`;

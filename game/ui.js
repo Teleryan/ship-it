@@ -39,7 +39,7 @@ const IC = {
   debt: '<ellipse cx="8" cy="9.2" rx="3.2" ry="3.9"/><path d="M8 5.3V3.2M5.4 7 2.8 5.6M10.6 7l2.6-1.4M4.8 10H2.2M11.2 10h2.6M5.6 12.4l-2 1.6M10.4 12.4l2 1.6"/>',
   gold: '<circle cx="8" cy="8" r="5.8"/><path d="M8 4.6v6.8M6.2 6.4c0-.8.8-1.2 1.8-1.2s1.8.4 1.8 1.2c0 1.6-3.6.8-3.6 2.4 0 .8.8 1.2 1.8 1.2s1.8-.4 1.8-1.2"/>'
 };
-const ICN = { ideas: "Ideas", code: "Code", process: "Process", buzz: "Buzz", progress: "Progress", hype: "Hype", marketing: "Marketing", culture: "Culture", burnout: "Burnout", debt: "Tech Debt", gold: "Gold" };
+const ICN = { ideas: "Ideas", code: "Code", process: "Process", buzz: "Buzz", progress: "Progress", hype: "Hype", marketing: "Wishlists", culture: "Culture", burnout: "Burnout", debt: "Tech Debt", gold: "Gold" };
 const ICC = { burnout: "var(--bad)", ideas: "var(--ideas)", code: "var(--code)", process: "var(--process)", buzz: "var(--buzz)", progress: "var(--pr)", hype: "var(--hype)", marketing: "var(--mk)", culture: "#7bd88f", debt: "#ff7b72", gold: "var(--gold)" };
 const ic = k => `<span class="ico" data-tip="${ICN[k]}" tabindex="0" role="img" aria-label="${ICN[k]}"><svg class="ic" viewBox="0 0 16 16" fill="none" stroke="${ICC[k]}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span>`;
 const KEY_ORDER = ["ideas", "code", "process", "buzz", "progress", "hype", "marketing", "culture", "burnout", "debt", "gold"];
@@ -49,12 +49,12 @@ const RES_ICONS = E.RES.map(ic).join("");
 const resNow = p => E.RES.map(k => `<span class="rchip" style="--c:${RC[k]}">${ic(k)}<b class="mono">${p[k]}</b></span>`).join(" ");
 const fxTxt = s => fxHtml(s);
 // words in requirement text become icons
-const wordIcons = s => esc(s).replace(/\b(Progress|Hype|Marketing|Debt|Culture)\b/g, w => ic(FXK[w.toLowerCase()]));
+const wordIcons = s => esc(s).replace(/\b(Progress|Hype|Wishlists|Debt|Culture)\b/g, w => ic(FXK[w.toLowerCase()]));
 // effect text ("+3 Progress, -1 Debt, +2G") as icon chips; anything unrecognised stays as plain text
-const FXK = { progress: "progress", prod: "progress", hype: "hype", marketing: "marketing", mktg: "marketing", culture: "culture", debt: "debt" };
+const FXK = { progress: "progress", prod: "progress", hype: "hype", marketing: "marketing", wishlists: "marketing", mktg: "marketing", culture: "culture", debt: "debt" };
 function fxHtml(str) {
   return String(str || "").split(/,\s*/).filter(Boolean).map(part => {
-    let m = part.match(/^([+-])(\d+)\s+(Progress|Hype|Marketing|Culture|Debt)$/i), k;
+    let m = part.match(/^([+-])(\d+)\s+(Progress|Hype|Wishlists|Culture|Debt)$/i), k;
     if (m) { k = FXK[m[3].toLowerCase()]; const good = k === "debt" ? m[1] === "-" : m[1] === "+"; return `<span class="fx1 ${good ? "g" : "b"}">${m[1] === "-" ? "−" : "+"}${m[2]}${ic(k)}</span>`; }
     m = part.match(/^([+-])(\d+)G$/); if (m) return `<span class="fx1 ${m[1] === "+" ? "g" : "b"}">${m[1] === "-" ? "−" : "+"}${m[2]}${ic("gold")}</span>`;
     return `<span class="fx1 t">${esc(part)}</span>`;
@@ -294,7 +294,7 @@ function raceRules(S) {
   const c = S.cfg, N = S.players.length, tab = E.rankTable(c, N), ord = ["1st", "2nd", "3rd", "4th", "5th", "6th"];
   const lossT = mx => { const t = []; for (let k = 0; k < N; k++) t.push(N > 1 ? Math.round(mx * (N - 1 - k) / (N - 1)) : 0); return t; };
   const box = (title, body, col) => `<div class="pt" style="border-color:${col};flex:1;min-width:150px"><b style="color:${col}">${title}</b><div class="mute">${body}</div></div>`;
-  return `<div class="row wrap" style="margin-top:8px;gap:6px">${box("PROGRESS RACE", "1 VP for every " + c.raceDen + " Progress", "#3498db")}${box("HYPE RACE (Hype + Marketing)", "1 VP for every " + c.raceDen + " Hype", "#e67e22")}${box("DEBT (most loses most)", lossT(c.debtLossMax).map((v, i) => (i === N - 1 ? "least" : ord[i] + " most") + " −" + v).join(" · ").replace(/−0/g, "0"), "#c0392b")}${box("CULTURE (least loses most)", lossT(c.cultLossMax).map((v, i) => (i === N - 1 ? "best" : ord[i] + " lowest") + " −" + v).join(" · ").replace(/−0/g, "0"), "#27ae60")}</div><div class="mute" style="font-size:12px;margin-top:4px">At the end of the game, ${c.mktgToHype === 1 ? "your Marketing is added to your Hype" : "Marketing adds to Hype"} for the Hype race.</div>`;
+  return `<div class="row wrap" style="margin-top:8px;gap:6px">${box("PROGRESS RACE", "1 VP for every " + c.raceDen + " Progress", "#3498db")}${box("HYPE RACE (Hype + Wishlists)", "1 VP for every " + c.raceDen + " Hype", "#e67e22")}${box("DEBT (most loses most)", lossT(c.debtLossMax).map((v, i) => (i === N - 1 ? "least" : ord[i] + " most") + " −" + v).join(" · ").replace(/−0/g, "0"), "#c0392b")}${box("CULTURE (least loses most)", lossT(c.cultLossMax).map((v, i) => (i === N - 1 ? "best" : ord[i] + " lowest") + " −" + v).join(" · ").replace(/−0/g, "0"), "#27ae60")}</div><div class="mute" style="font-size:12px;margin-top:4px">At the end of the game, ${c.mktgToHype === 1 ? "your Wishlists are added to your Hype" : "Wishlists add to Hype"} for the Hype race.</div>`;
 }
 const launchThresholds = S => raceRules(S);
 function viewIndex(S) {
@@ -419,7 +419,7 @@ function racePanel(S) {
     const gate = tgt(title), mx = Math.max(20, gate + 4, ...rows.map(r => r.v + r.x)) * 1.08;
     let rank = 0, prev = null; const mx0 = rows.some(r => r.v + r.x > 0);
     const body = rows.map((r, i) => { if (r.v + r.x !== prev) rank = i + 1; prev = r.v + r.x; const pc = n => (n / mx * 100).toFixed(1) + "%";
-      return `<div class="lane" title="${esc(r.p.name)}: ${r.v}${r.x ? " + " + r.x + " Marketing" : ""}"><span class="rk">${mx0 ? rank : "–"}</span><span class="dot" style="background:${r.p.color}"></span><span class="ln">${esc(r.p.name)}</span><div class="bar"><i style="width:${pc(r.v)};background:${r.p.color}"></i>${r.x ? `<i class="x" style="left:${pc(r.v)};width:${pc(r.x)};background:${r.p.color}"></i>` : ""}${gate ? `<u style="left:${pc(gate)}"></u>` : ""}</div><b class="mono">${r.v + r.x}</b></div>`; }).join("");
+      return `<div class="lane" title="${esc(r.p.name)}: ${r.v}${r.x ? " + " + r.x + " Wishlists" : ""}"><span class="rk">${mx0 ? rank : "–"}</span><span class="dot" style="background:${r.p.color}"></span><span class="ln">${esc(r.p.name)}</span><div class="bar"><i style="width:${pc(r.v)};background:${r.p.color}"></i>${r.x ? `<i class="x" style="left:${pc(r.v)};width:${pc(r.x)};background:${r.p.color}"></i>` : ""}${gate ? `<u style="left:${pc(gate)}"></u>` : ""}</div><b class="mono">${r.v + r.x}</b></div>`; }).join("");
     return `<div class="trk"><div class="th">${ic(key)}<b>${title}</b>${gate ? `<span class="mute">gate ${gate}+</span>` : ""}</div>${body}</div>`;
   };
   return `<div class="panel" data-tut="tracks"><h3>Race tracks <span class="mute" style="text-transform:none;letter-spacing:0">1 VP per ${c.raceDen} points</span></h3>${lane("progress", "Progress", p => p.prod)}${lane("hype", "Hype", p => p.hype, p => Math.floor(p.mktg * (c.mergeMktg ? 0 : c.mktgToHype)))}</div>`;
@@ -757,7 +757,7 @@ function scoreModal(S) {
   return modalShell(`<h2>Score if the game ended now</h2><p class="mute">Races are ranked against the other studios, so these numbers move every round.</p>
   <div class="scroll-y"><table class="scoretbl"><thead><tr><th>Studio</th>${cols.map(k => `<th>${k[1]}</th>`).join("")}<th>TOTAL</th></tr></thead><tbody>${body}</tbody></table></div>
   <div class="mute" style="font-size:12px;margin-top:10px;line-height:1.5">
-  <b>Progress and Hype:</b> 1 VP for every ${c.raceDen} points you have. Your Marketing counts as Hype. Every studio starts at ${c.baseVP} VP.<br>
+  <b>Progress and Hype:</b> 1 VP for every ${c.raceDen} points you have. Your Wishlists count as Hype.<br>
   <b>Debt:</b> the most Debt loses the most VP; the least loses none.<br>
   <b>Burnout:</b> costs VP from 2 upward (2: ${c.burnVP[2]}, 3: ${c.burnVP[3]}, 4: ${c.burnVP[4]}, 5: ${c.burnVP[5]}, 6: ${c.burnVP[6]}).<br>
   <b>Objectives:</b> ${c.objGraded} VP for each requirement you meet, plus ${c.objBonus} more if you meet them all.<br>
@@ -769,7 +769,7 @@ function resultsModal() {
   const S = U.S; const rows = S.scores.slice().sort((a, b) => b.total - a.total);
   const cols = [["prodShare", "Progress race"], ["hypeStrength", "Hype race"], ["debtPenalty", "Debt"], ["burnout", "Burnout"], ["objectives", "Obj."], ["synergy", "Synergy"], ["systems", "Sys"], ["gold", "Gold"], ["crisis", "Crisis/Gates"]];
   let h = `<h2>${esc(P(S.winner).name)} ships the best game!</h2><div class="scroll-y"><table class="scoretbl"><thead><tr><th>Studio</th>${cols.map(c => `<th>${c[1]}</th>`).join("")}<th>TOTAL</th></tr></thead><tbody>`;
-  rows.forEach(r => { h += `<tr class="${r.id === S.winner ? "win" : ""}"><td><span class="dot" style="background:${P(r.id).color};display:inline-block;margin-right:6px"></span>${esc(r.name)}${r.id === S.winner ? ' <span class="wintag">Winner</span>' : ""} <span class="dim">Debt ${P(r.id).debt} · Mktg ${P(r.id).mktg}</span></td>${cols.map(c => `<td>${(+r.parts[c[0]]).toFixed(0)}</td>`).join("")}<td><b>${r.total.toFixed(0)}</b></td></tr>`; });
+  rows.forEach(r => { h += `<tr class="${r.id === S.winner ? "win" : ""}"><td><span class="dot" style="background:${P(r.id).color};display:inline-block;margin-right:6px"></span>${esc(r.name)}${r.id === S.winner ? ' <span class="wintag">Winner</span>' : ""} <span class="dim">Debt ${P(r.id).debt} · Wishlists ${P(r.id).mktg}</span></td>${cols.map(c => `<td>${(+r.parts[c[0]]).toFixed(0)}</td>`).join("")}<td><b>${r.total.toFixed(0)}</b></td></tr>`; });
   h += `</tbody></table>${U.tut || U.tutDone ? SI.tutScoreExplainer(S) : ""}</div><div class="row" style="margin-top:14px"><button class="btn primary" data-act="${U.net ? "online-again" : "start"}">${U.tut || U.tutDone ? "Start a real game" : "Play again"}</button><button class="btn" data-act="menu">Menu</button><button class="btn" data-act="close">Close</button></div>`;
   return modalShell(h, { wide: true });
 }

@@ -7,11 +7,11 @@ r("welcome","Step 1 · opening card","Welcome to Ship It!","Let's go",
 r("win_vp","Step 2 · how you win","How you win","Next",
 "**Finish round 12 with the most Victory Points (VP).**\n\nVP come from five sources: the **Progress and Hype races**, the **systems** you build, your secret **objectives**, **publisher gates**, and **leftover Gold** (every {goldPerVP} Gold is worth 1 VP).\n\nEach one is explained when it first comes up in play.");
 r("races","Production start · the races","The Progress and Hype races","Next",
-"Progress and Hype are races. At the end of the game, every studio is ranked on each track and paid VP by rank. With **{nPlayers} players**, 1st place earns **{raceFirst} VP** in each race and last place earns **{raceLast}**. Ties share the points.\n\n**Progress** measures how finished your game is, and you earn it from Prototype spots. **Hype** measures how much the world wants your game, and you earn it from Pitch Deck spots. The Race tracks panel shows where every studio stands.");
+"Progress and Hype are races. At the end of the game, every **{raceDen} points** of Progress earns **1 VP**, and every {raceDen} points of Hype earns **1 VP**. There are no rank prizes, so every point you earn counts.\n\n**Progress** measures how finished your game is, and you earn it from Prototype spots. **Hype** measures how much the world wants your game, and you earn it from Pitch Deck spots. The Race tracks panel shows where every studio stands.");
 r("hype_bank","Production start · banking Hype","Banking Hype","Got it",
-"Hype fades by {hypeDecay} every round. To keep it, each studio **banks up to {hypeBank} Hype as Marketing** at the end of every phase.\n\nMarketing never fades, and it is added to your Hype at the end of the game.");
+"Hype fades by {hypeDecay} every round. To keep it, each studio **banks up to {hypeBank} Hype as Wishlists** at the end of every phase.\n\nWishlists never fade, and they are added to your Hype at the end of the game. Publisher Gates count Hype only.");
 r("objectives","Step 7 · pick objectives","Secret objectives","",
-"**Objectives** are secret cards that pay VP at the end of the game, but only if you complete them.\n\nEach row offers 2 cards. Read what each card requires, choose one card per row, then press **Confirm objectives**. Each card shows a skill icon: a finished system whose main skill matches a completed objective earns bonus VP.");
+"**Objectives** are secret cards that pay VP at the end of the game, but only if you complete them.\n\nEach row offers 2 cards. Read what each card requires, choose one card per row, then press **Confirm objectives**. Each card shows a skill icon: a finished system whose main skill matches a completed objective earns bonus VP. Each requirement you meet scores {objPer} VP, and meeting every requirement scores {objBonus} more.");
 r("boardintro","Step 9 · the board","The Board","Next",
 "The **main board** is where you send your workers. We will look at each row in turn.");
 r("board_backlog","Step 9 · the board · Backlog","Backlog","Next",
@@ -43,15 +43,15 @@ r("place2","Step 15 · keep placing","Keep placing, or pass","",
 r("build_rd","Step 18 · R&D (after the build)","R&D: build faster","Next",
 "**R&D** speeds up building. Send two workers from different disciplines (Creative + Development, or Operations + Marketing) and **system development is 1 round shorter** for whatever you start building that round. You also skip the Gold fee for crunch.");
 r("tired","Step 21 · tired workers","Tired workers","Next",
-"Every worker who worked this round is now **Tired**. A Tired worker who works again becomes **Exhausted**: they earn no skill and may quit. A worker who sits out a round **rests and recovers**.");
+"Every worker who worked this round is now **Tired**. A Tired worker who works again becomes **Exhausted**: they earn no skill and add Burnout. A worker who sits out a round **rests and recovers**.");
 r("burnout","Step 21 · burnout","Burnout: how it moves","Next",
 "**Burnout** shows how worn out your team is, from 0 to {burnMax}. It goes up at Upkeep: +1 for every {burnOverPer} you placed this round (up to +{burnOverMax}), and +1 if your salaries were short by {burnUnpaidMin}G or more. A calm round lowers it by {burnRelief}, and a Team Event lowers it by {burnTeamRelief}.\n\nBurnout bands: **Energized** (Burnout 0) pays +{energizedGold}G each round. **Strained** ({burnStrainAt}+) loses {burnStrainHype} extra Hype at Upkeep. **Burned out** ({burnBenchAt}+) benches your most tired worker each round. **Meltdown** ({burnQuitAt}) makes a worker quit.");
 r("culture","Step 21 · culture and burnout VP","Culture and Burnout VP","Next",
 "**Culture** is the other side of the same track: it equals {cultureBase} minus your Burnout. Team Events, Training and other Culture gains lower Burnout, and Culture losses raise it.\n\nAt the end of the game, high Burnout costs VP ({burnVP}).");
 r("upkeep","Step 21 · upkeep","Upkeep","Next",
-"**Upkeep** ran automatically: Hype faded, resting workers recovered, and Exhausted workers risked quitting. It happens at the start of every round after round 1.");
+"**Upkeep** ran automatically: Hype faded and resting workers recovered. It happens at the start of every round after round 1.");
 r("gates","Step 22 · publisher gates","Publisher Gates","Next",
-"The **Publisher Gates** panel is your list of deadlines. At the end of each phase, the publisher reviews every studio: if you **pass**, you receive funding, and if you **miss**, you lose VP.\n\n**{gateName}** is due at the end of round {gateEnd}: {gateReqs}. Pass it for +{gateFund}G, or miss it and lose {gatePenalty} VP.");
+"The **Publisher Gates** panel is your list of deadlines. At the end of each phase, the publisher reviews every studio: if you **pass**, you receive funding, and if you **miss**, you lose VP.\n\n**{gateName}** is due at the end of round {gateEnd}: {gateReqs}. Pass it for +{gateFund}G. Each requirement you miss costs 1 VP, so a near miss hurts less than a total miss. Only the last gate also pays VP for passing.");
 r("r2place","Step 25 · place (round 2)","Place your team","",
 "Place your workers, and leave at least one unplaced so they can rest. Press **Pass** when you are finished.");
 r("r2crunch","Step 26 · crunch (round 2)","Crunch: finish a build sooner","",
@@ -63,7 +63,7 @@ r("gateresult","Step 28 · gate result","Concept gate result","Next",
 r("gate_pass","Step 17 · gate result (passed)","","",
 "You **passed** and received **{gateFund}G**.");
 r("gate_miss","Step 18 · gate result (missed)","","",
-"You **missed** it and lost **{gatePenalty} VP**.");
+"You **missed** it and lost **1 VP** for each requirement you did not meet.");
 r("crisis","Step 29 · crisis (round 4)","Production begins: a Crisis","Got it",
 "Round 4 starts a new phase. Every phase after the first begins with a **Crisis card**: an event that affects every studio{crisisLine}.");
 r("promote","Step 31 · promote","Promote a Junior to Senior","",
@@ -143,15 +143,15 @@ r("ui_review","Coach label","","",
 r("explain_note","Results explainer · closing note","","",
 "This is how your score was made, row by row. Start a real game to play for a higher one.");
 r("explain_prodShare","Results explainer · row","Progress race","",
-"VP for where your Progress ranks against the other studios: 1st place pays most, ties split the points.");
+"1 VP for every 3 points of Progress.");
 r("explain_hypeStrength","Results explainer · row","Hype race","",
-"Where your Hype ranks against the other studios. Your Marketing is added to your Hype at the end of the game: Marketing is permanent, while Hype fades every round.");
+"1 VP for every 3 points of Hype. Your Wishlists are added to your Hype at the end of the game: Wishlists are permanent, while Hype fades every round.");
 r("explain_debtPenalty","Results explainer · row","Tech Debt","",
 "The studio with the most Debt loses the most VP, and the studio with the least loses none. Debt comes from crunched spots and some systems. Quality workers, Engineers and Stability systems clear it.");
 r("explain_culture","Results explainer · row","Culture","",
 "The studio with the lowest Culture loses the most VP; the best loses none. Good culture also helps workers stay.");
 r("explain_objectives","Results explainer · row","Objectives","",
-"Your secret goals. VP only for the ones you completed.");
+"Your secret goals: 1 VP for each requirement you met, plus 2 if you met them all.");
 r("explain_synergy","Results explainer · row","Synergy","",
 "Bonus when a built system's main skill matches the skill icon of a completed objective.");
 r("explain_systems","Results explainer · row","Systems","",
