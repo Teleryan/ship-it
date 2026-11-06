@@ -153,7 +153,7 @@ D.crisis = [
   text:"Recruiting costs +1G for the entire Production phase. Players with Burnout 2 or less ignore this.",params:{add:1,protect:1}},
  {id:"platform",deck:0,name:"Platform Shift",kind:"choice",flavor:"Industry trends are changing rapidly.",
   text:"Each player chooses: A) Stay the course. B) Pivot: draw 1 new Platform objective, replace your Platform or keep both. C) Hedge: +2 Marketing, +1 Burnout.",
-  options:[{k:"A",label:"Stay the course"},{k:"B",label:"Pivot (new Platform objective)"},{k:"C",label:"Hedge bets (+2 Marketing, -1 Culture)"}]},
+  options:[{k:"A",label:"Stay the course"},{k:"B",label:"Pivot (new Platform objective)"},{k:"C",label:"Hedge bets (+2 Marketing, +1 Burnout)"}]},
  {id:"earlyaccess",deck:0,name:"Early Access Offer",kind:"auction",flavor:"A publisher offers early funding for exclusivity.",
   text:"All players secretly bid Gold. Winner pays their bid and gains +8 Gold and +2 Hype. 2nd highest bid: +2 Gold consolation. Others keep their gold.",
   params:{winGold:8,winHype:2,secondGold:2}},

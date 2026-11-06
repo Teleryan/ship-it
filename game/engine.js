@@ -191,11 +191,11 @@ function ownsDiscs(p, req) { // distinct workers for each requirement, wild work
   return go(0);
 }
 /* build crew: one free (not already building) worker per role the system's cost names; wild workers are flexible. Returns worker ids, or null. */
-function crewFor(p, req) {
-  const free = p.workers.filter(w => !w.build); const used = {}; const out = [];
+function crewFor(p, req, only) {
+  const free = p.workers.filter(w => !w.build && (!only || only.includes(w.id))); const used = {}; const out = [];
   function go(i) {
     if (i === req.length) return true;
-    const cand = free.filter(w => !used[w.id] && actsAs(w).includes(req[i])).sort((a, b) => (a.lvl === "Sr") - (b.lvl === "Sr") || (D0.disciplines[a.disc].wild ? 1 : 0) - (D0.disciplines[b.disc].wild ? 1 : 0) || a.id - b.id);
+    const cand = free.filter(w => !used[w.id] && actsAs(w).includes(req[i])).sort((a, b) => (D0.disciplines[a.disc].wild ? 1 : 0) - (D0.disciplines[b.disc].wild ? 1 : 0) || (a.lvl === "Sr") - (b.lvl === "Sr") || a.id - b.id);
     for (const w of cand) { used[w.id] = true; out.push(w.id); if (go(i + 1)) return true; out.pop(); used[w.id] = false; }
     return false;
   }
@@ -271,7 +271,7 @@ function beginPhase(S) {
 function afterCrisis(S) { roundSetup(S); catchUpOrder(S); S.step = "place"; startPlace(S); }
 // Catch-up order: no blind bid. The studio with the fewest VP right now acts first; ties go to the smaller team, then a coin flip. Round 1 keeps the setup order.
 function catchUpOrder(S) {
-  if (S.round <= 1 && !S.lastOrderSet) { S.lastOrderSet = 1; return; }
+  if (S.round <= 1 && !S.lastOrderSet) { S.lastOrderSet = 1; S.prevFirst = S.order[0]; return; }
   const sc = E.score(S).map(x => x.total), ids = S.players.map(p => p.id), key = i => [sc[i], P(S, i).workers.length, rnd(S)], k = {}; ids.forEach(i => k[i] = key(i));
   ids.sort((a, b) => { for (let j = 0; j < 3; j++) if (k[a][j] !== k[b][j]) return k[a][j] - k[b][j]; return 0; });
   if (S.cfg.noRepeatFirst && S.prevFirst != null && ids[0] === S.prevFirst && ids.length > 1) { const f = ids.shift(); if (S.cfg.noRepeatFirst === 1) ids.push(f); else ids.splice(1, 0, f); }
@@ -318,7 +318,7 @@ function roundSetup(S) {
 }
 
 // Variant D: a Junior can be promoted after enough trainings, or (promoByRest) after working and then sitting out a round, once they are no more than Tired
-const restedJr = w => !!w.worked && !w.placed && !w.build && !w.trainNow && (w.fat || 0) <= 1;
+const restedJr = w => !!w.worked && !w.placed && !w.build && !w.trainNow; // sat out this round after working (resting lowers fatigue one step at Upkeep, so an Exhausted worker qualifies too)
 function trainPromoWhy(S, w) {
   const c = S.cfg; if ((w.trained || 0) >= c.trainNeeded) return "";
   if (c.promoByRest && restedJr(w)) return "";
@@ -709,7 +709,7 @@ function doPlace(S, pi, wid, target, o) {
     log(S, p.name + " triggers " + def.name + " with " + w.lvl + " " + as + " (" + (def.fx || def.each) + ")");
     return { ok: true };
   }
-  const spot = opt.spot; const isLaunch = S.phase === 3;
+  const spot = opt.spot; const isLaunch = S.phase === 3; const g0 = p.gold, d0 = p.debt;
   S.occ[spot.id] = (S.occ[spot.id] || []).concat([pi]);
   // skills: the placing worker earns the skill of the role they fill
   const rmul = spot.r || 0;
@@ -767,7 +767,7 @@ function doPlace(S, pi, wid, target, o) {
       break;
     }
   }
-  log(S, p.name + " places " + w.lvl + " " + as + " on " + spot.row + " (" + (spot.fx || spot.note || "") + ")" + srb + (M ? " +" + M + "M" : ""));
+  log(S, p.name + " places " + w.lvl + " " + as + " on " + spot.row + " (" + (spot.fx || spot.note || "") + ")" + srb + (M ? " +" + M + "M" : "") + (p.gold !== g0 || p.debt !== d0 ? " [net" + (p.gold !== g0 ? " " + (p.gold > g0 ? "+" : "") + (p.gold - g0) + "G" : "") + (p.debt !== d0 ? " " + (p.debt > d0 ? "+" : "") + (p.debt - d0) + " Debt" : "") + "]" : ""));
   return { ok: true };
 }
 
@@ -843,11 +843,12 @@ E.canBuild = function (S, pi, name, free, crunch) {
   if (bg && p.gold < bg) return { ok: false, reason: "Needs " + bg + " Gold" };
   return { ok: true };
 };
-function doBuild(S, pi, name, useFree, crunchIn) {
+function doBuild(S, pi, name, useFree, crunchIn, crewPick) {
   const p = P(S, pi); const free = !!useFree && p.freeBuilds > 0;
   const crunch = crunchIn === "gold" || crunchIn === "fat" ? crunchIn : null;
   const chk = E.canBuild(S, pi, name, free, crunch); if (!chk.ok) return err(chk.reason);
   const def = sysDef(S, name), b = parseBuild(def.build);
+  let pick = null; if (Array.isArray(crewPick) && crewPick.length) { pick = crewPick.map(Number); if (new Set(pick).size !== pick.length || pick.length !== b.reqs.length || !crewFor(p, b.reqs, pick)) return err("That build crew does not fit: pick " + b.reqs.length + " free workers who cover " + b.reqs.join(", ")); }
   const bc = E.buildCost(S, p, def, free);
   if (b.cur === "M") { if (!free) { RES.forEach(k => { p[k] -= bc.pay[k]; }); p.rs.spentRes += bc.total; } p.cs.noGoldBuilds++; if (bc.orig >= 5) p.cs.bigBuild = true; }
   else { gain(S, pi, "gold", -b.cost); if (def.cat === "Reach") p.cs.reachGold += b.cost; }
@@ -855,7 +856,7 @@ function doBuild(S, pi, name, useFree, crunchIn) {
   if (free) { p.freeBuilds--; } else { p.builds++; if (p.rdDisc) { log(S, p.name + " uses the R&D discount (-" + p.rdDisc + " skills)"); p.rdDisc = 0; } }
   S.sysAvail[name] = false; if (S.market && S.market[def.cat]) { S.market[def.cat] = S.market[def.cat].filter(x => x !== name); refillMarket(S); }
   {
-    const rush = !!crunch || (p.rd && S.cfg.rdCrunch), d = E.buildDelay(S, p, crunch, def), crewIds = E.buildRounds(S, p, crunch, def) > 0 ? (crewFor(p, b.reqs) || []) : [];
+    const rush = !!crunch || (p.rd && S.cfg.rdCrunch), d = E.buildDelay(S, p, crunch, def), crewIds = E.buildRounds(S, p, crunch, def) > 0 ? (crewFor(p, b.reqs, pick) || crewFor(p, b.reqs) || []) : [];
     crewIds.forEach(id => { p.workers.find(q => q.id === id).build = name; });
     if (crunch === "gold" && !(p.rd && S.cfg.rdCrunch)) { const cg = S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold; gain(S, pi, "gold", -cg); p.rs.spent += cg; }
     else if (crunch === "fat" && !(p.rd && S.cfg.rdCrunch)) { const cw = E.crunchWorker(p); cw.fat = Math.min(2, cw.fat + 1); log(S, p.name + " crunches: " + cw.lvl + " " + dn(cw.disc) + " is more tired"); }
@@ -920,7 +921,7 @@ function restAction(S, a, p) {
   switch (a.type) {
     case "claim": return claimMile(S, p, a);
     case "done": S.cur++; return { ok: true };
-    case "build": return doBuild(S, pi, a.name, a.free, a.crunch);
+    case "build": return doBuild(S, pi, a.name, a.free, a.crunch, a.crew);
     case "refresh": {
       const def = sysDef(S, a.name); if (!def || !S.cfg.marketSize || !(S.market[def.cat] || []).includes(a.name)) return err("Pick a market tile");
       if ((p.refreshed || 0) >= (S.cfg.marketRefreshesPerRound || 1)) return err("Already refreshed this round");
