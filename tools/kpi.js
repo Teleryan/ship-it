@@ -1,4 +1,5 @@
 // KPI sweep for the shipped game: winner VP, gap, blowouts, leftover Gold, Burnout, by player count.
+const LO = +(process.env.LO || 60), HI = +(process.env.HI || 90);
 // usage: node tools/kpi.js [games=200] [skill=casual|novice|expert|""] [players csv=2,3,4,5,6] ['{"key":value}' config overrides]
 // Seats rotate through the four personas. Seeds are fixed so two runs are comparable.
 global.window = undefined;
@@ -22,5 +23,5 @@ for (const n of counts) {
   const win = R.map(S => Math.max(...S.scores.map(s => s.total))), gap = R.map(S => { const t = S.scores.map(s => s.total).sort((a, b) => b - a); return t[0] - t[1]; });
   const gold = R.flatMap(S => S.players.map(p => p.gold)), bo = R.flatMap(S => S.players.map(p => p.burnout || 0));
   const pc = (a, f) => Math.round(a.filter(f).length / (a.length || 1) * 100) + "%";
-  console.log(`${n}P  games ${R.length} | winner med ${med(win).toFixed(1)} [${Math.min(...win).toFixed(0)}-${Math.max(...win).toFixed(0)}] in 100-140 ${pc(win, v => v >= 100 && v <= 140)} | gap med ${med(gap).toFixed(1)} blowouts(25+) ${pc(gap, v => v >= 25)} | leftover Gold ${avg(gold).toFixed(1)} | end Burnout ${avg(bo).toFixed(1)}`);
+  console.log(`${n}P  games ${R.length} | winner med ${med(win).toFixed(1)} [${Math.min(...win).toFixed(0)}-${Math.max(...win).toFixed(0)}] in ${LO}-${HI} ${pc(win, v => v >= LO && v <= HI)} | gap med ${med(gap).toFixed(1)} blowouts(25+) ${pc(gap, v => v >= 25)} | leftover Gold ${avg(gold).toFixed(1)} | end Burnout ${avg(bo).toFixed(1)}`);
 }

@@ -18,4 +18,4 @@ Push to `main` runs tests, builds, writes KV bundles and deploys the Worker. Sec
 `node tools/mkref.js` writes `/home/claude/work/ref/` (HTML pack and `rules.js`); copy `rules.js` to `game/`.
 
 ## Design targets (KPIs)
-Winner VP about 100 to 110 (100 to 140 allowed), median gap under 9 with blowouts (25+) at 4% or less, leftover Gold 7 to 10, end Burnout 3 to 4, 2 to 5 players. Check with `node tools/kpi.js 150 casual 2,3,4,5,6` and `node tools/tension.js 150 2,3,4,5,6` (skills: casual, novice, expert).
+Winner VP about 65 to 75 (60 to 90 allowed; the two races together are about 45 VP per player), median gap under 9 with blowouts (25+) at 4% or less, leftover Gold 7 to 10, end Burnout 3 to 4, 2 to 5 players. Check with `node tools/kpi.js 150 casual 2,3,4,5,6` and `node tools/tension.js 150 2,3,4,5,6` (skills: casual, novice, expert).

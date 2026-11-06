@@ -182,8 +182,8 @@ D.crisis = [
   text:"All players secretly bid Gold. Winner pays their bid and gains +5 Hype. 2nd highest bidder gains +2 Hype (pays nothing).",
   params:{winHype:5,secondHype:2}},
  {id:"buyout",deck:2,name:"Publisher Buyout",kind:"choice",flavor:"A major publisher wants to acquire your studio.",
-  text:"Each player may accept: immediately gain +8 VP but remove 2 Objectives from scoring (your choice). The VP also moves you later in turn order. Or decline.", poolText:"Each player may accept: immediately gain +8 VP but remove 2 Objectives from scoring (your choice). The VP also moves you later in turn order. Or decline.",
-  options:[{k:"accept",label:"Accept (+8 VP, lose 2 objectives)", poolLabel:"Accept (+8 VP, lose 2 objectives)"},{k:"decline",label:"Decline"}],params:{vp:8,remove:2}},
+  text:"Each player may accept: immediately gain +6 VP but remove 2 Objectives from scoring (your choice). The VP also moves you later in turn order. Or decline.", poolText:"Each player may accept: immediately gain +6 VP but remove 2 Objectives from scoring (your choice). The VP also moves you later in turn order. Or decline.",
+  options:[{k:"accept",label:"Accept (+6 VP, lose 2 objectives)", poolLabel:"Accept (+6 VP, lose 2 objectives)"},{k:"decline",label:"Decline"}],params:{vp:6,remove:2}},
  {id:"award",deck:2,name:"Award Nomination",kind:"effect",flavor:"Your game is nominated for 'Most Anticipated'.",
   text:"At the end of the current round compare Hype. Most: +4 VP. 2nd: +2 VP. 3rd: +1 VP. Ties split (round down). VP is awarded now.", poolText:"At the end of the current round compare Hype. Most: +4 Hype points. 2nd: +2. 3rd: +1. Ties split (round down). Points are awarded now.",
   params:{v:[4,2,1]}},
@@ -337,7 +337,7 @@ D.config = {
   "income":7,
   "salaryJr":1,
   "salarySr":2,
-  "sysGoldMult":0.5,
+  "sysGoldMult":0.35,
   "reachFade":1,
   "maxSystems":6,
   "marketSize":2,
@@ -349,7 +349,7 @@ D.config = {
   "gateBestVP":1,
   "reachMajorVP":3,
   "srBuildDiscount":0,
-  "sysVPMult":2.5,
+  "sysVPMult":3,
   "synergyMult":0.5,
   "jrCost":2,
   "srCost":5,
@@ -361,7 +361,7 @@ D.config = {
   "resCap":10,
   "crewPartnerCap":1,
   "sysCostMult":1,
-  "objVPMult":0.5,
+  "objVPMult":0.75,
   "resSubGold":2,
   "resSubMax":0,
   "srBonus":1,
@@ -404,7 +404,7 @@ D.config = {
   "synergyOn":1,
   "rowNames":{"EARN":["Backlog","Backlog","Backlog","Backlog"],"PROGRESS":["Prototype","Vertical Slice","Beta Build","Gold Master"],"HYPE":["Pitch Deck","Trailer Drop","Press Tour","Launch Party"],"CREW":["Game Jam","Game Jam","Game Jam","Game Jam"],"UTILITY":["Studio Perks","Studio Perks","Studio Perks","Studio Perks"]},
   "raceCurveByN":{"2":0.12,"3":0.2,"4":0.25,"5":0.25,"6":0.3},
-  "racePotByN":{"2":48,"3":44,"4":42,"5":42,"6":43},
+  "racePotByN":{"2":24,"3":22,"4":21,"5":21,"6":22},
   "debtLossByN":{"2":4,"3":6,"4":8},
   "phaseEnds":[3,8,11,12],
   "srSystems":1,
@@ -474,9 +474,9 @@ D.config = {
   "overCrew":1,
   "spotFxAdj":{"team":"+1 Culture","vslice":"+6 Progress, +2 Culture","buildsprint":"+5 Progress","feature":"+4 Progress, -1 Debt","launchcrew":"+9 Progress, +6 Hype","polish":"+4 Progress, -2 Debt"},
   "promoGoldByN":{},
-  "buyoutVP":8,
+  "buyoutVP":6,
   "awardMinN":3,
-  "raceLinDiv":14
+  "raceLinDiv":28
 };
 
 // scale the Progress / Hype / Marketing numbers in the gate requirements (Variant C tuning)
