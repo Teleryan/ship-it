@@ -26,8 +26,8 @@ function botsUntilMe(S) {
 }
 function res(p, S) { return `Gold ${p.gold} | Ideas ${p.ideas} Code ${p.code} Process ${p.process} Buzz ${p.buzz} | Progress ${p.prod} Marketing ${p.mktg} Hype ${p.hype} | Debt ${p.debt} | Culture ${E.cultureOf(S, p)} Burnout ${p.burnout}`; }
 const FATN = ["Fresh", "Tired", "EXHAUSTED (no skill if placed, +Burnout, quit risk)"];
-function W(w) { return `#${w.id} ${w.lvl} ${w.disc}${w.as ? "(as " + w.as + ")" : ""} ${FATN[w.fat]}${w.placed ? " PLACED" : ""}${w.training ? " TRAINING (sits out)" : ""}${w.build ? " BUILDING " + w.build + " (locked until done)" : ""}`; }
-const SCORE_LBL = { prodShare: "Progress race", hypeStrength: "Hype race (Hype+Marketing)", debtPenalty: "Debt", burnout: "Burnout", objectives: "Objectives", synergy: "Synergy", systems: "Systems", gold: "Leftover Gold", crisis: "Gates, favorites, Hype leader, Crisis cards", reach: "Reach leader" };
+function W(w) { return `#${w.id} ${w.lvl} ${w.disc}${w.as ? "(as " + w.as + ")" : ""} ${FATN[w.fat]}${w.placed ? " PLACED" : ""}${w.training ? " TRAINING (sits out)" : ""}${w.benched ? " BENCHED: " + w.benched + " (cannot be placed this round)" : ""}${w.build ? " BUILDING " + w.build + " (locked until done)" : ""}`; }
+const SCORE_LBL = { prodShare: "Progress race", hypeStrength: "Hype race (Hype+Marketing)", debtPenalty: "Debt", burnout: "Burnout", objectives: "Objectives", synergy: "Synergy", systems: "Systems", gold: "Leftover Gold", gateVP: "Gates (pass +VP / miss -VP)", hypeLeadVP: "Hype leader", favVP: "Publisher favourite", cardVP: "Crisis / Investor / Buyout cards", reach: "Reach leader" };
 function scoreTable(S) { return E.score(S).map(s => S.players[s.id].name + " " + s.total + "  (" + Object.keys(s.parts || s).filter(k => SCORE_LBL[k] && (s.parts || s)[k]).map(k => SCORE_LBL[k] + " " + (s.parts || s)[k]).join(", ") + ")").join("\n"); }
 const OB = i => { const ob = D.objectives[i]; return `[${i}] ${ob.name} ${ob.vp}VP needs ${ob.reqs.join(" + ")}`; };
 const MS = i => { const m = (CUR && CUR.data ? CUR.data : D).milestones[i]; return `[${i}] ${m.name}: ${m.text} (+${m.gold}G, phases ${m.phases})`; };
@@ -53,7 +53,7 @@ function view(S) {
     o.push("PENDING DECISION: " + JSON.stringify(d));
     if (d.t === "keepObj") Object.keys(d.opts).forEach(k => o.push("  " + k + " options: " + d.opts[k].map(i => OB(i)).join("  |  ") + "  (keep one per type)"));
     if (d.t === "keepMile") o.push("  milestone options: " + d.opts.map(i => MS(i)).join(" | ") + " (keep " + d.keep + ")");
-    o.push("Reply with an action JSON of the matching type, e.g. keepObj {type,p:0,picks:{Platform:id,...}}, bid {type:'bid',p:0,amount}, choose {type:'choose',p:0,k}, pickWorker {worker}, skip, pivot {replace:false}, dropObj {obj}, keepMile {keep:[ids]}, patchFix {idx}/patchDone. Use `hint` to see the bot's exact format.");
+    o.push("Reply with an action JSON of the matching type, e.g. keepObj {type,p:0,picks:{Platform:id,...}}, bid {type:'bid',p:0,amount}, choose {type:'choose',p:0,k}, pickWorker {worker}, raidHire (Studio Raid) {type:'raid',p:0,disc:'QA',lvl:'Jr'} or {type:'skip',p:0} (half-cost hire from the released pile), skip, pivot {replace:false}, dropObj {obj}, keepMile {keep:[ids]}, patchFix {idx}/patchDone. Use `hint` to see the bot's exact format.");
   } else if (E.currentActor(S) === ME && S.step === "place") {
     o.push("PLACE PHASE. Occupied: " + JSON.stringify(S.occ) + " | CLOSED by Industry News this round: " + (Object.keys(S.closed || {}).join(", ") || "none"));
     o.push("Recruit offers: " + (S.recruit || []).map((r, i) => `[${i}] ${r.disc} ${r.by != null ? "(taken by " + S.players[r.by].name + ")" : E.canRecruit(S, ME, i).ok ? "cost " + E.canRecruit(S, ME, i).cost + "G OK" : "no: " + E.canRecruit(S, ME, i).reason}`).join(" ; "));
@@ -63,15 +63,15 @@ function view(S) {
     o.push("Legal placements (worker -> target):");
     p.workers.filter(w => !w.placed && !w.training && !w.build).forEach(w => {
       const ok = E.placementOptions(S, ME, w).filter(x => x.ok || x.wsNeed);
-      o.push(`  ${W(w)}: ` + (ok.map(x => x.target + (x.wsNeed ? "(needs workstation: buyws first)" : "") + (x.as && x.as.length > 1 ? "{as:" + x.as.join("/") + "}" : "")).join(", ") || "none" + (w.fat >= 2 ? " (Exhausted: only strike-team partner or skill-less tiles)" : " (no open tile fits this role/level now)")));
+      o.push(`  ${W(w)}: ` + (ok.map(x => x.target + (x.wsNeed ? "(needs workstation: buyws first)" : "") + (x.as && x.as.length > 1 ? "{as:" + x.as.join("/") + "}" : "")).join(", ") || "none" + (w.benched ? " (benched: " + w.benched + ")" : w.fat >= 2 ? " (Exhausted: only strike-team partner or skill-less tiles)" : " (no open tile fits this role/level now)")));
     });
-    o.push('Targets are written exactly as listed (spot:ID or sys:N). crew = the PARTNER worker ids only (not the placing worker); an invalid list is rejected. Actions: {"type":"place","p":0,"worker":ID,"target":"TARGET"[,"as":"DISC"][,"crew":[ids]]} | {"type":"recruit","p":0,"idx":N} | {"type":"buyws","p":0} | {"type":"pass","p":0}');
+    o.push('Targets are written exactly as listed (spot:ID or sys:N). crew = the PARTNER worker ids only (not the placing worker); an invalid list is rejected. Actions: {"type":"place","p":0,"worker":ID,"target":"TARGET"[,"as":"DISC"][,"crew":[ids]][,"choice":0|1 (for \"A OR B\" tiles such as Crunch Bonus: 0 = first effect, 1 = second)][,"bonus":"mktg" (Senior bonus: +1 Marketing instead of +1 Progress)]} | {"type":"recruit","p":0,"idx":N} | {"type":"buyws","p":0} | {"type":"pass","p":0}');
   } else if (E.currentActor(S) === ME && S.step === "rest") {
     o.push("MANAGE PHASE. Market: " + JSON.stringify(S.market));
     const names = [].concat.apply([], Object.values(S.market));
     o.push("Tile details: " + names.map(n => { const s = S.data.systems.find(x => x.name === n); return n + " [" + s.cat + "] build " + s.build + ", trigger " + s.trig + " -> " + (s.fx || s.each || "") + " (VP " + s.vp + ", Debt on finish " + s.debt + ")"; }).join(" ; "));
     o.push("Buildable now: " + (names.map(n => { const c = E.canBuild(S, ME, n, false, null), cf = (p.freeBuilds > 0) ? E.canBuild(S, ME, n, true, null) : null; return n + (c.ok ? " OK" : cf && cf.ok ? " (OK as your FREE build: add free:true)" : " (no: " + c.reason + ")"); }).join(" ; ")));
-    o.push('Actions: {"type":"build","p":0,"name":"TILE","free":false,"crunch":null|"gold"|"fat"[,"crew":[workerIds]]} | {"type":"claim","p":0,"mile":ID} | {"type":"promote","p":0,"worker":ID} | {"type":"train","p":0,"worker":ID} | {"type":"refresh","p":0,"name":"TILE"} | {"type":"done","p":0}');
+    o.push('Actions: {"type":"build","p":0,"name":"TILE","free":false,"crunch":null|"gold"|"fat"[,"crunchWorker":workerId (which worker tires for a fat crunch)][,"crew":[workerIds]]} | {"type":"claim","p":0,"mile":ID} | {"type":"promote","p":0,"worker":ID} | {"type":"train","p":0,"worker":ID} | {"type":"refresh","p":0,"name":"TILE"} | {"type":"done","p":0}');
   }
   const nn = (S.notices || []).filter(n => n.r == null || n.r === S.round); if (nn.length) o.push("NOTICES this round: " + JSON.stringify(nn));
   o.push(""); o.push("Recent log:"); S.log.slice(-12).forEach(l => o.push("  " + (typeof l === "string" ? l : l.m || JSON.stringify(l))));
@@ -90,6 +90,7 @@ else if (cmd === "do") {
   if (a.p == null) a.p = ME;
   if (a.type === "place" && Array.isArray(a.crew)) { const w = S.players[ME].workers.find(x => x.id === a.worker), o = w && E.placementOptions(S, ME, w).find(x => x.target === a.target); if (o && o.plans) { const want = a.crew.map(Number).sort((x, y) => x - y).join(","); if (!o.plans.some(pl => pl.ids.join(",") === want)) { console.log("REJECTED: that crew is not allowed. Allowed partner sets: " + o.plans.map(pl => "[" + pl.ids.join(",") + "]").join(" ")); process.exit(0); } } }
   if (a.type === "place" && a.as) { const w = S.players[ME].workers.find(x => x.id === a.worker), o = w && E.placementOptions(S, ME, w).find(x => x.target === a.target); if (o && o.as && !o.as.includes(a.as)) { console.log("REJECTED: as must be one of " + o.as.join("/")); process.exit(0); } }
+  if (a.type === "pass" && S.step === "rest") a.type = "done";
   const r = E.act(S, a);
   if (!r.ok) { console.log("REJECTED: " + (r.error || r.reason || JSON.stringify(r))); process.exit(0); }
   botsUntilMe(S); save(S); console.log(view(S));

@@ -451,7 +451,7 @@ function endOfRound(S) {
   if (S.round >= PHASE_ENDS[3] || PHASE_OF_ROUND(S.round + 1) !== S.phase) resolveGate(S);
   if (S.cfg.hypeLeadVP && S.phase < 3 && PHASE_OF_ROUND(S.round + 1) !== S.phase) { // press buzz: the studio with the most Hype when a phase closes earns VP
     const mx = Math.max.apply(null, S.players.map(q => q.hype)), tops = S.players.filter(q => q.hype === mx);
-    if (tops.length === 1 && mx >= (S.cfg.hypeLeadMin || 1) && S.players.length >= (S.cfg.awardMinN || 0)) { tops[0].vpAdj += S.cfg.hypeLeadVP; S.hypeLead = (S.hypeLead || []).concat([{ phase: S.phase, id: tops[0].id, vp: S.cfg.hypeLeadVP }]); log(S, "HYPE LEADER: " + tops[0].name + " has the most Hype (" + mx + ") at the end of " + D0.phases[S.phase].name + ": +" + S.cfg.hypeLeadVP + " VP"); }
+    if (tops.length === 1 && mx >= (S.cfg.hypeLeadMin || 1) && S.players.length >= (S.cfg.awardMinN || 0)) { tops[0].vpAdj += S.cfg.hypeLeadVP; tops[0].vpHL = (tops[0].vpHL || 0) + S.cfg.hypeLeadVP; S.hypeLead = (S.hypeLead || []).concat([{ phase: S.phase, id: tops[0].id, vp: S.cfg.hypeLeadVP }]); log(S, "HYPE LEADER: " + tops[0].name + " has the most Hype (" + mx + ") at the end of " + D0.phases[S.phase].name + ": +" + S.cfg.hypeLeadVP + " VP"); }
   }
   if (S.cfg.hypeBank && S.phase < 3 && PHASE_OF_ROUND(S.round + 1) !== S.phase) { // lock in: when a phase closes, Hype is banked as Marketing, which never fades
     S.players.forEach(q => { const x = Math.min(S.cfg.hypeBank, q.hype); if (x > 0) { q.hype -= x; q.mktg += x; log(S, q.name + " banks " + x + " Hype as Marketing"); } });
@@ -533,11 +533,11 @@ function resolveGate(S) {
   S.gates = S.gates || [];
   const passed = [], failed = [];
   S.players.forEach(p => { (g.reqs.every(r => reqCheck(S, p, r)) ? passed : failed).push(p.id); });
-  passed.forEach(id => { if (g.fund) gain(S, id, "gold", g.fund); if (g.vp) P(S, id).vpAdj += g.vp; });
+  passed.forEach(id => { if (g.fund) gain(S, id, "gold", g.fund); if (g.vp) { P(S, id).vpAdj += g.vp; P(S, id).vpGate = (P(S, id).vpGate || 0) + g.vp; } });
   const missTxt = [];
-  failed.forEach(id => { const pl = P(S, id), cap = S.cfg.gateLossCap || 99, pen = Math.max(0, Math.min(g.penalty, cap - (pl.gateLoss || 0))); pl.gateLoss = (pl.gateLoss || 0) + pen; pl.vpAdj -= pen; missTxt.push(pl.name + " -" + pen + " VP" + (pen < g.penalty ? " (cap of " + cap + " VP reached)" : "")); });
+  failed.forEach(id => { const pl = P(S, id), cap = S.cfg.gateLossCap || 99, pen = Math.max(0, Math.min(g.penalty, cap - (pl.gateLoss || 0))); pl.gateLoss = (pl.gateLoss || 0) + pen; pl.vpAdj -= pen; pl.vpGate = (pl.vpGate || 0) - pen; missTxt.push(pl.name + " -" + pen + " VP" + (pen < g.penalty ? " (cap of " + cap + " VP reached)" : "")); });
   let best = null;
-  if (passed.length) { const mx = Math.max.apply(null, passed.map(id => P(S, id).prod)); const tops = passed.filter(id => P(S, id).prod === mx); if (tops.length === 1 && S.cfg.gateBestVP && S.players.length >= (S.cfg.awardMinN || 0)) { best = tops[0]; P(S, best).vpAdj += S.cfg.gateBestVP; } }
+  if (passed.length) { const mx = Math.max.apply(null, passed.map(id => P(S, id).prod)); const tops = passed.filter(id => P(S, id).prod === mx); if (tops.length === 1 && S.cfg.gateBestVP && S.players.length >= (S.cfg.awardMinN || 0)) { best = tops[0]; P(S, best).vpAdj += S.cfg.gateBestVP; P(S, best).vpFav = (P(S, best).vpFav || 0) + S.cfg.gateBestVP; } }
   S.gates.push({ phase: S.phase, name: g.name, lvl: g.lvl || "M", passed, failed, best });
   log(S, "GATE: " + g.name + " (" + g.reqs.join(", ") + "). Passed: " + (passed.map(id => P(S, id).name).join(", ") || "nobody") + (best != null ? ". Publisher's favorite: " + P(S, best).name : "") + (failed.length ? ". Missed: " + missTxt.join(", ") : "") + (g.fund ? ". Passing studios gain +" + g.fund + "G" : "") + (g.vp ? " and +" + g.vp + " VP" : ""));
 }
@@ -1281,7 +1281,7 @@ E.score = function (S) {
     s.reach = 0;
     if (c.reachMajorVP) { const rc = S.players.map(q => q.systems.filter(y => y.cat === "Reach").length), mx = Math.max.apply(null, rc); if (mx >= 2 && rc[pl] === mx && rc.filter(v => v === mx).length === 1) s.reach = c.reachMajorVP; }
     s.gold = Math.floor(p.gold / c.goldPerVP);
-    s.crisis = p.vpAdj;
+    s.crisis = p.vpAdj; s.gateVP = p.vpGate || 0; s.hypeLeadVP = p.vpHL || 0; s.favVP = p.vpFav || 0; s.cardVP = Math.round((p.vpAdj - s.gateVP - s.hypeLeadVP - s.favVP) * 10) / 10;
     s.total = Math.round((s.prodShare + s.hypeStrength + s.debtPenalty + s.burnout + s.objectives + s.synergy + s.systems + s.reach + s.gold + s.crisis) * 10) / 10;
     const effHype = thr === "ROUGH" ? p.hype * (dbl === 2 ? c.roughHypeMult / 2 : c.roughHypeMult) : p.hype;
     s.threshold = thr; s.debtPct = Math.round(dp * 10) / 10; s.hypePct = Math.round(clamp(effHype / c.hypeCap * 100, 0, 100)); s.prodPct = Math.round(clamp(p.prod / c.prodCap * 100, 0, 100));
