@@ -100,7 +100,7 @@ const mkRest = seed => { const T = mk(seed); toStep(T, 'rest', 4); const pi = E.
   const g = p.gold, pg = E.promoGold(T); r = E.act(T, { type: 'promote', p: pi, worker: w1.id }); ok(r.ok && w1.lvl === 'Sr' && p.gold === g - pg, 'promote a rested worker who has worked (' + pg + 'G at this player count)');
   w2.worked = true; w2.fat = 1; r = E.act(T, { type: 'promote', p: pi, worker: w2.id }); ok(!r.ok, 'promotion limit per Rest'); }
 { const { T, pi, p } = mkRest(10); const w = p.workers[0]; w.worked = true; w.fat = 2;
-  ok(!E.act(T, { type: 'promote', p: pi, worker: w.id }).ok, 'an Over-Tired worker needs more rest before promotion'); }
+  ok(!E.act(T, { type: 'promote', p: pi, worker: w.id }).ok, 'an Exhausted worker needs more rest before promotion'); }
 { const { T, pi, p } = mkRest(11); const w = p.workers[0], g0 = p.gold, b0 = p.burnout;
   let r = E.act(T, { type: 'train', p: pi, worker: w.id });
   ok(r.ok && p.gold === g0 - T.cfg.trainCost && p.burnout === Math.max(0, b0 - T.cfg.trainCulture) && w.training && w.trained === 1 && w.trainLeft >= 1, 'train: costs ' + T.cfg.trainCost + 'G, eases Burnout, trainee sits out next round');

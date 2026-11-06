@@ -63,7 +63,7 @@ function tokens(S) {
   t.foldNote = "\n\nThere is no separate Culture track: <b>Culture is " + c.cultureFoldBase + " minus Burnout</b>. Anything that gives Culture (Team Events, Training, some tiles) lowers Burnout, and anything that costs Culture raises it.";
   t.trainEffect = "lowers <b>Burnout</b> by " + c.trainCulture + " (that is +" + c.trainCulture + " Culture)";
   t.teamEventEffect = "to lower Burnout by " + (c.teamEventCulture + c.burnTeamRelief);
-  t.burnOverPer = c.burnOverStep > 1 ? c.burnOverStep + " Over-Tired workers" : "Over-Tired worker";
+  t.burnOverPer = c.burnOverStep > 1 ? c.burnOverStep + " Exhausted workers" : "Exhausted worker";
   const td = c.trainDuration || 1; t.trainAway = td > 1 ? "sits out the next " + td + " rounds" : "sits out the next round";
   t.promoLesson = c.trainNeeded > 1 ? " For this lesson one of your Juniors has already trained " + (c.trainNeeded - 1) + " time" + (c.trainNeeded > 2 ? "s" : "") + "." : "";
   t.promoRest = c.promoByRest ? " A Junior who worked and then sits out a round can also be promoted without training." : "";

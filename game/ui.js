@@ -21,7 +21,7 @@ const dcol = d => catOf(d).color;
 const onCol = hex => { const m = /^#?([0-9a-f]{6})$/i.exec(hex || ""); if (!m) return "#fff"; const c = [0, 2, 4].map(i => parseInt(m[1].substr(i, 2), 16) / 255).map(v => v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4)); const L = .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; return 1.05 / (L + .05) >= (L + .05) / .0553 ? "#fff" : "#06121c"; };
 const fill = hex => `background:${hex};color:${onCol(hex)}`;
 const dcat = d => D.disciplines[d] ? D.disciplines[d].cat : "";
-const FAT = ["Active", "Tired", "Over-Tired"];
+const FAT = ["Fresh", "Tired", "Exhausted"];
 const nameOf = t => { const k = String(t).toUpperCase(); return D.disciplines[k] ? D.disciplines[k].name : t; };
 const fmtTrig = t => String(t).replace(/^(\d+)\s+(\S+)$/, (m, n, k) => n + " " + nameOf(k));
 const RC = { ideas: "var(--ideas)", code: "var(--code)", process: "var(--process)", buzz: "var(--buzz)" };
@@ -170,6 +170,7 @@ const GS_LV = [["E", "Easy"], ["M", "Medium"], ["H", "Hard"]];
 function gsState() { return U.gs || (U.gs = { mode: "std", E: 0, H: 0, order: "random", ph: ["M", "M", "M", "M"] }); }
 function resolveGateLevels() { // an array of four codes (one per phase), or null for the standard all-Medium gates
   const g = gsState(); if (g.mode === "std") return null;
+  if (g.mode === "easy") return ["E", "E", "M", "M"]; if (g.mode === "hard") return ["M", "H", "H", "H"];
   if (g.mode === "phase") return g.ph.slice();
   const a = [].concat(Array(g.E).fill("E"), Array(Math.max(0, 4 - g.E - g.H)).fill("M"), Array(g.H).fill("H"));
   if (g.order === "fall") a.reverse(); else if (g.order === "random") for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
@@ -180,7 +181,7 @@ function gatePanel() {
   let body = "";
   if (g.mode === "mix") body = `<div class="row wrap" style="margin-top:6px;gap:8px"><label class="mute">Easy ${sel('data-gs="E"', [0, 1, 2, 3, 4].filter(k => k + g.H <= 4).map(k => [k, k]), g.E)}</label><label class="mute">Hard ${sel('data-gs="H"', [0, 1, 2, 3, 4].filter(k => k + g.E <= 4).map(k => [k, k]), g.H)}</label><span class="mute">Medium ${4 - g.E - g.H}</span><label class="mute">Order ${sel('data-gs="order"', [["random", "Random"], ["rise", "Easy to hard"], ["fall", "Hard to easy"]], g.order)}</label></div>`;
   else if (g.mode === "phase") body = `<div class="row wrap" style="margin-top:6px;gap:8px">${PN.map((n, i) => `<label class="mute">${n} ${sel('data-gs="ph' + i + '"', GS_LV, g.ph[i])}</label>`).join("")}</div>`;
-  return `<div style="margin:10px 0;padding:10px;border:1px solid var(--line,#2b3350);border-radius:10px"><div class="row wrap" style="gap:8px"><b>Publisher gates</b>${sel('data-gs="mode"', [["std", "Standard (all Medium)"], ["mix", "Choose how many of each"], ["phase", "Choose phase by phase"]], g.mode)}</div>${body}<div class="dim" style="font-size:12px;margin-top:6px">Every studio faces the same gates. Easy: lower targets, smaller funding and smaller miss penalty. Hard: higher targets, bigger funding and bigger miss penalty.</div></div>`;
+  return `<div style="margin:10px 0;padding:10px;border:1px solid var(--line,#2b3350);border-radius:10px"><div class="row wrap" style="gap:8px"><b>Publisher gates</b>${sel('data-gs="mode"', [["easy", "Easy (Easy, Easy, Medium, Medium)"], ["std", "Standard (Easy, Medium, Medium, Hard)"], ["hard", "Hard (Medium, Hard, Hard, Hard)"], ["mix", "Choose how many of each"], ["phase", "Choose phase by phase"]], g.mode)}</div>${body}<div class="dim" style="font-size:12px;margin-top:6px">Every studio faces the same gates, drawn when the game starts. Easy: lower targets and less funding. Hard: higher targets, more funding and a bigger miss penalty.</div></div>`;
 }
 function gsChange(t) { // returns true when handled
   if (t.dataset.gs == null) return false;
@@ -308,13 +309,25 @@ function workerCard(S, w, vi, selectable) {
   const pick = !!selectable && S.step === "place" && !S.dq.length && !w.placed && !w.build && !w.benched;
   return `<div class="wk ${sel ? "sel" : ""} ${w.placed || w.build ? "placed" : ""} ${pick ? "pick" : ""}" ${pick ? `data-act="sel-worker" data-id="${w.id}" title="Click to ${sel ? "deselect" : "select"} for placing"` : `data-act="detail" data-k="worker" data-id="${w.id}" data-p="${vi}"`}>
    <div class="whd" style="${fill(dcol(w.disc))}">${esc(dcat(w.disc))}</div>
-   <div class="wbd"><div class="d">${esc(D.disciplines[w.disc].name)}</div>${w.as ? `<div class="as">acts as ${nameOf(w.as)}</div>` : ""}<div class="l ${w.lvl === "Sr" ? "sr" : ""}">${lvl}</div><div class="fat f${w.fat}" title="${FAT[w.fat]}"><i></i></div><div class="fl">${w.build ? "Building" : w.benched === "Training" ? "Training" : w.training ? "Training next round" : w.placed ? "Placed" : FAT[w.fat]}</div></div>${pick ? `<button class="wi" data-act="detail" data-k="worker" data-id="${w.id}" data-p="${vi}" aria-label="Worker details">Details</button>` : ""}</div>`;
+   <div class="wbd"><div class="d">${esc(D.disciplines[w.disc].name)}</div>${w.as ? `<div class="as">acts as ${nameOf(w.as)}</div>` : ""}<div class="l ${w.lvl === "Sr" ? "sr" : ""}">${lvl}</div><div class="fat f${w.fat}" title="${FAT[w.fat]}"><i></i></div><div class="fl" title="${esc(w.benched ? "Away this round: " + w.benched : "")}">${w.build ? "Building" : w.benched ? "Away: " + w.benched : w.training ? "Training next round" : w.placed ? "Placed" : FAT[w.fat]}</div></div>${pick ? `<button class="wi" data-act="detail" data-k="worker" data-id="${w.id}" data-p="${vi}" aria-label="Worker details">Details</button>` : ""}</div>`;
 }
 // the studio's workers sit above the main board so the worker you place is next to the spot you place it on
+function fatigueLine(S, p) {
+  const c = S.cfg, odds = "1 in " + Math.round(6 / Math.max(1, c.lossThreshBase || 1));
+  const avail = p.workers.filter(w => !w.placed && !w.build && !w.benched), exh = avail.filter(w => w.fat >= 2);
+  const sw = U.sel != null ? p.workers.find(w => w.id === U.sel) : null;
+  const oN = p.rs && p.rs.overN || 0, burnAdd = Math.min(c.burnOverMax || 2, Math.floor(oN / (c.burnOverStep || 1)));
+  const risky = p.workers.filter(w => w.placed && w.overWhenPlaced).length;
+  const bits = [];
+  if (sw && sw.fat >= 2) bits.push(`<b>${esc(dname(sw.disc))} is Exhausted.</b> Placing them is overwork: no skill, +1 Burnout, and a ${odds} chance they quit at Upkeep.`);
+  else if (avail.length && exh.length * 2 >= avail.length) bits.push(`${exh.length} of your ${avail.length} available workers are Exhausted. Resting some now keeps them working later.`);
+  if (oN) bits.push(`If you stop now: Burnout +${burnAdd}, ${risky} worker${risky === 1 ? "" : "s"} at risk of quitting (${odds} each).`);
+  return bits.length ? `<div class="mute" style="font-size:12px;margin-top:8px;line-height:1.5">${bits.join(" ")}</div>` : "";
+}
 function workersPanel(S) {
   const vi = viewIndex(S); const p = P(vi); const a = E.currentActor(S); const mine = a === vi && !p.bot;
   const sel = mine && S.step === "place" && !S.dq.length;
-  return `<div class="panel"><h3><span style="color:${p.color}">${esc(p.name)}'s studio workers</span><span class="mute" style="text-transform:none;letter-spacing:0">${p.workers.length} workers</span></h3><div class="workers" data-tut="workers">${p.workers.length ? p.workers.map(w => workerCard(S, w, vi, sel && !w.placed)).join("") : '<span class="mute">No workers yet. Recruit from the shared pool.</span>'}</div></div>`;
+  return `<div class="panel"><h3><span style="color:${p.color}">${esc(p.name)}'s studio workers</span><span class="mute" style="text-transform:none;letter-spacing:0">${p.workers.length} workers</span></h3><div class="workers" data-tut="workers">${p.workers.length ? p.workers.map(w => workerCard(S, w, vi, sel && !w.placed)).join("") : '<span class="mute">No workers yet. Recruit from the shared pool.</span>'}</div>${sel || (S.step === "place" && mine) ? fatigueLine(S, p) : ""}</div>`;
 }
 // Workstations: each board spot (perks included) needs one; triggering your own systems does not
 function wsLine(S, p) {
@@ -455,7 +468,7 @@ function roundIntroModal(S) {
   ${cols.some(c => c.n.bonus) ? row("Bonuses", "from your Burnout band and systems", n => n.bonus ? sg(n.bonus) + "G" : "-") : ""}
   ${row("Hype", "fades each round", n => n.hype ? sg(n.hype) : "-")}
   ${row("Burnout", "from last round's work", n => (n.burn ? sg(n.burn) : "-") + `<div class="mute" style="font-size:11px">${esc(n.band || "")}</div>`)}
-  ${cols.some(c => c.n.lost) ? row("Workers lost", "Over-Tired workers who quit", n => n.lost ? sg(-n.lost) : "-") : ""}
+  ${cols.some(c => c.n.lost) ? row("Workers lost", "Exhausted workers who quit", n => n.lost ? sg(-n.lost) : "-") : ""}
   <tr><td><b>Gold now</b></td>${cols.map(c => `<td style="text-align:right"><b>${c.n.goldNow != null ? c.n.goldNow : c.p.gold}G</b></td>`).join("")}</tr>
   </tbody></table>
   <div style="margin-top:14px;text-align:right"><button class="btn primary" data-act="close">Start placing</button></div>`);
@@ -490,7 +503,7 @@ function decisionModal(S) {
       h += `<h3>Secret auction bid</h3><p class="mute">Winner pays their bid. Others keep their gold. You have <b style="color:var(--gold)">${p.gold}G</b>.</p>
       <label class="bidlab" for="bid">Your bid in Gold (0 to ${p.gold})</label><div class="row"><input id="bid" type="number" inputmode="numeric" min="0" max="${p.gold}" value="0" style="width:110px;font-size:22px;min-height:48px"><button class="btn primary" style="min-height:48px;padding:0 22px" data-tut="act" data-act="bid">Lock in bid</button></div>`; break; }
     case "choose": h += `<h3>Your choice</h3>` + d.options.map(o => `<button class="btn optbtn" data-act="choose" data-k="${o.k}" ${o.disabled ? "disabled" : ""} title="${esc(o.reason || "")}"><b>${o.k.length === 1 ? o.k + ")" : ""}</b> ${esc(o.label)}${o.disabled ? ' <span class="mute">(' + esc(o.reason || "") + ")</span>" : ""}</button>`).join(""); break;
-    case "pickWorker": h += `<h3>Choose a worker to lose${d.srOnly ? " (Sr only)" : ""}</h3><div class="workers">${p.workers.map(w => `<div class="wk" data-act="pickw" data-w="${w.id}" style="${d.srOnly && w.lvl !== "Sr" ? "opacity:.3;pointer-events:none" : ""}"><div class="d" style="color:${dcol(w.disc)}">${w.disc}</div><div class="l">${w.lvl} · ${["Active","Tired","Over-Tired"][w.fat]}</div></div>`).join("")}</div>`; break;
+    case "pickWorker": h += `<h3>Choose a worker to lose${d.srOnly ? " (Sr only)" : ""}</h3><div class="workers">${p.workers.map(w => `<div class="wk" data-act="pickw" data-w="${w.id}" style="${d.srOnly && w.lvl !== "Sr" ? "opacity:.3;pointer-events:none" : ""}"><div class="d" style="color:${dcol(w.disc)}">${w.disc}</div><div class="l">${w.lvl} · ${["Active","Tired","Exhausted"][w.fat]}</div></div>`).join("")}</div>`; break;
     case "raidHire": {
       const half = l => Math.floor((l === "Jr" ? S.cfg.jrCost : S.cfg.srCost) / 2);
       h += `<h3>Hire a released worker at half cost</h3><p class="mute">Jr ${half("Jr")}G · Sr ${half("Sr")}G · you have ${p.gold}G. ${S.pool.length ? "Released pile: " + S.pool.length : "No workers released yet, any discipline available."}</p>`;
@@ -551,8 +564,9 @@ function detailModal() {
   switch (d.k) {
     case "worker": {
       const pi = +d.p; const w = P(pi).workers.find(x => x.id === +d.id); if (!w) return closeOnly();
-      const fatTxt = ["<b>Active:</b> ready to work", "<b>Tired:</b> worked last round", "<b>Over-Tired:</b> worked two rounds in a row"][w.fat];
-      const fatNext = ["Placing them makes them Tired", "Placing them again makes them Over-Tired. Resting recovers them", "Placing them earns no skill. They may quit at Upkeep. Resting recovers them"][w.fat];
+      const qOdds = "1 in " + Math.round(6 / Math.max(1, S.cfg.lossThreshBase || 1));
+      const fatTxt = ["<b>Fresh:</b> ready to work", "<b>Tired:</b> worked last round. Works normally", "<b>Exhausted:</b> worked two rounds in a row"][w.fat];
+      const fatNext = ["Placing them makes them Tired", "Placing them is fine, but then they are Exhausted. Resting recovers one step", "Placing them again is <b>overwork</b>: no skill earned, +1 Burnout, and a " + qOdds + " chance they quit at Upkeep. Resting recovers one step"][w.fat];
       const abil = (w.disc === "PX" || w.disc === "DATA") ? ((w.lvl === "Sr" && w.placed) || (w.lvl === "Jr" && !w.placed) ? "<b>Ability ready:</b> triggers at Rest" : "<b>Ability not active:</b> " + (w.lvl === "Jr" ? "a Junior must rest (stay unplaced)" : "a Senior must be placed")) : "";
       h += discHead(w.disc) + `<div class="dtitle">${w.lvl === "Sr" ? "Senior" : "Junior"} ${esc(dname(w.disc))}</div>`
         + sec("What they do", utilLines(w.disc))

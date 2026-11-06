@@ -43,13 +43,13 @@ r("place2","Step 15 · keep placing","Keep placing, or pass","",
 r("build_rd","Step 18 · R&D (after the build)","R&D: build faster","Next",
 "**R&D** speeds up building. Send two workers from different disciplines (Creative + Development, or Operations + Marketing) and **system development is 1 round shorter** for whatever you start building that round. You also skip the Gold fee for crunch.");
 r("tired","Step 21 · tired workers","Tired workers","Next",
-"Every worker who worked this round is now **Tired**. A Tired worker who works again becomes **Over-Tired**: they earn no skill and may quit. A worker who sits out a round **rests and recovers**.");
+"Every worker who worked this round is now **Tired**. A Tired worker who works again becomes **Exhausted**: they earn no skill and may quit. A worker who sits out a round **rests and recovers**.");
 r("burnout","Step 21 · burnout","Burnout: how it moves","Next",
 "**Burnout** shows how worn out your team is, from 0 to {burnMax}. It goes up at Upkeep: +1 for every {burnOverPer} you placed this round (up to +{burnOverMax}), and +1 if your salaries were short by {burnUnpaidMin}G or more. A calm round lowers it by {burnRelief}, and a Team Event lowers it by {burnTeamRelief}.\n\nBurnout bands: **Energized** (Burnout 0) pays +{energizedGold}G each round. **Strained** ({burnStrainAt}+) loses {burnStrainHype} extra Hype at Upkeep. **Burned out** ({burnBenchAt}+) benches your most tired worker each round. **Meltdown** ({burnQuitAt}) makes a worker quit.");
 r("culture","Step 21 · culture and burnout VP","Culture and Burnout VP","Next",
 "**Culture** is the other side of the same track: it equals {cultureBase} minus your Burnout. Team Events, Training and other Culture gains lower Burnout, and Culture losses raise it.\n\nAt the end of the game, high Burnout costs VP ({burnVP}).");
 r("upkeep","Step 21 · upkeep","Upkeep","Next",
-"**Upkeep** ran automatically: Hype faded, resting workers recovered, and Over-Tired workers risked quitting. It happens at the start of every round after round 1.");
+"**Upkeep** ran automatically: Hype faded, resting workers recovered, and Exhausted workers risked quitting. It happens at the start of every round after round 1.");
 r("gates","Step 22 · publisher gates","Publisher Gates","Next",
 "The **Publisher Gates** panel is your list of deadlines. At the end of each phase, the publisher reviews every studio: if you **pass**, you receive funding, and if you **miss**, you lose VP.\n\n**{gateName}** is due at the end of round {gateEnd}: {gateReqs}. Pass it for +{gateFund}G, or miss it and lose {gatePenalty} VP.");
 r("r2place","Step 25 · place (round 2)","Place your team","",

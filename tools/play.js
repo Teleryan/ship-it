@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Text-play harness so a human or an AI agent can play SHIP IT from the terminal.
-//   node tools/play.js new <file> <players 2-6> <gate E|M|H> <botSkill novice|casual|expert> [seed]
+//   node tools/play.js new <file> <players 2-6> <gate E|M|H (Easy, Standard, Hard preset)> <botSkill novice|casual|expert> [seed]
 //   node tools/play.js view <file>          what you can see and every legal action
 //   node tools/play.js do <file> '<json>'   take one action (see view for the formats); bots then play until it is your turn
 //   node tools/play.js hint <file>          the action the built-in bot would take for you (use sparingly)
@@ -75,7 +75,7 @@ function view(S) {
 }
 if (cmd === "new") {
   const n = +a1, seats = []; for (let i = 0; i < n; i++) seats.push({ name: i === ME ? "YOU" : "Bot " + i, bot: i !== ME });
-  const g = (a2 || "M").toUpperCase(), lv = [g, g, g];
+  const g = (a2 || "M").toUpperCase(), lv = g === "E" ? ["E", "E", "M", "M"] : g === "H" ? ["M", "H", "H", "H"] : ["E", "M", "M", "H"];
   const PERS = ["", "crunch", "hype", "systems", "clean"];
   const S = E.newGame(seats, { seed: a4 ? +a4 : (Math.random() * 1e6) | 0, config: Object.assign({}, D.config, { gateLevels: lv }) });
   S.players.forEach((p, i) => { if (i !== ME) { const q = PERS[i % PERS.length]; if (q) p.persona = q; p.profile = a3 || "casual"; } });
