@@ -287,7 +287,7 @@ function roundSetup(S) {
   S.players.forEach(p => {
     p.rs = { spent: 0, gained: 0, spentRes: 0, hires: 0, placed: 0, triggers: 0, builds: 0, debtRemoved: 0, hypeGained: 0, discards: 0, cashed: 0, debtStart: p.debt };
     p.workers.forEach(w => { w.placed = false; w.as = null; w.benched = false; w.training = false; w.trainNow = false; if (w.trainLeft > 0) { w.benched = "Training"; w.trainLeft--; } });
-    p.ws = S.cfg.wsMax ? Math.min(S.cfg.wsMax, S.cfg.wsFree || 0) : 0; p.wsUsed = 0; p.rd = false; p.rdDisc = 0; p.refreshed = 0; p.builds = 0; p.promos = 0; p.hunts = 0; p.swapObj = 0; p.swapMile = 0; p.recruited = 0; p.recruitExtra = 0;
+    p.ws = S.cfg.wsMax ? (S.cfg.wsKeep ? Math.max(p.ws || 0, Math.min(S.cfg.wsMax, S.cfg.wsFree || 0)) : Math.min(S.cfg.wsMax, S.cfg.wsFree || 0)) : 0; p.wsUsed = 0; p.rd = false; p.rdDisc = 0; p.refreshed = 0; p.builds = 0; p.promos = 0; p.hunts = 0; p.swapObj = 0; p.swapMile = 0; p.recruited = 0; p.recruitExtra = 0;
     p.systems.forEach(s => s.t = false);
   });
   S.occ = {}; S.passed = []; S.closed = {};
@@ -695,16 +695,18 @@ function doPlace(S, pi, wid, target, o) {
   if (!opt) return err("Invalid target"); if (!opt.ok) return err(opt.reason);
   if (o.as && !opt.as.includes(o.as)) return err("That worker cannot act as " + o.as + " here. Options: " + opt.as.join(", "));
   const as = (o.as && opt.as.includes(o.as)) ? o.as : (w.as && opt.as.includes(w.as)) ? w.as : opt.as[0];
-  if (DISCS.includes(w.disc) && D0.disciplines[w.disc].wild) w.as = as;
-  const over = w.fat >= (S.cfg.fatMax||2);
-  if (over) { p.rs.overN = (p.rs.overN || 0) + 1; }
-  w.worked = true; w.placed = true; if (over) w.overWhenPlaced = true; w.fat = Math.min(S.cfg.fatMax||2, w.fat + 1);
   let plan = null;
   if (opt.kind === "spot" && opt.spot.crew) {
     const want = Array.isArray(o.crew) ? o.crew.map(Number).sort((x, y) => x - y).join(",") : "";
     plan = opt.plans.find(pl => pl.ids.join(",") === want);
     if (!plan && Array.isArray(o.crew)) return err("That strike team is not allowed. Partners are chosen from: " + opt.plans.map(pl => "[" + pl.ids.join(",") + "]").join(" "));
-    if (!plan) plan = opt.plans[0];
+    if (!plan) return err("Choose which of your workers joins the strike team (partners: " + opt.plans.map(pl => "[" + pl.ids.join(",") + "]").join(" ") + ")");
+  }
+  if (DISCS.includes(w.disc) && D0.disciplines[w.disc].wild) w.as = as;
+  const over = w.fat >= (S.cfg.fatMax||2);
+  if (over) { p.rs.overN = (p.rs.overN || 0) + 1; }
+  w.worked = true; w.placed = true; if (over) w.overWhenPlaced = true; w.fat = Math.min(S.cfg.fatMax||2, w.fat + 1);
+  if (opt.kind === "spot" && opt.spot.crew) {
     const names = plan.ids.map(id => { const pw = p.workers.find(x => x.id === id); const pover = pw.fat >= (S.cfg.fatMax||2); if (pover) { pw.overWhenPlaced = true; p.rs.overN = (p.rs.overN || 0) + 1; log(S, p.name + "'s Exhausted " + pw.lvl + " " + dn(pw.disc) + " joins the strike team (Burnout risk)"); } pw.placed = true; pw.worked = true; pw.fat = Math.min(S.cfg.fatMax||2, pw.fat + 1); p.rs.placed++; if (opt.spot.r && !pover) gain(S, pi, RES_OF[plan.cats[id]], Math.min(pw.lvl === "Sr" ? S.cfg.resSr : S.cfg.resJr, S.cfg.crewPartnerCap == null ? 9 : S.cfg.crewPartnerCap)); return pw.lvl + " " + pw.disc; });
     log(S, p.name + " forms a strike team for " + opt.spot.id + ": " + w.lvl + " " + dn(w.disc) + " + " + names.join(" + "));
   }
@@ -910,7 +912,7 @@ function stepAction(S, a, actor) {
       }
       if (a.type === "buyws") {
         const c = E.canBuyWs(S, pi); if (!c.ok) return err(c.reason);
-        gain(S, pi, "gold", -c.cost); p.ws++; p.rs.wsBought = (p.rs.wsBought || 0) + 1; log(S, p.name + " powers up a workstation (" + c.cost + "G, " + p.ws + " this round)"); return { ok: true };
+        gain(S, pi, "gold", -c.cost); p.ws++; p.rs.wsBought = (p.rs.wsBought || 0) + 1; log(S, p.name + " powers up a workstation (" + c.cost + "G, " + p.ws + " in total, kept)"); return { ok: true };
       }
       if (a.type !== "place") return err("Place a worker or pass");
       const r = doPlace(S, pi, a.worker, a.target, a); if (r.ok) bumpPlace(S); return r;

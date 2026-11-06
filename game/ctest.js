@@ -53,7 +53,7 @@ S = toStep(mk(5), 'place', 4);
     ok(o && o.ok && o.plans && o.plans[0].ids.join() === '902', 'strike team forms from a rested worker of the other category');
     q.workers[1].placed = true; o = E.placementOptions(T, pi, q.workers[0]).find(x => x.target === 'spot:' + spot.id);
     ok(o && !o.ok && /strike team/i.test(o.reason), 'strike team refused when the partner already worked');
-    q.workers[1].placed = false; const r = E.act(T, { type: 'place', p: pi, worker: 901, target: 'spot:' + spot.id });
+    q.workers[1].placed = false; const r0 = E.act(T, { type: 'place', p: pi, worker: 901, target: 'spot:' + spot.id }); ok(!r0.ok && /Choose which/.test(r0.error), 'a strike team needs the player to choose the partner'); const r = E.act(T, { type: 'place', p: pi, worker: 901, target: 'spot:' + spot.id, crew: [902] });
     ok(r.ok && q.workers[0].placed && q.workers[0].fat === 1 && q.workers[1].fat === 1 && T.occ[spot.id].includes(pi), 'strike team placement tires both workers and occupies the spot'); } }
 { // single spots are exclusive
   const T = toStep(mk(7, 2), 'place', 3); const pi = E.currentActor(T), q = T.players[pi], oth = T.players.find(p => p.id !== pi);
