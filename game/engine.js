@@ -99,6 +99,7 @@ E.newGame = function (seats, opts) {
   const N0 = seats.length;
   if (cfg.spotFxAdj) data.spots.forEach(sp => { if (cfg.spotFxAdj[sp.id] != null) sp.fx = cfg.spotFxAdj[sp.id]; });
   if (cfg.bigAdd && cfg.bigAdd[N0]) cfg.bigAdd[N0].forEach(id => { const sp = data.spots.find(x => x.id === id); if (sp) data.spots.push(Object.assign({}, sp, { id: id + "_b" })); });
+  { const o = data.spots.find(x => x.id === "outsource"); if (o) { const jr = cfg.outsourceJrByN && cfg.outsourceJrByN[N0] != null ? cfg.outsourceJrByN[N0] : (cfg.outsourceJr == null ? 3 : cfg.outsourceJr), sr = cfg.outsourceSrByN && cfg.outsourceSrByN[N0] != null ? cfg.outsourceSrByN[N0] : (cfg.outsourceSr == null ? 5 : cfg.outsourceSr); if (jr != null && sr != null) o.note = "Jr +" + jr + "G / Sr +" + sr + "G"; } }
   if (cfg.launchCap) ["party", "press", "platform"].forEach(id => { const sp = data.spots.find(x => x.id === id); if (!sp) return; sp.mode = "single"; for (let k = 1; k < Math.ceil(N0 / 2); k++) data.spots.push(Object.assign({}, sp, { id: id + "_c" + k })); });
   E.useCfg(cfg); E.applyLook(data);
   if (D0.cScaleGates) D0.cScaleGates(data, cfg, seats.length);

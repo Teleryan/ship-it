@@ -26,8 +26,10 @@ function botsUntilMe(S) {
 function res(p, S) { return `Gold ${p.gold} | Ideas ${p.ideas} Code ${p.code} Process ${p.process} Buzz ${p.buzz} | Progress ${p.prod} Marketing ${p.mktg} Hype ${p.hype} | Debt ${p.debt} | Culture ${E.cultureOf(S, p)} Burnout ${p.burnout}`; }
 function W(w) { return `#${w.id} ${w.lvl} ${w.disc}${w.as ? "(as " + w.as + ")" : ""} fat${w.fat}${w.placed ? " PLACED" : ""}${w.training ? " TRAINING" : ""}${w.build ? " BUILDING" : ""}`; }
 const OB = i => { const ob = D.objectives[i]; return `[${i}] ${ob.name} ${ob.vp}VP needs ${ob.reqs.join(" + ")}`; };
-const MS = i => { const m = D.milestones[i]; return `[${i}] ${m.name}: ${m.text} (+${m.gold}G, phases ${m.phases})`; };
+const MS = i => { const m = (CUR && CUR.data ? CUR.data : D).milestones[i]; return `[${i}] ${m.name}: ${m.text} (+${m.gold}G, phases ${m.phases})`; };
+let CUR = null;
 function view(S) {
+  CUR = S;
   const o = [];
   const p = S.players[ME];
   o.push(`ROUND ${S.round}/12  phase ${S.phase}  step ${S.step}  ${S.over ? "GAME OVER" : "actor: " + (E.currentActor(S) < 0 ? "-" : S.players[E.currentActor(S)].name)}`);
