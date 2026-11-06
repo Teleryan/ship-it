@@ -220,7 +220,7 @@ function topbar(S) {
   <span class="phasepill" style="background:${ph.color}">${ph.name.toUpperCase()}</span><b>Round ${S.round}/12</b>${stepTracker(S)}
   <div class="grow"></div>
   ${U.net ? `<span class="mute" title="Game code">${U.net.up ? "●" : "○ reconnecting"} Game ${esc(U.net.code)}</span>` : U.tut ? "" : `<button class="btn sm" data-act="undo" ${U.undo.length ? "" : "disabled"}>↶ Undo</button>`}
-  <button class="btn sm" data-act="rules">Rules</button><button class="btn sm" data-act="milesref">Milestones</button><button class="btn sm" data-act="log">Log</button>${U.net ? "" : '<button class="btn sm" data-act="save">Save</button>'}
+  <button class="btn sm" data-act="rules">Rules</button><button class="btn sm" data-act="milesref">Milestones</button><button class="btn sm" data-act="scoreref">Score</button><button class="btn sm" data-act="log">Log</button>${U.net ? "" : '<button class="btn sm" data-act="save">Save</button>'}
   ${U.owner ? '<button class="btn sm" data-act="studio">Data Studio</button><button class="btn sm" data-act="master">Master</button>' : ""}${U.tut || (S && S.over) || (U.net && !U.net.host) ? "" : '<button class="btn sm danger" data-act="endgame">End game</button>'}<button class="btn sm" data-act="${U.net ? "menu" : "gamemenu"}">${U.net ? "Leave" : "Menu"}</button></div>`;
 }
 function prompt(S) {
@@ -655,6 +655,23 @@ function marketModal() {
   <div class="mkt-divider"><span>Not available yet (${cant.length})</span></div><div class="row wrap" style="align-items:stretch">${cant.map(c => c.html).join("")}</div></div>`;
   return modalShell(h, { wide: true });
 }
+function scoreModal(S) {
+  const c = S.cfg, sc = E.score(S), rows = sc.slice().sort((a, b) => b.total - a.total);
+  const cols = [["prodShare", "Progress race"], ["hypeStrength", "Hype race"], ["debtPenalty", "Debt"], ["burnout", "Burnout"], ["objectives", "Objectives"], ["synergy", "Synergy"], ["systems", "Systems"], ["gold", "Gold"], ["crisis", "Gates & crisis"]];
+  const f = v => { const n = Math.round(+v * 10) / 10; return Number.isInteger(n) ? String(n) : n.toFixed(1); };
+  const body = rows.map(r => `<tr><td><span class="dot" style="background:${P(r.id).color};display:inline-block;margin-right:6px"></span>${esc(r.name)}</td>${cols.map(k => `<td>${f(r.parts[k[0]])}</td>`).join("")}<td><b>${f(r.total)}</b></td></tr>`).join("");
+  const awards = S.players.length >= (c.awardMinN || 0);
+  return modalShell(`<h2>Score if the game ended now</h2><p class="mute">Races are ranked against the other studios, so these numbers move every round.</p>
+  <div class="scroll-y"><table class="scoretbl"><thead><tr><th>Studio</th>${cols.map(k => `<th>${k[1]}</th>`).join("")}<th>TOTAL</th></tr></thead><tbody>${body}</tbody></table></div>
+  <div class="mute" style="font-size:12px;margin-top:10px;line-height:1.5">
+  <b>Progress and Hype races:</b> VP for your rank, plus 1 VP for every ${c.raceLinDiv} points you have. Hype is ranked together with your Marketing.<br>
+  <b>Debt:</b> the most Debt loses the most VP; the least loses none.<br>
+  <b>Burnout:</b> costs VP from 2 upward (2: ${c.burnVP[2]}, 3: ${c.burnVP[3]}, 4: ${c.burnVP[4]}, 5: ${c.burnVP[5]}, 6: ${c.burnVP[6]}).<br>
+  <b>Objectives:</b> each completed objective is worth ${Math.round(c.objVPMult * 100)}% of the VP printed on its card.${c.objPartial ? " One missing just one requirement earns half of that." : ""}<br>
+  <b>Systems:</b> printed VP x ${c.sysVPMult}. <b>Gold:</b> 1 VP per ${c.goldPerVP} Gold left.<br>
+  <b>Gates and crisis:</b> gate bonuses and penalties (missed gates never cost more than ${c.gateLossCap} VP in total)${awards ? ", +" + c.hypeLeadVP + " VP for the Hype leader at the end of each of the first three phases, +1 VP for the passing studio with the most Progress at each gate" : ""}, and Crisis card results.</div>
+  <div style="margin-top:12px;text-align:right"><button class="btn" data-act="close">Close</button></div>`, { wide: true });
+}
 function resultsModal() {
   const S = U.S; const rows = S.scores.slice().sort((a, b) => b.total - a.total);
   const cols = [["prodShare", "Progress race"], ["hypeStrength", "Hype race"], ["debtPenalty", "Debt"], ["burnout", "Burnout"], ["objectives", "Obj."], ["synergy", "Synergy"], ["systems", "Sys"], ["gold", "Gold"], ["crisis", "Crisis/Gates"]];
@@ -706,6 +723,7 @@ function render() {
     else if (U.modal === "master" && U.owner) h += "\u0001" + masterModal() + "\u0002";
     else if (U.modal === "endgame") h += endGameModal();
     else if (U.modal === "milesref") h += milesModal(S);
+    else if (U.modal === "scoreref") h += scoreModal(S);
     else if (U.modal === "rules") h += rulesModal();
     else if (U.modal === "gamemenu") h += gameMenuModal();
     else if (U.modal === "market" && canBuildNow(S)) h += marketModal();
@@ -902,6 +920,7 @@ $root.addEventListener("click", e => {
       U.pop = null; render(); return; }
     case "menu": if (U.net) { leaveRoom(); return; } SI.an.abandon(U.S); U.screen = "menu"; U.modal = null; clearTimeout(U.botT); clearAuto(); render(); return;
     case "milesref": U.modal = "milesref"; render(); return;
+    case "scoreref": U.modal = "scoreref"; render(); return;
     case "log": U.logOpen = !U.logOpen; render(); return;
     case "rules": U.modal = "rules"; render(); return;
     case "gamemenu": U.modal = "gamemenu"; render(); return;

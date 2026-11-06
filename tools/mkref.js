@@ -9,7 +9,7 @@ D.milestones = D.milestones.map(m => m.name === "Liquidation" ? { cat: "Workforc
 const c = Object.assign(E.defaultConfig(), D.config);
 // Variant D constants (these keys were removed from the config; the reference text below still branches on them)
 Object.assign(c, { flowV2: 1, catchUpOrder: 1, recruitOnly: 1, leanRound: 1, cultureFold: 1, promoFree: 1 });
-const bv = c.burnVP || {}, bvTxt = [3, 4, 5, 6].map(k => k + ": " + (bv[k] || 0) + " VP").join(", ");
+const bv = c.burnVP || {}, bvTxt = [2, 3, 4, 5, 6].map(k => k + ": " + (bv[k] || 0) + " VP").join(", ");
 const esc = s => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 // ---- icons (same drawings as the game) ----
@@ -76,18 +76,17 @@ page("Player Reference", "Front: the round at a glance", `
 page("Player Reference", "Back: scoring, systems and gates", `
 <div class="cols">
  <div>
-  ${box("How you score", `<table class="t sc"><tr><td>${icl("progress")}</td><td>Rank on the Progress race. Ties split the points. See table.</td></tr>
-  <tr><td>${icl("hype")}</td><td>Rank on the Hype race. Your ${icl("marketing")} is added to Hype at the end. Hype fades ${c.hypeDecay} per round, so build it late.</td></tr>
-  <tr><td>${icl("debt")}</td><td>Most Tech Debt loses the most VP; least loses none.</td></tr>
+  ${box("How you score", `<table class="t sc"><tr><td>${icl("progress")}</td><td>Rank on the Progress race, plus 1 VP for every ${c.raceLinDiv} Progress you have. Ties split the rank points. See table.</td></tr>
+  <tr><td>${icl("hype")}</td><td>Rank on the Hype race, plus 1 VP for every ${c.raceLinDiv} Hype. Your ${icl("marketing")} counts as Hype here. Hype fades ${c.hypeDecay} per round, so build it late.</td></tr>
+  <tr><td>${icl("debt")}</td><td>Ranked against the other studios: the most Tech Debt loses the most VP, the least loses none.</td></tr>
   <tr><td>${icl("culture")}</td><td>${c.cultureFold ? "Studio morale, not a separate track: Culture is 5 minus Burnout (no VP of its own)." : "Lowest Culture loses the most VP; best loses none."}</td></tr>
-  <tr><td>${icl("burnout")}</td><td>End Burnout costs VP: ${bvTxt} (0 to 2 costs nothing).</td></tr>
-  <tr><td><b>Objectives</b></td><td>VP for each objective you completed (4 secret cards).</td></tr>
-  <tr><td><b>Systems</b></td><td>Printed VP of each finished system.</td></tr>
+  <tr><td>${icl("burnout")}</td><td>End Burnout costs VP: ${bvTxt}. Burnout 0 and 1 cost nothing.</td></tr>
+  <tr><td><b>Objectives</b></td><td>Each completed objective is worth ${Math.round(c.objVPMult * 100)}% of the VP printed on its card.${c.objPartial ? " One that is missing just one requirement earns half of that." : ""}</td></tr>
+  <tr><td><b>Systems</b></td><td>Printed VP of each finished system, x ${c.sysVPMult}.</td></tr>
   <tr><td><b>Synergy</b></td><td>Bonus when a finished system's <b>main skill</b> matches the skill icon of a completed objective.</td></tr>
-  <tr><td><b>Reach</b></td><td>+${c.reachMajorVP} VP to the only studio with the most Reach systems (at least 2).</td></tr>
   <tr><td>${icl("gold")}</td><td>Every ${c.goldPerVP} leftover Gold is 1 VP.</td></tr>
-  <tr><td><b>Gates and Crisis</b></td><td>VP won or lost from Publisher Gates and Crisis cards.</td></tr></table>`)}
-  ${box("Race VP by finishing rank", `<table class="t grid"><tr><th>Players</th>${[1, 2, 3, 4, 5, 6].map(r => `<th>${r}${["st", "nd", "rd"][r - 1] || "th"}</th>`).join("")}</tr>${N.map((n, i) => `<tr><td><b>${n}</b></td>${[0, 1, 2, 3, 4, 5].map(k => `<td>${tables[i][k] != null ? tables[i][k] : ""}</td>`).join("")}</tr>`).join("")}</table><p class="note">Same table for Progress and for Hype.</p>`)}
+  <tr><td><b>Gates and Crisis</b></td><td>VP won or lost from Publisher Gates and Crisis cards. Missing gates never costs more than ${c.gateLossCap} VP in total. With ${c.awardMinN}+ players, the passing studio with the most Progress at each gate earns +1 VP, and the Hype leader earns +${c.hypeLeadVP} VP at the end of each of the first three phases.</td></tr></table>`)}
+  ${box("Race VP by finishing rank", `<table class="t grid"><tr><th>Players</th>${[1, 2, 3, 4, 5, 6].map(r => `<th>${r}${["st", "nd", "rd"][r - 1] || "th"}</th>`).join("")}</tr>${N.map((n, i) => `<tr><td><b>${n}</b></td>${[0, 1, 2, 3, 4, 5].map(k => `<td>${tables[i][k] != null ? tables[i][k] : ""}</td>`).join("")}</tr>`).join("")}</table><p class="note">Same table for Progress and for Hype. The Score button in the game shows every studio score so far.</p>`)}
  </div>
  <div>
   ${box("Systems", `${li([`The <b>Systems to Build</b> row shows <b>${c.marketSize}</b> face up per category: Innovation, Stability, Reach, Revenue. Replace one for ${c.marketRefreshGold} ${ic("gold")} (once per round).`, "<b>Cost</b>: skills split across the roles it needs, plus Gold. You must have every skill: nothing can be covered with Gold.", "<b>Team</b>: building commits one free worker for each role named in the cost. They sit out until it finishes.", "<b>Build time</b>: 1 to 3 team rounds by system power. Ready at the start of round (this round + 1 + team rounds).", `<b>Rush</b> takes one team round off: pay ${c.crunchGold} ${ic("gold")}, tire a worker, or use R&amp;D (free).`, "<b>Trigger</b>: place a Senior of the named role on the finished system's tile, once per round.", `Limits: ${c.buildsPerRound} build per round, ${c.slotsPerCategory} per category, ${c.maxSystems} total.`])}`)}
