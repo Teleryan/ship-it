@@ -9,7 +9,7 @@ console.log(JSON.stringify(S.scores.map(s=>[s.name,s.total,s.parts]),null,0).sli
 S.players.forEach(p=>console.log(p.name,'gold',p.gold,'prod',p.prod,'mktg',p.mktg,'hype',p.hype,'debt',p.debt,'cul',p.culture,'sys',p.systems.length,'workers',p.workers.length,'miles claimed',p.claimed.length));
 // aggregate
 let agg={};let N=0;let win={};let rounds=0;
-for(const n of [2,3,4,5,6]){agg[n]={tot:0,g:0,gaps:0,sysB:0,prod:0,mk:0,hy:0,db:0,thr:{CLEAN:0,STANDARD:0,ROUGH:0,BLOCKED:0},vpMile:0};
+for(const n of [2,3,4,5]){agg[n]={tot:0,g:0,gaps:0,sysB:0,prod:0,mk:0,hy:0,db:0,thr:{CLEAN:0,STANDARD:0,ROUGH:0,BLOCKED:0},vpMile:0};
  for(let s=1;s<=60;s++){const X=run(n,s);const sc=X.scores.map(z=>z.total).sort((a,b)=>b-a);agg[n].g++;agg[n].tot+=sc[0];agg[n].gaps+=sc[0]-sc[sc.length-1];
   X.players.forEach(p=>{agg[n].sysB+=p.systems.length;agg[n].prod+=p.prod;agg[n].mk+=p.mktg;agg[n].hy+=p.hype;agg[n].db+=p.debt;agg[n].vpMile+=p.claimed.length});
   X.scores.forEach(z=>agg[n].thr[z.parts.threshold]++);}

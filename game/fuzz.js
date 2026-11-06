@@ -40,7 +40,7 @@ function fuzzAct(S) {
   if (!r.ok) { errs++; console.log('STUCK', S.step, JSON.stringify(a), r.error); return false; }
   return true;
 }
-for (const n of [2, 3, 4, 5, 6]) {
+for (const n of [2, 3, 4, 5]) {
   for (let seed = 1; seed <= seeds; seed++) {
     const seats = []; for (let i = 0; i < n; i++) seats.push({ name: 'P' + (i + 1) });
     const S = E.newGame(seats, { seed }); let k = 0;

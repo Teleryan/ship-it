@@ -6,7 +6,7 @@
 2P game 5 rounds 12 scores 96/95.5 hash 55ca12fc95
 2P game 6 rounds 12 scores 100/103.5 hash 34119ec0de
 2P game 7 rounds 12 scores 102/117 hash 69e255146c
-3P game 0 rounds 12 scores 108/105/81.5 hash 29166aa5a2
+3P game 0 rounds 12 scores 108/100/81.5 hash 29166aa5a2
 3P game 1 rounds 12 scores 86.5/107.5/81.5 hash f0c2dc0559
 3P game 2 rounds 12 scores 92/102.5/108.5 hash 9decdffed8
 3P game 3 rounds 12 scores 103/89.5/101.5 hash 315f90d009
@@ -16,13 +16,13 @@
 3P game 7 rounds 12 scores 96/102.5/97.5 hash fa5f66519d
 4P game 0 rounds 12 scores 78/87.5/80/122.5 hash 586acd77d8
 4P game 1 rounds 12 scores 74.5/63/138/78 hash 6f10267953
-4P game 2 rounds 12 scores 97.5/87.5/90.5/99 hash 7e6c1fe807
+4P game 2 rounds 12 scores 94.5/82.5/93.5/94 hash 6e5b6e6ebd
 4P game 3 rounds 12 scores 87/104.5/103.5/84 hash d9881fbb7b
 4P game 4 rounds 12 scores 93/78/84.5/101 hash a821764a91
 4P game 5 rounds 12 scores 103.5/73.5/101/100.5 hash 328c8c109b
 4P game 6 rounds 12 scores 89.5/95/84/101.5 hash 2d8e247790
 4P game 7 rounds 12 scores 77/96/100/92.5 hash 58cd545363
-5P game 0 rounds 12 scores 90.5/88/84.5/111/66.5 hash 92991165cd
+5P game 0 rounds 12 scores 85.5/88/84.5/111/66.5 hash 92991165cd
 5P game 1 rounds 12 scores 73/97/68/88.5/87.5 hash 3a39c0d561
 5P game 2 rounds 12 scores 91.5/104.5/89.5/73.5/93.5 hash a1c2b0e668
 5P game 3 rounds 12 scores 116.5/77.5/102.5/85.5/89 hash 7d80cab034
@@ -30,11 +30,3 @@
 5P game 5 rounds 12 scores 111/72/93/98.5/89.5 hash 598bbd1de0
 5P game 6 rounds 12 scores 84.5/56/111/89.5/111 hash a580d56362
 5P game 7 rounds 12 scores 71.5/79/84.5/84.5/99 hash 81b955ce70
-6P game 0 rounds 12 scores 60.5/98.5/118.5/102/84/86.5 hash 96e855b8a2
-6P game 1 rounds 12 scores 84.5/60/80.5/94.5/133/93 hash fed0625ff9
-6P game 2 rounds 12 scores 88/100.5/90/62.5/90/86 hash 3bddba021f
-6P game 3 rounds 12 scores 112/93.5/113.5/97/86/78.5 hash ca3f670c44
-6P game 4 rounds 12 scores 84/107.5/74.5/82/107/61.5 hash 1232bf0218
-6P game 5 rounds 12 scores 82/97.5/78.5/81.5/77.5/90 hash 68a0c7e6d7
-6P game 6 rounds 12 scores 105.5/94/80.5/95.5/83/71.5 hash a7df19882c
-6P game 7 rounds 12 scores 87.5/91.5/95/81.5/85.5/82 hash 892af8441e

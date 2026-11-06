@@ -192,7 +192,7 @@ function ownsDiscs(p, req) { // distinct workers for each requirement, wild work
 }
 /* build crew: one free (not already building) worker per role the system's cost names; wild workers are flexible. Returns worker ids, or null. */
 function crewFor(p, req, only) {
-  const free = p.workers.filter(w => !w.build && (!only || only.includes(w.id))); const used = {}; const out = [];
+  const free = p.workers.filter(w => !w.build && !w.training && (!only || only.includes(w.id))); const used = {}; const out = [];
   function go(i) {
     if (i === req.length) return true;
     const cand = free.filter(w => !used[w.id] && actsAs(w).includes(req[i])).sort((a, b) => (D0.disciplines[a.disc].wild ? 1 : 0) - (D0.disciplines[b.disc].wild ? 1 : 0) || (a.lvl === "Sr") - (b.lvl === "Sr") || a.id - b.id);
@@ -445,12 +445,12 @@ function endOfRound(S) {
   });
   if (S.round === 1 && !S.cfg.gatesAtSetup) drawGates(S);
   if (S.round >= PHASE_ENDS[3] || PHASE_OF_ROUND(S.round + 1) !== S.phase) resolveGate(S);
-  if (S.cfg.hypeBank && S.phase < 3 && PHASE_OF_ROUND(S.round + 1) !== S.phase) { // lock in: when a phase closes, Hype is banked as Marketing, which never fades
-    S.players.forEach(q => { const x = Math.min(S.cfg.hypeBank, q.hype); if (x > 0) { q.hype -= x; q.mktg += x; log(S, q.name + " banks " + x + " Hype as Marketing"); } });
-  }
   if (S.cfg.hypeLeadVP && S.phase < 3 && PHASE_OF_ROUND(S.round + 1) !== S.phase) { // press buzz: the studio with the most Hype when a phase closes earns VP
     const mx = Math.max.apply(null, S.players.map(q => q.hype)), tops = S.players.filter(q => q.hype === mx);
     if (tops.length === 1 && mx >= (S.cfg.hypeLeadMin || 1) && S.players.length >= (S.cfg.awardMinN || 0)) { tops[0].vpAdj += S.cfg.hypeLeadVP; S.hypeLead = (S.hypeLead || []).concat([{ phase: S.phase, id: tops[0].id, vp: S.cfg.hypeLeadVP }]); log(S, "HYPE LEADER: " + tops[0].name + " has the most Hype (" + mx + ") at the end of " + D0.phases[S.phase].name + ": +" + S.cfg.hypeLeadVP + " VP"); }
+  }
+  if (S.cfg.hypeBank && S.phase < 3 && PHASE_OF_ROUND(S.round + 1) !== S.phase) { // lock in: when a phase closes, Hype is banked as Marketing, which never fades
+    S.players.forEach(q => { const x = Math.min(S.cfg.hypeBank, q.hype); if (x > 0) { q.hype -= x; q.mktg += x; log(S, q.name + " banks " + x + " Hype as Marketing"); } });
   }
   return false;
 }
@@ -1097,7 +1097,7 @@ const CRISIS_CHOICE = {
   bug(S, p, k) {
     const pl = P(S, p);
     if (k === "A") { gain(S, p, "gold", -8); S.dq.unshift({ t: "pickWorker", p, reason: "Last-Minute Bug fix" }); }
-    if (k === "B") { pl.flags.doubleThresh = true; log(S, pl.name + " ships anyway: penalties doubled"); }
+    if (k === "B") { addVP(S, p, -(S.cfg.bugShipVP == null ? 5 : S.cfg.bugShipVP)); log(S, pl.name + " ships anyway: -" + (S.cfg.bugShipVP == null ? 5 : S.cfg.bugShipVP) + " VP"); }
     if (k === "C") { pl.flags.skipLaunch = true; log(S, pl.name + " delays: skips Round 12 placement"); }
   },
   buyout(S, p, k, d) {

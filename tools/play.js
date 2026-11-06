@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Text-play harness so a human or an AI agent can play SHIP IT from the terminal.
-//   node tools/play.js new <file> <players 2-6> <gate E|M|H (Easy, Standard, Hard preset)> <botSkill novice|casual|expert> [seed]
+//   node tools/play.js new <file> <players 2-5> <gate E|M|H (Easy, Standard, Hard preset)> <botSkill novice|casual|expert> [seed]
 //   node tools/play.js view <file>          what you can see and every legal action
 //   node tools/play.js do <file> '<json>'   take one action (see view for the formats); bots then play until it is your turn
 //   node tools/play.js hint <file>          the action the built-in bot would take for you (use sparingly)

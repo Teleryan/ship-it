@@ -2,7 +2,7 @@
 global.window = undefined;
 const E = require('./engine.js'), B = require('./bot.js');
 let fails = 0;
-for (const n of [2, 3, 4, 5, 6]) {
+for (const n of [2, 3, 4, 5]) {
   for (let seed = 1; seed <= 20; seed++) {
     const seats = []; for (let i = 0; i < n; i++) seats.push({ name: 'P' + (i + 1), bot: true });
     let S, r;

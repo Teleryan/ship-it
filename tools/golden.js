@@ -1,4 +1,4 @@
-// Deterministic golden regression: seeded bot games for 2-6 players, one line per game (rounds, final scores, hash of final player stats).
+// Deterministic golden regression: seeded bot games for 2-5 players, one line per game (rounds, final scores, hash of final player stats).
 // usage: node tools/golden.js [gamesPerCount=8]      npm run golden  diffs the output against tests/golden.expected.txt
 //        npm run golden:update  rewrites that file after an intended rules/bot change.
 // Same seeds (7000+n*1000+gi), casual skill and persona rotation as tools/kpi.js. The log is not part of the hash.
@@ -6,7 +6,7 @@ global.window = undefined;
 const path = require("path"), crypto = require("crypto"), G = path.join(__dirname, "..", "game");
 const E = require(path.join(G, "engine.js")), B = require(path.join(G, "bot.js"));
 const games = +process.argv[2] || 8, PERS = ["", "crunch", "hype", "systems", "clean"];
-for (const n of [2, 3, 4, 5, 6]) {
+for (const n of [2, 3, 4, 5]) {
   for (let gi = 0; gi < games; gi++) {
     const seats = []; for (let i = 0; i < n; i++) seats.push({ name: "Bot " + (i + 1), bot: true });
     const S = E.newGame(seats, { seed: 7000 + n * 1000 + gi });

@@ -202,8 +202,8 @@ for (const card of ['platform', 'creep', 'buyout', 'bug', 'patch', 'raid', 'depa
   T.players[0].gold = 20; ok(E.score(T)[0].parts.gold === Math.floor(20 / T.cfg.goldPerVP), 'leftover Gold converts to VP');
   T.players[0].burnout = 5; ok(E.score(T)[0].parts.burnout === (T.cfg.burnVP['5'] || 0), 'Burnout VP follows the printed track'); }
 
-// ---- 2-6 players ----
-for (const n of [2, 3, 4, 5, 6]) { const T = mk(60 + n, n); const R = toStep(mk(60 + n, n), 'place', 1); const spots = E.activeSpots(T).length; B.run(T, 40000);
+// ---- 2-5 players ----
+for (const n of [2, 3, 4, 5]) { const T = mk(60 + n, n); const R = toStep(mk(60 + n, n), 'place', 1); const spots = E.activeSpots(T).length; B.run(T, 40000);
   ok(T.over && T.scores.length === n && T.winner != null && T.players.every(p => p.workers.length >= 1), n + ' players: a bot game finishes with scores and a winner');
   ok(spots > 0, n + ' players: board has spots (' + spots + ')');
   ok(R.recruit.length === E.recruitSize(R), n + ' players: recruitment pool size ' + R.recruit.length); }
