@@ -204,6 +204,8 @@ function crewFor(p, req, only) {
   return go(0) ? out.slice() : null;
 }
 E.crewFor = crewFor;
+// Workers that could fill each role a build needs (free, not building or training): the player picks one per role
+E.crewCandidates = function (S, pi, name) { const p = P(S, pi), def = sysDef(S, name), b = parseBuild(def.build); return b.reqs.map(r => ({ role: r, ids: p.workers.filter(w => !w.build && !w.training && actsAs(w).includes(r)).map(w => w.id) })); };
 function sysCount(p, cat) { return p.systems.filter(s => s.cat === cat).length; }
 function debtPct(S, p) {
   if (p.prod <= 0) return p.debt > 0 ? 100 : 0;
@@ -284,7 +286,7 @@ function catchUpOrder(S) {
 function roundSetup(S) {
   S.players.forEach(p => {
     p.rs = { spent: 0, gained: 0, spentRes: 0, hires: 0, placed: 0, triggers: 0, builds: 0, debtRemoved: 0, hypeGained: 0, discards: 0, cashed: 0, debtStart: p.debt };
-    p.workers.forEach(w => { w.placed = false; w.benched = false; w.training = false; w.trainNow = false; if (w.trainLeft > 0) { w.benched = "Training"; w.trainLeft--; } });
+    p.workers.forEach(w => { w.placed = false; w.as = null; w.benched = false; w.training = false; w.trainNow = false; if (w.trainLeft > 0) { w.benched = "Training"; w.trainLeft--; } });
     p.ws = S.cfg.wsMax ? Math.min(S.cfg.wsMax, S.cfg.wsFree || 0) : 0; p.wsUsed = 0; p.rd = false; p.rdDisc = 0; p.refreshed = 0; p.builds = 0; p.promos = 0; p.hunts = 0; p.swapObj = 0; p.swapMile = 0; p.recruited = 0; p.recruitExtra = 0;
     p.systems.forEach(s => s.t = false);
   });
@@ -848,7 +850,7 @@ E.canBuild = function (S, pi, name, free, crunch) {
   if (bg && p.gold < bg) return { ok: false, reason: "Needs " + bg + " Gold" };
   return { ok: true };
 };
-function doBuild(S, pi, name, useFree, crunchIn, crewPick) {
+function doBuild(S, pi, name, useFree, crunchIn, crewPick, crunchWho) {
   const p = P(S, pi); const free = !!useFree && p.freeBuilds > 0;
   const crunch = crunchIn === "gold" || crunchIn === "fat" ? crunchIn : null;
   const chk = E.canBuild(S, pi, name, free, crunch); if (!chk.ok) return err(chk.reason);
@@ -864,7 +866,7 @@ function doBuild(S, pi, name, useFree, crunchIn, crewPick) {
     const rush = !!crunch || (p.rd && S.cfg.rdCrunch), d = E.buildDelay(S, p, crunch, def), crewIds = E.buildRounds(S, p, crunch, def) > 0 ? (crewFor(p, b.reqs, pick) || crewFor(p, b.reqs) || []) : [];
     crewIds.forEach(id => { p.workers.find(q => q.id === id).build = name; });
     if (crunch === "gold" && !(p.rd && S.cfg.rdCrunch)) { const cg = S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold; gain(S, pi, "gold", -cg); p.rs.spent += cg; }
-    else if (crunch === "fat" && !(p.rd && S.cfg.rdCrunch)) { const cw = E.crunchWorker(p); cw.fat = Math.min(2, cw.fat + 1); log(S, p.name + " crunches: " + cw.lvl + " " + dn(cw.disc) + " is more tired"); }
+    else if (crunch === "fat" && !(p.rd && S.cfg.rdCrunch)) { const cw = (crunchWho != null && p.workers.find(q => q.id === +crunchWho && q.fat < 2)) || E.crunchWorker(p); cw.fat = Math.min(2, cw.fat + 1); log(S, p.name + " crunches: " + cw.lvl + " " + dn(cw.disc) + " is more tired"); }
     p.building.push({ name, cat: def.cat, rdy: S.round + d, rush, crew: crewIds }); p.rs.crunched = (p.rs.crunched || 0) + (rush ? 1 : 0); if (rush) p.cs.crunched = (p.cs.crunched || 0) + 1;
     log(S, p.name + " starts building " + name + " (" + def.cat + "), ready in round " + (S.round + d) + (crewIds.length ? " (crew: " + crewIds.map(id => { const q = p.workers.find(z => z.id === id); return q.lvl + " " + q.disc; }).join(", ") + ")" : "") + (rush ? " (crunched)" : "") + (free ? " FREE" : ""));
     return { ok: true };
@@ -926,7 +928,7 @@ function restAction(S, a, p) {
   switch (a.type) {
     case "claim": return claimMile(S, p, a);
     case "done": S.cur++; return { ok: true };
-    case "build": return doBuild(S, pi, a.name, a.free, a.crunch, a.crew);
+    case "build": return doBuild(S, pi, a.name, a.free, a.crunch, a.crew, a.crunchWorker);
     case "refresh": {
       const def = sysDef(S, a.name); if (!def || !S.cfg.marketSize || !(S.market[def.cat] || []).includes(a.name)) return err("Pick a market tile");
       if ((p.refreshed || 0) >= (S.cfg.marketRefreshesPerRound || 1)) return err("Already refreshed this round");

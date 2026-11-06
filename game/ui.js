@@ -122,6 +122,7 @@ SI.act = act;
 function scheduleBots() {
   clearTimeout(U.botT);
   const S = U.S; if (!S || S.over || !B.isBotTurn(S)) return;
+  if (U.stepScreenOpen && !U.tut) return; // wait while a step screen is open
   if (U.net && (!U.net.host || !U.net.up)) return; // online: only the host's device runs the bots
   const allBots = S.players.every(p => p.bot);
   U.botT = setTimeout(() => {
@@ -437,6 +438,85 @@ function playersPanel(S) {
     ${S.cfg.wsMax ? wsLine(S, p) : ""}<div class="mute" style="font-size:11px;margin-top:4px">${p.workers.length} workers · ${p.systems.length} systems${(p.building || []).length ? " (+" + p.building.length + " building)" : ""}${p.vpAdj ? " · crisis VP " + (p.vpAdj > 0 ? "+" : "") + p.vpAdj : ""}</div><div class="mute" style="font-size:11px;margin-top:2px" title="Income each round minus the salaries of your workers">Per round: +${S.cfg.income} income, -${p.workers.reduce((a, w) => a + (w.lvl === "Sr" ? S.cfg.salarySr : S.cfg.salaryJr), 0)} payroll</div>${stand ? `<div class="mute" style="font-size:11px;margin-top:2px" title="Live estimate of your final score if the game ended now. The studio with the fewest VP acts first each round.">Standing #${standRank[p.id]} · est. ${stand[p.id].total} VP</div>` : ""}</div>`;
   }).join("");
 }
+/* Player-picked build crew: one free worker per role the system needs (no auto-picking) */
+function crewModal(S) {
+  const c = U.crew; if (!c) return "";
+  const pi = viewIndex(S), p = P(pi), def = E.sysDef(S, c.name), cands = E.crewCandidates(S, pi, c.name);
+  const wl = id => { const w = p.workers.find(x => x.id === id); return `${w.lvl === "Sr" ? "Senior" : "Junior"} ${esc(dname(w.disc))} · ${FAT[w.fat]}`; };
+  const used = Object.values(c.sel);
+  const rows = cands.map((r, i) => `<div class="dsec"><h4>${esc(dname(r.role))} needed</h4><div class="row wrap" style="gap:6px">${r.ids.length ? r.ids.map(id => { const on = c.sel[i] === id, taken = !on && used.includes(id); return `<button class="btn sm ${on ? "primary" : ""}" ${taken ? "disabled" : ""} data-act="crew-pick" data-i="${i}" data-w="${id}">${wl(id)}</button>`; }).join("") : `<span class="mute">Nobody free can fill this role</span>`}</div></div>`).join("");
+  let crunchRow = "";
+  if (c.crunch === "fat") { const tw = p.workers.filter(w => w.fat < 2); crunchRow = `<div class="dsec"><h4>Crunch: who works late?</h4><div class="row wrap" style="gap:6px">${tw.map(w => `<button class="btn sm ${c.cw === w.id ? "primary" : ""}" data-act="crew-cw" data-w="${w.id}">${wl(w.id)}</button>`).join("")}</div><div class="mute" style="font-size:12px;margin-top:4px">That worker becomes one step more tired.</div></div>`; }
+  const ready = cands.length === Object.keys(c.sel).length && cands.every((r, i) => c.sel[i] != null) && (c.crunch !== "fat" || c.cw != null);
+  return modalShell(`<h2>Pick the build crew</h2><p class="mute">${esc(def.name)} needs ${cands.length} worker${cands.length === 1 ? "" : "s"}. They sit out until it is finished. You choose who.</p>${rows}${crunchRow}
+  <div class="row" style="margin-top:12px;gap:8px"><button class="btn" data-act="crew-cancel">Back</button>${actBtn("Start build", 'data-act="crew-ok"', !ready, "Pick a worker for every role", true)}</div>`);
+}
+function liveVpPanel(S) {
+  if (["setup"].includes(S.step) || !S.players.length) return "";
+  const me = viewIndex(S), sc = E.score(S), f = v => { const n = Math.round(+v * 10) / 10; return Number.isInteger(n) ? String(n) : n.toFixed(1); };
+  const rows = sc.map(r => { const own = r.id === me, secret = (r.parts.objectives || 0) + (r.parts.synergy || 0), shown = own ? r.total : r.total - secret; const pr = r.parts; return { r, own, shown, pr, sys: (pr.systems || 0), races: (pr.prodShare || 0) + (pr.hypeStrength || 0), neg: (pr.debtPenalty || 0) + (pr.burnout || 0), other: (pr.gold || 0) + (pr.crisis || 0) + (pr.reach || 0) + (own ? secret : 0) }; }).sort((a, b) => b.shown - a.shown);
+  const top = rows[0] ? rows[0].shown : 0;
+  const G = "display:grid;grid-template-columns:minmax(0,1fr) repeat(5,42px);gap:4px;align-items:center;font-size:12px;padding:3px 0";
+  const head = `<div style="${G};opacity:.7;font-size:11px"><span></span><span title="Progress and Hype race">Races</span><span>Sys</span><span title="Debt and Burnout VP">Costs</span><span title="Gold, gates and crisis cards, your own objectives">Other</span><span>VP</span></div>`;
+  return `<div class="panel pnl-vp" data-tut="livevp"><h3>Live VP <span class="mute" style="font-size:11px;font-weight:400">if the game ended now</span></h3>${head}${rows.map(x => `<div style="${G};${x.own ? "background:var(--panel2);border-radius:6px;" : ""}"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span class="dot" style="background:${P(x.r.id).color};display:inline-block;margin-right:4px"></span>${esc(x.r.name)}</span><span>${f(x.races)}</span><span>${f(x.sys)}</span><span>${f(x.neg)}</span><span>${f(x.other)}</span><b>${f(x.shown)}${x.shown === top ? " \u2605" : ""}</b></div>`).join("")}<div class="mute" style="font-size:11px;margin-top:4px">Rivals' secret objectives are not counted. Races are ranked, so these move every round.</div></div>`;
+}
+
+/* ---------- step and phase transition screens ---------- */
+const PHASE_GOAL = ["Earn skills, recruit your first workers and start your first system.", "The race begins: take Progress and Hype tiles, build systems, keep Debt and Burnout in check.", "Finish systems (check build time), push Hype late because it fades, fix Debt.", "Spend everything. There is no Upkeep after this round, so Burnout and quitting no longer apply."];
+function stepShell(S, step, title, body, btn) {
+  const tags = ["Phase end", "Reveal", "Upkeep", "Income", "Order", "Place", "Manage"];
+  return modalShell(`<div class="row wrap" style="gap:6px;margin-bottom:6px">${tags.map(t => `<span class="tag" style="${t === step ? "background:var(--accent,#3b9ae1);color:#06121f;font-weight:700" : "opacity:.45"}">${t}</span>`).join("")}</div><h2>${title}</h2>${body}<div style="margin-top:14px;text-align:right"><button class="btn primary" data-act="stepnext">${btn || "Continue"}</button></div>`, { noClose: true });
+}
+function stepScreens(S) {
+  const out = [], rn = S.rnote && S.rnote.r === S.round ? S.rnote : null, ph = S.data.phases[S.phase], r = S.round, me = viewIndex(S);
+  const sg = n => (n > 0 ? "+" : n < 0 ? "−" : "") + Math.abs(n);
+  const f1 = v => { const n = Math.round(+v * 10) / 10; return Number.isInteger(n) ? String(n) : n.toFixed(1); };
+  const pe = S.cfg.phaseEnds || [2, 8, 11, 12], starts = [1].concat(pe.slice(0, 3).map(x => x + 1)), rng = k => [starts[k], pe[k]]; const firstOfPhase = starts.includes(r);
+  const prevPhase = S.phase - 1;
+  const cols = S.players.map(p => ({ p, n: rn ? (rn.p[p.id] || {}) : {} }));
+  const th = `<thead><tr><th></th>${cols.map(c => `<th style="text-align:right;color:${c.p.color}">${esc(c.p.name)}</th>`).join("")}</tr></thead>`;
+  const row = (label, hint, f) => `<tr><td><b>${label}</b><div class="mute" style="font-size:11px">${hint}</div></td>${cols.map(c => `<td style="text-align:right">${f(c.n, c.p)}</td>`).join("")}</tr>`;
+  // 1. phase end (previous phase just closed, with its gate)
+  if (r > 1 && firstOfPhase) {
+    const g = (S.gates || []).slice(-1)[0], logs = S.log.filter(l => l.r === r - 1 && /^(GATE:|HYPE LEADER)|banks \d+ Hype/.test(l.m));
+    out.push({ key: "end", step: "Phase end", title: `${esc(S.data.phases[prevPhase].name)} is complete`, body: `${g ? `<div class="dsec"><h4>Publisher Gate: ${esc(g.name)}</h4><div>Passed: <b>${g.passed.length ? g.passed.map(i => esc(S.players[i].name)).join(", ") : "nobody"}</b>${g.failed.length ? `<br>Missed: <b>${g.failed.map(i => esc(S.players[i].name)).join(", ")}</b>` : ""}${g.best != null ? `<br>Publisher's favorite: <b>${esc(S.players[g.best].name)}</b>` : ""}</div></div>` : ""}${logs.length ? `<div class="dsec"><h4>Phase-end results</h4>${logs.filter(l => !/^GATE:/.test(l.m)).map(l => `<div class="mute" style="font-size:13px">${esc(l.m)}</div>`).join("") || '<span class="mute">Nothing to report.</span>'}</div>` : ""}<div class="dsec"><h4>Standings</h4>${liveVpPanel(S)}</div>` });
+  }
+  // 2. reveal: the new phase
+  if (firstOfPhase) {
+    const gs = E.gateList(S) || [], g = gs.find(x => x.phase === S.phase);
+    const newSp = E.activeSpots(S).filter(sp => !(sp.phases || []).includes(S.phase - 1) && (sp.phases || []).includes(S.phase)).map(sp => (sp.row === "CREW" ? (sp.note || sp.id).replace(/^Strike Team( of \d)?: /, "Strike Team: ") : sp.row.charAt(0) + sp.row.slice(1).toLowerCase()) + (sp.fx ? " (" + sp.fx + ")" : "")).slice(0, 10);
+    out.push({ key: "phase", step: "Reveal", title: `${esc(ph.name)} begins <span class="mute" style="font-size:14px;font-weight:400">· rounds ${rng(S.phase)[0]}${rng(S.phase)[1] !== rng(S.phase)[0] ? "–" + rng(S.phase)[1] : ""}</span>`, body: `<p>${esc(PHASE_GOAL[S.phase] || "")}</p>${g ? `<div class="dsec"><h4>Publisher Gate due at the end of this phase</h4><div><b>${esc(g.name)}</b> [${esc(g.lvlName || "Medium")}]: needs ${esc((g.reqs || []).join(", "))}<br>Pass: ${g.fund ? "+" + g.fund + " Gold" : ""}${g.vp ? "+" + g.vp + " VP" : ""} · Miss: −${g.penalty} VP (never more than ${S.cfg.gateLossCap} VP in total)</div></div>` : ""}${newSp.length ? `<div class="dsec"><h4>New on the board this phase</h4><div class="mute" style="font-size:13px">${newSp.map(esc).join(" · ")}</div></div>` : ""}` });
+  }
+  if (r > 1 && rn) {
+    out.push({ key: "upkeep", step: "Upkeep", title: "Upkeep", body: `<p class="mute">What happened between rounds: Hype fades, Burnout moves, tired workers recover or quit.</p><table class="tbl" style="width:100%">${th}<tbody>${row("Hype", "fades each round", n => n.hype ? sg(n.hype) : "-")}${row("Burnout", "from last round's work", n => (n.burn ? sg(n.burn) : "-") + `<div class="mute" style="font-size:11px">${esc(n.band || "")}</div>`)}${row("Workers lost", "Exhausted workers who quit", n => n.lost ? sg(-n.lost) : "-")}</tbody></table>` });
+  }
+  if (rn) {
+    out.push({ key: "income", step: "Income", title: "Income and salaries", body: `<table class="tbl" style="width:100%">${th}<tbody>${row("Income", "everyone, plus systems", n => `<span style="color:var(--good,#6c6)">${sg(n.income || 0)}G</span>`)}${row("Salaries", "every worker is paid", n => (n.salary ? `<span style="color:var(--bad,#e66)">${sg(-n.salary)}G</span>` : "0G") + (n.short ? `<div class="mute" style="font-size:11px">short by ${n.short}G</div>` : ""))}${cols.some(c => c.n.bonus) ? row("Bonuses", "Burnout band and systems", n => n.bonus ? sg(n.bonus) + "G" : "-") : ""}<tr><td><b>Gold now</b></td>${cols.map(c => `<td style="text-align:right"><b>${c.n.goldNow != null ? c.n.goldNow : c.p.gold}G</b></td>`).join("")}</tr></tbody></table>` });
+  }
+  // order
+  { const sc = E.score(S), vp = {}; sc.forEach(x => { vp[x.id] = x.id === me ? x.total : x.total - (x.parts.objectives || 0) - (x.parts.synergy || 0); });
+    const closed = Object.keys(S.closed || {}).map(id => { const sp = S.data.spots.find(x => x.id === id); return sp ? sp.row : id; });
+    out.push({ key: "order", step: "Order", title: "Turn order", body: `<p class="mute">The studio with the fewest VP goes first. Ties go to the smaller team, then a coin flip. The studio that went first last round is never first twice in a row.</p><ol style="margin:6px 0 10px 18px">${S.order.map(i => `<li><b style="color:${S.players[i].color}">${esc(S.players[i].name)}</b> <span class="mute">· ${f1(vp[i])} VP now</span></li>`).join("")}</ol>${closed.length ? `<div class="dsec"><h4>Industry News: closed this round</h4><div class="mute">${closed.map(esc).join(" · ")}</div></div>` : ""}` }); }
+  // place
+  { const p = S.players[me], by = [0, 1, 2].map(k => p.workers.filter(w => w.fat === k && !w.build && !w.benched).length), locked = p.workers.filter(w => w.build || w.benched).length;
+    out.push({ key: "place", step: "Place", title: "Place your workers", body: `<p>Take turns placing one worker at a time on a tile. Each tile needs a free workstation (${S.cfg.wsFree} a round, ${S.cfg.wsCost}G for more). A Strike Team uses one workstation for the whole team.</p><div class="dsec"><h4>Your team</h4><div>${by[0]} Fresh · ${by[1]} Tired · ${by[2]} Exhausted${locked ? " · " + locked + " busy (building or training)" : ""}</div><div class="mute" style="font-size:12px">Placing an Exhausted worker earns no skill, adds Burnout and risks a quit.</div></div>` }); }
+  return out;
+}
+function manageScreen(S) {
+  const p = S.players[viewIndex(S)], names = [].concat.apply([], Object.values(S.market || {})), can = names.filter(n => E.canBuild(S, p.id, n, false, null).ok).length;
+  return { key: "manage", step: "Manage", title: "Manage", body: `<p>Placement is over. Now build systems, cash in milestones, and train or promote workers. Then press Done.</p><div class="dsec"><h4>You have</h4><div>${p.gold} Gold · ${can} system${can === 1 ? "" : "s"} you can build now · ${p.miles.length} milestone${p.miles.length === 1 ? "" : "s"} in hand</div><div class="mute" style="font-size:12px">Promotion is free for a Junior who trained once, or who worked earlier and sat out this round.</div></div>` };
+}
+function nextStepScreen(S) {
+  if (!S._ssid) S._ssid = String(Math.random()).slice(2, 8);
+  const seen = U.seenStep = U.seenStep || {}, id = S._ssid + ":" + S.round + ":";
+  const list = S.step === "place" ? stepScreens(S) : S.step === "rest" ? [manageScreen(S)] : [];
+  const sc = list.find(x => !seen[id + x.key]);
+  U.stepScreenOpen = !!sc;
+  if (!sc) return "";
+  U.stepKey = id + sc.key;
+  return stepShell(S, sc.step, sc.title, sc.body, sc.key === "place" || sc.key === "manage" ? (sc.key === "place" ? "Start placing" : "Start managing") : "Continue");
+}
+
 function crisisCardHtml(c) {
   if (!c) return "";
   return `<div class="crisis d${c.deck}"><div class="k">${["Concept → Production","Production → Polish","Polish → Launch"][c.deck]} · Crisis · ${c.kind}</div><div class="n">${esc(c.name)}</div><div class="fl">${esc(c.flavor)}</div><div>${esc(c.text)}</div></div>`;
@@ -445,7 +525,7 @@ function gameView() {
   const S = U.S;
   const crisis = S.crisisCard ? S.data.crisis.find(c => c.id === S.crisisCard) : null;
   return `<div class="app ${U.tut ? "tutmode" : ""}">${topbar(S)}<div class="main"><div class="left">${banner(S)}${actionArea(S)}${recruitPanel(S)}${canBuildNow(S) ? marketStrip(S) : ""}${workersPanel(S)}${boardView(S)}${canBuildNow(S) ? "" : marketStrip(S)}${playerPanel(S)}</div>
-  <div class="right"><div class="panel pnl-studios"><h3>Studios</h3><div class="col studios">${playersPanel(S)}</div></div>${racePanel(S)}${gatesPanel(S)}${crisis ? `<div class="panel" data-tut="crisis" data-act="detail" data-k="crisis" style="cursor:pointer"><h3>Active crisis</h3>${crisisCardHtml(crisis)}</div>` : ""}
+  <div class="right">${liveVpPanel(S)}<div class="panel pnl-studios"><h3>Studios</h3><div class="col studios">${playersPanel(S)}</div></div>${racePanel(S)}${gatesPanel(S)}${crisis ? `<div class="panel" data-tut="crisis" data-act="detail" data-k="crisis" style="cursor:pointer"><h3>Active crisis</h3>${crisisCardHtml(crisis)}</div>` : ""}
   <div class="panel pnl-log"><h3>Game log <button class="btn sm" data-act="log">${U.logOpen ? "Hide" : "Show all"}</button></h3><div class="log" style="${U.logOpen ? "max-height:60vh" : ""}">${S.log.slice(U.logOpen ? -300 : -14).reverse().map(l => `<div><span class="r">R${l.r}</span> ${esc(l.m)}</div>`).join("")}</div></div></div></div></div>`;
 }
 
@@ -719,6 +799,7 @@ function fixSeg(s, keys, m) {
 }
 /* ---------- main render ---------- */
 function render() {
+  U.stepScreenOpen = false;
   if (U.S && U.S.data && E.applyLook) E.applyLook(U.S.data);
   noteRecruits(); noteNotices();
   const keepFocus = document.activeElement && document.activeElement.id; const val = keepFocus ? document.activeElement.value : null;
@@ -740,10 +821,11 @@ function render() {
     else if (U.modal === "scoreref") h += scoreModal(S);
     else if (U.modal === "rules") h += rulesModal();
     else if (U.modal === "gamemenu") h += gameMenuModal();
+    else if (U.modal === "crew") h += crewModal(S);
     else if (U.modal === "market" && canBuildNow(S)) h += marketModal();
     else if (S.over && U.modal !== "noresults") h += resultsModal();
     else if (hasHuman && !U.tut && S.crisisCard && U.seenCrisis !== (S.phase + S.crisisCard) && !S.over && !humanDecision) h += crisisIntroModal(S.data.crisis.find(c => c.id === S.crisisCard));
-    else if (hasHuman && !U.tut && !S.over && !humanDecision && S.step === "place" && S.rnote && S.rnote.r > 1 && U.seenRound !== S.rnote.r) h += roundIntroModal(S);
+    else if (hasHuman && !U.tut && !S.over && !humanDecision && (S.step === "place" || S.step === "rest") && !U.hideSteps && (S.step === "place" || (E.currentActor(S) >= 0 && !S.players[E.currentActor(S)].bot))) h += nextStepScreen(S);
     if (U.detail) h += detailModal() || (U.detail = null, "");
     if (U.tut) h += SI.tutCoach();
     $root.innerHTML = SI.copyFix(h);
@@ -932,6 +1014,7 @@ $root.addEventListener("click", e => {
       if (S && S.rnote) U.seenRound = S.rnote.r;
       if (S && S.over && !U.modal && !U.pop) U.modal = "noresults"; else U.modal = null;
       U.pop = null; render(); return; }
+    case "stepnext": { if (U.stepKey) { U.seenStep = U.seenStep || {}; U.seenStep[U.stepKey] = true; } U.stepScreenOpen = false; render(); scheduleBots(); return; }
     case "menu": if (U.net) { leaveRoom(); return; } SI.an.abandon(U.S); U.screen = "menu"; U.modal = null; clearTimeout(U.botT); clearAuto(); render(); return;
     case "milesref": U.modal = "milesref"; render(); return;
     case "scoreref": U.modal = "scoreref"; render(); return;
@@ -979,7 +1062,14 @@ $root.addEventListener("click", e => {
     case "market": U.modal = "market"; render(); return;
     case "refresh-sys": act({ type: "refresh", p: E.currentActor(U.S), name: t.dataset.name }); return;
     case "mcat": U.marketCat = v; render(); return;
-    case "build": { const r = act({ type: "build", p: pi, name: t.dataset.name, free: t.dataset.free === "1", crunch: U.crunch || undefined }); if (r.ok) { U.modal = U.tut ? null : "market"; render(); } return; }
+    case "crew-pick": { U.crew.sel[+t.dataset.i] = +t.dataset.w; render(); return; }
+    case "crew-cw": { U.crew.cw = +t.dataset.w; render(); return; }
+    case "crew-cancel": { U.crew = null; U.modal = "market"; render(); return; }
+    case "crew-ok": { const c = U.crew; if (!c) return; const crew = Object.keys(c.sel).sort((a, b) => a - b).map(k => c.sel[k]); const r = act({ type: "build", p: pi, name: c.name, free: c.free, crunch: c.crunch, crew, crunchWorker: c.cw }); if (r.ok) { U.crew = null; U.modal = U.tut ? null : "market"; render(); } return; }
+    case "build": { const fr = t.dataset.free === "1", bdef = E.sysDef(S, t.dataset.name), np = P(pi);
+      if (!U.tut && bdef && E.buildRounds(S, np, U.crunch || undefined, bdef) > 0 && E.parseBuild(bdef.build).reqs.length) { U.crew = { name: t.dataset.name, free: fr, crunch: U.crunch || undefined, sel: {}, cw: null }; U.modal = "crew"; render(); return; }
+    }
+    case "build-direct": { const r = act({ type: "build", p: pi, name: t.dataset.name, free: t.dataset.free === "1", crunch: U.crunch || undefined }); if (r.ok) { U.modal = U.tut ? null : "market"; render(); } return; }
     case "promote": act({ type: "promote", p: pi, worker: +t.dataset.w }); return;
     case "train": act({ type: "train", p: pi, worker: +t.dataset.w }); return;
     case "fire": act({ type: "fire", p: pi, worker: +t.dataset.w }); return;
