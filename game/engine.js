@@ -293,7 +293,7 @@ function roundSetup(S) {
   { completeBuilds(S); rollRecruit(S); S.players.forEach(p => { p.cs.crewRounds = (p.cs.crewRounds || 0) + p.workers.filter(w => w.build).length; }); }
   log(S, "--- ROUND " + S.round + " (" + D0.phases[S.phase].name + ") ---");
   S.players.forEach(p => {
-    S._nt = 1; gain(S, p.id, "gold", S.cfg.income);
+    S._nt = 1; if (S.rnote && S.rnote.r === S.round) S.rnote.p[p.id] = { income: S.cfg.income + p.systems.reduce((s, sy) => { const d = sysDef(S, sy.name); return s + (d && d.inc ? d.inc : 0); }, 0), salary: 0, short: 0 }; gain(S, p.id, "gold", S.cfg.income);
     p.systems.forEach(sy => { const d = sysDef(S, sy.name); if (d && d.inc) { gain(S, p.id, "gold", d.inc); } }); S._nt = 0;
   });
   log(S, "INCOME: everyone +" + S.cfg.income + "G");
@@ -301,10 +301,16 @@ function roundSetup(S) {
     const sal = p.workers.reduce((t, w) => t + (w.lvl === "Sr" ? (S.cfg.salarySr || 0) : (S.cfg.salaryJr || 0)), 0);
     if (!sal) return;
     const pay = Math.min(sal, p.gold); p.gold -= pay;
+    { const rn = S.rnote && S.rnote.r === S.round && S.rnote.p[p.id]; if (rn) { rn.salary = pay; rn.short = sal - pay; } }
     log(S, p.name + " pays salaries: -" + pay + "G (" + p.workers.filter(w => w.lvl !== "Sr").length + " Junior, " + p.workers.filter(w => w.lvl === "Sr").length + " Senior)" + (pay < sal ? ", short by " + (sal - pay) + "G" : ""));
     if (sal - pay >= (S.cfg.burnUnpaidMin || 1)) { p.rs.unpaid = true; const b = Math.min(S.cfg.burnUnpaidMax || 2, Math.ceil((sal - pay) / (S.cfg.burnUnpaidPer || 2))); const r = gain(S, p.id, "burnout", b); if (r) log(S, p.name + " could not pay everyone: Burnout +" + r); }
   });
   burnBands(S);
+  if (S.rnote && S.rnote.r === S.round && S.rnote.snap) S.players.forEach((p, i) => {
+    const sn = S.rnote.snap[i], rn = S.rnote.p[p.id] = S.rnote.p[p.id] || { income: 0, salary: 0, short: 0 };
+    rn.hype = p.hype - sn.hype; rn.burn = (p.burnout || 0) - sn.burn; rn.lost = Math.max(0, sn.n - p.workers.length); rn.gold = p.gold - sn.gold;
+    rn.band = E.burnBand(S, p); rn.goldNow = p.gold; rn.bonus = rn.gold - rn.income + rn.salary;
+  });
 }
 
 // Variant D: a Junior can be promoted after enough trainings, or (promoByRest) after working and then sitting out a round, once they are no more than Tired
@@ -477,6 +483,8 @@ function roundEnd(S) {
   if (endOfRound(S)) return;
   if (S.round >= PHASE_ENDS[3]) return endGame(S);
   S.round++;
+  // what changed between rounds, shown to the players when the new round opens
+  S.rnote = { r: S.round, p: {}, snap: S.players.map(p => ({ gold: p.gold, hype: p.hype, burn: p.burnout || 0, n: p.workers.length })) };
   upkeepPlayers(S);
   if (PHASE_OF_ROUND(S.round) !== S.phase) return beginPhase(S);
   roundSetup(S); catchUpOrder(S); S.step = "place"; startPlace(S);

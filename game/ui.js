@@ -139,12 +139,12 @@ function newGame() {
   if (U.botSkill) U.S.players.forEach(p => { if (p.bot) p.profile = U.botSkill; });
   SI.an.abandon(U.prev); U.prev = null;
   SI.an.begin(U.S, { mode: "hotseat", site: SI.net.site(), hash: SI.hashOf(st), tuned: U.tuned, test: U.testEnv, seats: [] }); U.prev = U.S;
-  U.tut = null; U.detail = null; U.screen = "game"; U.undo = []; U.sel = null; U.pop = null; U.cover = null; U.modal = null; U.view = null; U.seenCrisis = null;
+  U.tut = null; U.detail = null; U.screen = "game"; U.undo = []; U.sel = null; U.pop = null; U.cover = null; U.modal = null; U.view = null; U.seenCrisis = null; U.seenRound = null;
   render(); scheduleBots();
 }
 function startTutorial() {
   clearTimeout(U.botT); U.S = SI.tutNew(); U.tut = SI.tutInit(); U.tutDone = false;
-  U.detail = null; U.screen = "game"; U.undo = []; U.sel = null; U.pop = null; U.cover = null; U.modal = null; U.view = null; U.seenCrisis = null; U.keep = null; U.marketCat = null;
+  U.detail = null; U.screen = "game"; U.undo = []; U.sel = null; U.pop = null; U.cover = null; U.modal = null; U.view = null; U.seenCrisis = null; U.seenRound = null; U.keep = null; U.marketCat = null;
   render(); scheduleBots();
 }
 
@@ -441,6 +441,25 @@ function modalShell(inner, opts) {
   opts = opts || {};
   return `<div class="overlay" ${opts.noClose ? "" : 'data-act="overlay"'}><div class="modal ${opts.cls || ""}" ${opts.wide ? 'style="width:min(1100px,100%)"' : ""}>${opts.noClose ? "" : '<button class="x" data-act="close" aria-label="Close">×</button>'}${inner}</div></div>`;
 }
+function roundIntroModal(S) {
+  const rn = S.rnote; if (!rn) return "";
+  const sg = n => (n > 0 ? "+" : n < 0 ? "\u2212" : "") + Math.abs(n);
+  const cols = S.players.map(p => ({ p, n: rn.p[p.id] || {} }));
+  const row = (label, hint, f) => `<tr><td><b>${label}</b><div class="mute" style="font-size:11px">${hint}</div></td>${cols.map(c => `<td style="text-align:right">${f(c.n, c.p)}</td>`).join("")}</tr>`;
+  const ph = S.data.phases[S.phase];
+  return modalShell(`<h2>Round ${S.round} begins <span class="mute" style="font-size:14px;font-weight:400">\u00b7 ${esc(ph.name)}</span></h2>
+  <p class="mute">Here is what happened between rounds.</p>
+  <table class="tbl" style="width:100%"><thead><tr><th></th>${cols.map(c => `<th style="text-align:right;color:${c.p.color}">${esc(c.p.name)}</th>`).join("")}</tr></thead><tbody>
+  ${row("Income", "paid at the start of the round", n => `<span style="color:var(--good,#6c6)">${sg(n.income || 0)}G</span>`)}
+  ${row("Salaries", "paid for every worker", n => (n.salary ? `<span style="color:var(--bad,#e66)">${sg(-n.salary)}G</span>` : "0G") + (n.short ? `<div class="mute" style="font-size:11px">short by ${n.short}G</div>` : ""))}
+  ${cols.some(c => c.n.bonus) ? row("Bonuses", "from your Burnout band and systems", n => n.bonus ? sg(n.bonus) + "G" : "-") : ""}
+  ${row("Hype", "fades each round", n => n.hype ? sg(n.hype) : "-")}
+  ${row("Burnout", "from last round's work", n => (n.burn ? sg(n.burn) : "-") + `<div class="mute" style="font-size:11px">${esc(n.band || "")}</div>`)}
+  ${cols.some(c => c.n.lost) ? row("Workers lost", "Over-Tired workers who quit", n => n.lost ? sg(-n.lost) : "-") : ""}
+  <tr><td><b>Gold now</b></td>${cols.map(c => `<td style="text-align:right"><b>${c.n.goldNow != null ? c.n.goldNow : c.p.gold}G</b></td>`).join("")}</tr>
+  </tbody></table>
+  <div style="margin-top:14px;text-align:right"><button class="btn primary" data-act="close">Start placing</button></div>`);
+}
 function milesModal(S) {
   const done = {}; S.players.forEach(p => p.claimed.forEach(id => { done[id] = p; }));
   const cats = []; S.data.milestones.forEach((m, id) => { let c = cats.find(x => x.name === m.cat); if (!c) { c = { name: m.cat, items: [] }; cats.push(c); } c.items.push({ m, id }); });
@@ -692,6 +711,7 @@ function render() {
     else if (U.modal === "market" && canBuildNow(S)) h += marketModal();
     else if (S.over && U.modal !== "noresults") h += resultsModal();
     else if (hasHuman && !U.tut && S.crisisCard && U.seenCrisis !== (S.phase + S.crisisCard) && !S.over && !humanDecision) h += crisisIntroModal(S.data.crisis.find(c => c.id === S.crisisCard));
+    else if (hasHuman && !U.tut && !S.over && !humanDecision && S.step === "place" && S.rnote && S.rnote.r > 1 && U.seenRound !== S.rnote.r) h += roundIntroModal(S);
     if (U.detail) h += detailModal() || (U.detail = null, "");
     if (U.tut) h += SI.tutCoach();
     $root.innerHTML = SI.copyFix(h);
@@ -742,7 +762,7 @@ function buildOnline(meta, log) {
 }
 function enterGame(meta, log) {
   const b = buildOnline(meta, log); if (b.bad != null) { toast("Could not replay the game (action " + b.bad + ")"); return; }
-  U.S = b.S; U.net.n = log.length; U.net.log = log.length; U.screen = "game"; U.tut = null; U.undo = []; U.sel = null; U.pop = null; U.detail = null; U.modal = null; U.cover = null; U.view = null; U.seenCrisis = null;
+  U.S = b.S; U.net.n = log.length; U.net.log = log.length; U.screen = "game"; U.tut = null; U.undo = []; U.sel = null; U.pop = null; U.detail = null; U.modal = null; U.cover = null; U.view = null; U.seenCrisis = null; U.seenRound = null;
   if (U.net.host && !SI.an.meta) SI.an.begin(U.S, { mode: "online", site: N.site(), code: meta.code, seed: meta.seed, tuned: meta.ovr ? "custom" : "default", seats: meta.seats });
   render(); scheduleBots();
 }
@@ -877,6 +897,7 @@ $root.addEventListener("click", e => {
       if (U.detail) { U.detail = null; render(); return; }
       if (U.modal === "studio") { SI.saveDraft(U.studio); }
       if (S && S.crisisCard && U.seenCrisis !== (S.phase + S.crisisCard)) U.seenCrisis = S.phase + S.crisisCard;
+      if (S && S.rnote) U.seenRound = S.rnote.r;
       if (S && S.over && !U.modal && !U.pop) U.modal = "noresults"; else U.modal = null;
       U.pop = null; render(); return; }
     case "menu": if (U.net) { leaveRoom(); return; } SI.an.abandon(U.S); U.screen = "menu"; U.modal = null; clearTimeout(U.botT); clearAuto(); render(); return;

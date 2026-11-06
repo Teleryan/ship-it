@@ -453,7 +453,7 @@ D.config = {
   "gateHypeMultByN":{"2":0.65,"3":0.52,"4":0.43,"5":0.38,"6":0.34},
   "gateReqSub":{"4+ total systems built":"2+ total systems built","1+ Stability systems":"1+ total systems built","1+ Innovation systems":"1+ total systems built"},
   "dropByN":{"2":["0:code2","0:pitch2","0:proto1","0:protosprint","1:buzz1","1:create2","1:labcrew","1:build2","1:campaign","2:labcrew","2:playtest1","2:artpass","2:pmarket1","2:opt3","2:launchprep"],"3":["0:pitch2","0:proto1","1:buzz1","1:create2","1:labcrew","2:labcrew","2:playtest1","2:opt3"]},
-  "bigAdd":{"5":["market3","artpush","vslice","trailer"],"6":["pitch1","market3","artpush","vslice","trailer","keynote"]},
+  "bigAdd":{"2":["outsource"],"3":["outsource"],"4":["outsource"],"5":["market3","artpush","vslice","trailer","outsource"],"6":["pitch1","market3","artpush","vslice","trailer","keynote","outsource"]},
   "launchCap":1,
   "overCrew":1,
   "spotFxAdj":{"team":"+1 Culture"},

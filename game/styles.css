@@ -527,3 +527,6 @@ table.dt input.n{width:62px}
 /* the single grid column was sizing to the widest child (step tracker), making the phone page ~590-670px wide */
 .app{grid-template-columns:minmax(0,1fr)}
 @media (max-width:600px){.mgrid{grid-template-columns:1fr}}
+.tbl{border-collapse:collapse}
+.tbl th,.tbl td{padding:7px 10px;border-bottom:1px solid var(--line,rgba(255,255,255,.1));vertical-align:top}
+.tbl th{font-size:12px;text-transform:uppercase;letter-spacing:.06em}
