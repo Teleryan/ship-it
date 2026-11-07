@@ -59,7 +59,7 @@ function tokens(S) {
     energizedCulture: c.energizedCulture, energizedGold: c.energizedGold, burnStrainAt: c.burnStrainAt, burnStrainHype: c.burnStrainHype, burnBenchAt: c.burnBenchAt, burnQuitAt: c.burnQuitAt, burnQuitReset: c.burnQuitReset
   };
   { const pg = (c.promoGoldByN && c.promoGoldByN[2]) || 0; t.promoCostText = pg ? "it costs " + pg + "G" : "it is free"; }
-  t.startWorkers = c.startWorkers; t.recruitLadder = c.recruitLadder; t.trainTimes = c.trainNeeded + (c.trainNeeded === 1 ? " time" : " times"); t.wsFree = c.wsFree; t.wsCost = c.wsCost; t.wsMax = c.wsMax;
+  t.startWorkers = c.startWorkers; t.recruitLadder = c.recruitLadder; t.trainTimes = c.trainNeeded + (c.trainNeeded === 1 ? " time" : " times"); t.wsFree = c.wsFree; t.wsCost = c.wsCost; t.wsP4 = c.wsCost; t.wsP5 = c.wsCost + (c.wsStep || 0); t.wsP6 = c.wsCost + 2 * (c.wsStep || 0); t.wsMax = c.wsMax;
   t.foldNote = "\n\nThere is no separate Culture track: <b>Culture is " + c.cultureFoldBase + " minus Burnout</b>. Anything that gives Culture (Team Events, Training, some tiles) lowers Burnout, and anything that costs Culture raises it.";
   t.trainEffect = "lowers <b>Burnout</b> by " + c.trainCulture + " (that is +" + c.trainCulture + " Culture)";
   t.teamEventEffect = "to lower Burnout by " + (c.teamEventCulture + c.burnTeamRelief);
