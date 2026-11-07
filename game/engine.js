@@ -595,7 +595,7 @@ function spotModeOf(s) { return s.mode || (s.excl ? "single" : "single"); }
 // Workstations: placing a worker on ANY board spot (main board or studio perk) uses one; triggering your own systems needs none. You power them up each round.
 function isMainSpot() { return true; }
 E.isMainSpot = isMainSpot;
-E.wsCost = function (S, pi) { const p = P(S, pi), c = S.cfg; return (c.wsCost || 0) + (c.wsStep || 0) * Math.max(0, p.ws - (c.wsFree || 0)); };
+E.wsCost = function (S, pi) { const p = P(S, pi), c = S.cfg; return (c.wsCost || 0) + (c.wsStep || 0) * Math.max(0, p.ws - (c.wsLadderFrom != null ? c.wsLadderFrom : (c.wsFree || 0))); };
 E.canBuyWs = function (S, pi) { const p = P(S, pi), c = S.cfg; if (!c.wsMax || S.step !== "place") return { ok: false, reason: "Not available" }; if (p.ws >= c.wsMax) return { ok: false, reason: "You already have all " + c.wsMax + " workstations" }; const cost = E.wsCost(S, pi); if (p.gold < cost) return { ok: false, reason: "Needs " + cost + "G" }; return { ok: true, cost }; };
 function spotUsableBy(S, pi, w, spot) {
   const r = spotUsableBase(S, pi, w, spot), p = P(S, pi);

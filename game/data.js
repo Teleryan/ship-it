@@ -316,6 +316,7 @@ D.config = {
     "wsMax":["Workstations: maximum","0 = workstations off. A studio can own at most this many; each board tile or Studio Perk placement uses one (triggering your own systems does not)"],
     "wsFree":["Workstations: free each round","Workstations every studio gets for free at the start of each round (they reset every round)"],
     "wsCost":["Workstation price (Gold)","Cost of buying one more workstation during Place (a free action)"],
+    "wsLadderFrom":["Workstation price ladder starts after","Desk count at which the price starts rising (default: the free desks). Desks up to this count cost wsCost each; each desk beyond it costs wsStep more than the one before"],
     "wsStep":["Workstation price step","Extra Gold per workstation already above the free ones. Price = wsCost + step x (desks above the free ones); with 3 free, cost 2 and step 1 the 4th, 5th and 6th desks cost 2, 3 and 4 (0 = flat price)"],
     "startWorkers":["V2: starting team (Juniors)","Random Juniors each studio begins with when Recruit is the only hiring route"],
     "recruitLadder":["V2: Recruit price ladder (+Gold per worker already taken)","Each worker taken from the pool this round makes the next one this much dearer"],

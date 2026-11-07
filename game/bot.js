@@ -31,7 +31,7 @@ B.profiles = {
 };
 // Optimizer: plays to win with every lever (no slips, no noise, buys desks up to the cap, builds whenever it can, trains early, contests rivals' tiles). Knobs found by random-search self-play against Expert bots (tools/btune.js) and checked on fresh seeds.
 B.profiles.max = { slip: 0, noise: 0, quirk: 0, bidMode: "contest", bidScale: 0.12, bidNoise: 0, buildSkip: 0, gate: 1.3, deny: 1.4, commit: 0.6, deskReserve: 0, deskPenalty: 0.1, buildFloor: 1, trainGold: 3, promoP: 1, w: {"prod": 1.16, "mktg": 1.4, "hype": 1, "gold": 1, "debt": 1, "spotDebt": 0.3, "resVal": 1.5, "recBase": 3.4, "recReserve": 0, "recMax": 1, "srCap": 0.45, "promoGold": 7, "crunchGold": 15, "crunchRound": 9, "buildScale": 1, "buildBias": 0, "srVal": 0.96, "thr": 0.3, "gateSurplus": 0.97, "gatePace": 4.19, "workers": 0, "convHold": 1, "crewCost": 3} };
-B.profileNames = [["", "Standard"], ["novice", "Novice"], ["casual", "Human-like"], ["expert", "Expert"], ["max", "Optimizer"]];
+B.profileNames = [["", "Standard"], ["novice", "Novice"], ["casual", "Human-like"], ["expert", "Expert"], ["max", "Optimizer (hardest)"]];
 let PF = null;
 const quirk = (S, p) => { if (!p.qk) p.qk = [E.rnd(S), E.rnd(S), E.rnd(S), E.rnd(S), E.rnd(S)]; return p.qk; };
 let W = NEUTRAL;

@@ -11,7 +11,7 @@ function run(n, games, over, base0) {
   let sum = 0, wins = 0, rank = 0, rival = 0, nr = 0, win = [], det = { desks: 0, sys: 0, trains: 0, gold: 0, workers: 0 };
   for (let gi = 0; gi < games; gi++) {
     const seats = []; for (let i = 0; i < n; i++) seats.push({ name: "Bot " + (i + 1), bot: true });
-    const cfg = Object.assign({}, D.config, { botProfiles: prof, botPersonas: pers });
+    const cfg = Object.assign({}, D.config, { botProfiles: prof, botPersonas: pers }, (over || {}).cfg || {});
     const S = E.newGame(seats, { seed: (base0 || 20000) + n * 1000 + gi, config: cfg });
     const me = gi % n;
     S.players.forEach((p, i) => { if (i === me) { p.profile = "max"; p.persona = "maxp"; } else { p.profile = "expert"; const q = PERS[(i + gi) % PERS.length]; if (q) p.persona = q; } });
