@@ -29,7 +29,9 @@ B.profiles = {
   casual: { slip: 0.12, noise: 0.7, quirk: 0.25, gate: 0.7, deny: 0.5, bidMode: "contest", bidScale: 0.2, bidNoise: 0.5, promoP: 0.85, buildSkip: 0.08, commit: 0.8 },
   expert: { slip: 0, noise: 0.1, quirk: 0, gate: 1.2, deny: 1, bidMode: "contest", bidScale: 0.12, bidNoise: 0.1, promoP: 1, buildSkip: 0, commit: 0.3 }
 };
-B.profileNames = [["", "Standard"], ["novice", "Novice"], ["casual", "Human-like"], ["expert", "Expert"]];
+// Optimizer: plays to win with every lever (no slips, no noise, buys desks up to the cap, builds whenever it can, trains early, contests rivals' tiles). Knobs found by tools/btune.js.
+B.profiles.max = { slip: 0, noise: 0, quirk: 0, gate: 1.3, deny: 1.4, bidMode: "contest", bidScale: 0.12, bidNoise: 0, promoP: 1, buildSkip: 0, commit: 0.6, deskReserve: 0, deskPenalty: 0.1, buildFloor: 1, trainGold: 3 };
+B.profileNames = [["", "Standard"], ["novice", "Novice"], ["casual", "Human-like"], ["expert", "Expert"], ["max", "Optimizer"]];
 let PF = null;
 const quirk = (S, p) => { if (!p.qk) p.qk = [E.rnd(S), E.rnd(S), E.rnd(S), E.rnd(S), E.rnd(S)]; return p.qk; };
 let W = NEUTRAL;
@@ -170,13 +172,13 @@ function trainInPlace(S, p) {
   if (typeof process !== "undefined" && process.env && process.env.BOT_NO_TRAIN_PLACE) return null;
   const c = S.cfg, srN = p.workers.filter(w => w.lvl === "Sr").length, cap = 1 + Math.floor(p.workers.length * W.srCap);
   const tr = p.workers.find(w => w.lvl === "Jr" && E.canTrain(S, p.id, w).ok && (w.trained || 0) < c.trainNeeded);
-  if (tr && srN < cap && S.round < 11 && S.phase < 3 && p.gold >= W.promoGold - 2 && p.workers.length >= 4 && (!PF || E.rnd(S) < PF.promoP)) return { type: "train", p: p.id, worker: tr.id };
+  if (tr && srN < cap && S.round < 11 && S.phase < 3 && p.gold >= (PF && PF.trainGold != null ? PF.trainGold : W.promoGold - 2) && p.workers.length >= 4 && (!PF || E.rnd(S) < PF.promoP)) return { type: "train", p: p.id, worker: tr.id };
   return null;
 }
 function place(S, p) {
   let best = null, bs = W.thr; const cands = [];
   const wsc = S.cfg.wsMax ? E.canBuyWs(S, p.id) : { ok: false };
-  p.workers.forEach(w => E.placementOptions(S, p.id, w).forEach(o => { const buyable = o.wsNeed && wsc.ok && p.gold - wsc.cost >= 2; let s = fxScore(S, p, w, buyable ? Object.assign({}, o, { ok: true }) : o); if (buyable) s -= wsc.cost * 0.3; if (PF) { s += (E.rnd(S) - 0.5) * 2 * PF.noise; cands.push({ w, o, s }); } if (s > bs) { bs = s; best = { w, o }; } }));
+  p.workers.forEach(w => E.placementOptions(S, p.id, w).forEach(o => { const buyable = o.wsNeed && wsc.ok && p.gold - wsc.cost >= (PF && PF.deskReserve != null ? PF.deskReserve : 2); let s = fxScore(S, p, w, buyable ? Object.assign({}, o, { ok: true }) : o); if (buyable) s -= wsc.cost * (PF && PF.deskPenalty != null ? PF.deskPenalty : 0.3); if (PF) { s += (E.rnd(S) - 0.5) * 2 * PF.noise; cands.push({ w, o, s }); } if (s > bs) { bs = s; best = { w, o }; } }));
   if (PF && cands.length) {
     cands.sort((a, b) => b.s - a.s);
     if (PF.deny) cands.slice(0, 6).forEach(c => { if (c.o.spot && (c.o.spot.mode || "single") === "single") c.s += PF.deny * 0.5 * rivalWant(S, p, c.o.target); });
@@ -221,8 +223,8 @@ function build(S, p) {
   S.data.systems.forEach(d => {
     const ck = E.canBuild(S, p.id, d.name, free, bcrunch(S, p, d, free)); if (!ck.ok) return;
     const b = E.parseBuild(d.build);
-    if (b.cur === "G" && p.gold - b.cost < 3) return;
-    const bgd = free ? 0 : E.buildGold(S, d, p); if (bgd && p.gold - bgd < 2) return;
+    const fl = PF && PF.buildFloor != null ? PF.buildFloor : 3; if (b.cur === "G" && p.gold - b.cost < fl) return;
+    const bgd = free ? 0 : E.buildGold(S, d, p); if (bgd && p.gold - bgd < Math.min(2, fl)) return;
     let s = buildScore(S, p, d) * W.buildScale; if (PF && PF.commit && (p.systems.length + (p.building || []).length) > 0) s += PF.commit * Math.min(3, p.systems.length + (p.building || []).length); if (s > bs) { bs = s; best = d; }
   });
   if (best && PF && PF.buildSkip && E.rnd(S) < PF.buildSkip) best = null;
