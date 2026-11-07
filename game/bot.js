@@ -165,6 +165,14 @@ function recruitPick(S, p, bs) {
   });
   return pick != null && ps > Math.min(bs, 4.2) - 0.8 ? { type: "recruit", p: p.id, idx: pick } : null;
 }
+// Train is a free action on your turn. A bot that has nothing worth placing uses a spare Junior (instead of passing) so the training does not cost a later round.
+function trainInPlace(S, p) {
+  if (typeof process !== "undefined" && process.env && process.env.BOT_NO_TRAIN_PLACE) return null;
+  const c = S.cfg, srN = p.workers.filter(w => w.lvl === "Sr").length, cap = 1 + Math.floor(p.workers.length * W.srCap);
+  const tr = p.workers.find(w => w.lvl === "Jr" && E.canTrain(S, p.id, w).ok && (w.trained || 0) < c.trainNeeded);
+  if (tr && srN < cap && S.round < 11 && S.phase < 3 && p.gold >= W.promoGold - 2 && p.workers.length >= 4 && (!PF || E.rnd(S) < PF.promoP)) return { type: "train", p: p.id, worker: tr.id };
+  return null;
+}
 function place(S, p) {
   let best = null, bs = W.thr; const cands = [];
   const wsc = S.cfg.wsMax ? E.canBuyWs(S, p.id) : { ok: false };
@@ -177,7 +185,7 @@ function place(S, p) {
     if (pick.s > W.thr) { best = { w: pick.w, o: pick.o }; bs = pick.s; } else { best = null; bs = 0; }
   }
   const rc = recruitPick(S, p, best ? bs : 0); if (rc) return rc;
-  if (!best) return { type: "pass", p: p.id };
+  if (!best) { const tp = trainInPlace(S, p); if (tp) return tp; return { type: "pass", p: p.id }; }
   if (best.o.wsNeed) return { type: "buyws", p: p.id };
   const a = { type: "place", p: p.id, worker: best.w.id, target: best.o.target };
   if (best.w.lvl === "Sr") a.bonus = p.mktg < p.prod * 0.8 ? "mktg" : "prod";

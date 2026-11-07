@@ -27,6 +27,36 @@ ok(S.players.every(p => p.workers.length === S.cfg.startWorkers), 'every studio 
   const T = toStep(mk(3, 3), 'place', 2); T.players[0].ws = 5;
   const T2 = until(T, s => s.round === 3 && s.step === 'place'); ok(T2.players[0].ws === 5, 'a bought workstation is back in the next round of the same phase');
   const T3 = until(T2, s => s.round === 4 && s.step === 'place'); ok(T3.players[0].ws === T3.cfg.wsFree, 'a new phase resets workstations to the free ones'); }
+{ // workstations: kept across rounds inside a phase, reset at every phase start (rounds 4 and 9), more tests
+  const T = toStep(mk(11, 3), 'place', 4); T.players[0].ws = 6;
+  const T5 = until(T, s => s.round === 5 && s.step === 'place'); ok(T5.players[0].ws === 6, 'workstations bought in round 4 are still there in round 5');
+  const T8 = until(T5, s => s.round === 8 && s.step === 'place'); ok(T8.players[0].ws === 6, 'and in the last round of Production (round 8)');
+  const T9 = until(T8, s => s.round === 9 && s.step === 'place'); ok(T9.players.every(q => q.ws === T9.cfg.wsFree), 'round 9 (Polish) resets every studio to the free workstations'); }
+{ // buying workstations: cost, the cap and no purchase without Gold
+  const T = toStep(mk(12, 2), 'place', 5), a = E.currentActor(T), q = T.players[a]; q.ws = T.cfg.wsFree; q.gold = 10;
+  const g0 = q.gold, r = E.act(T, { type: 'buyws', p: a }); ok(r.ok && q.ws === T.cfg.wsFree + 1 && q.gold === g0 - T.cfg.wsCost, 'buying a workstation costs ' + T.cfg.wsCost + 'G and adds one');
+  q.ws = T.cfg.wsMax; ok(!E.act(T, { type: 'buyws', p: a }).ok, 'cannot buy past the workstation cap (' + T.cfg.wsMax + ')');
+  q.ws = T.cfg.wsFree; q.gold = T.cfg.wsCost - 1; ok(!E.act(T, { type: 'buyws', p: a }).ok, 'cannot buy a workstation without the Gold'); }
+{ // training in the Place step: a free action on your own turn
+  const T = toStep(mk(13, 3), 'place', 5), a = E.currentActor(T), q = T.players[a], other = T.players.find(x => x.id !== a);
+  q.gold = 10; q.rs.trains = 0; q.workers.forEach(w => { w.lvl = 'Jr'; w.placed = false; w.build = null; w.training = false; w.trainNow = false; w.benched = false });
+  const w = q.workers[0], g0 = q.gold, cul0 = q.burnout;
+  ok(!E.act(T, { type: 'train', p: other.id, worker: other.workers[0].id }).ok, 'training in Place is refused when it is not your turn');
+  const r = E.act(T, { type: 'train', p: a, worker: w.id });
+  ok(r.ok && q.gold === g0 - T.cfg.trainCost && w.trainNow && w.training && w.trained >= 1, 'train in Place costs ' + T.cfg.trainCost + 'G and the Junior is training now');
+  ok(E.currentActor(T) === a, 'training does not use up your turn');
+  ok(E.placementOptions(T, a, w)[0].ok === false, 'the trainee cannot be placed for the rest of this round');
+  const tgt = E.placementOptions(T, a, q.workers[3] || q.workers[1]).find(o => o.ok); ok(!!tgt && E.act(T, { type: 'place', p: a, worker: w.id, target: tgt.target }).ok === false, 'placing the trainee on a tile that is open to others is rejected');
+  q.rs.trains = T.cfg.trainsPerRest; ok(!E.act(T, { type: 'train', p: a, worker: q.workers[1].id }).ok, 'the per-round training limit also applies in Place');
+  q.rs.trains = 0; q.gold = 0; ok(!E.act(T, { type: 'train', p: a, worker: q.workers[1].id }).ok, 'training in Place needs Gold');
+  q.gold = 10; const Wn = q.workers[1]; Wn.placed = true; ok(!E.act(T, { type: 'train', p: a, worker: Wn.id }).ok, 'a worker already placed this round cannot train'); Wn.placed = false;
+  const srv = q.workers[2]; srv.lvl = 'Sr'; ok(!E.act(T, { type: 'train', p: a, worker: srv.id }).ok, 'Seniors cannot train'); srv.lvl = 'Jr';
+  // the trainee is available again next round
+  const T2 = until(T, s => s.round === 6 && s.step === 'place'), w2 = T2.players[a].workers.find(x => x.id === w.id);
+  ok(w2 && !w2.benched && !w2.trainNow, 'a worker trained in Place is back next round (no extra round away)'); }
+{ // no training in the last round
+  const T = toStep(mk(14, 2), 'place', 12), a = E.currentActor(T), q = T.players[a]; q.gold = 10; q.rs.trains = 0; q.workers.forEach(w => { w.lvl = 'Jr'; w.placed = false; w.build = null; w.training = false; w.trainNow = false; w.benched = false });
+  ok(!E.act(T, { type: 'train', p: a, worker: q.workers[0].id }).ok, 'no training in round 12'); }
 S = toStep(mk(3, 3), 'place', 3);
 { const a = E.currentActor(S), p = S.players[a];
   S.players.forEach(x => { x.gold = 20; x.hireDiscount = 0 }); const cost = E.recruitCost(S, a), n0 = p.workers.length;
