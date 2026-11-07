@@ -132,7 +132,7 @@ E.newGame = function (seats, opts) {
   S.decks.sys = {}; S.market = {};
   E.CATS.forEach(cat => { S.decks.sys[cat] = shuffle(S, data.systems.filter(s => s.cat === cat).map(s => s.name)); S.market[cat] = []; });
   refillMarket(S);
-  S.order = shuffle(S, S.players.map(p => p.id));
+  { const hum = shuffle(S, S.players.filter(p => !p.bot).map(p => p.id)), bots = shuffle(S, S.players.filter(p => p.bot).map(p => p.id)); S.order = hum.concat(bots); } // humans go first against bots; random when everyone is human (or everyone is a bot)
   if (cfg.gatesAtSetup) drawGates(S);
   S.players.forEach(p => {
     for (let i = 0; i < ((cfg.handSizeByN && cfg.handSizeByN[N] != null) ? cfg.handSizeByN[N] : cfg.handSize); i++) drawMile(S, p.id, true);
@@ -273,11 +273,11 @@ function beginPhase(S) {
 
 // A new round opens (Upkeep ran first, except round 1): Income and salaries, turn order, then Place
 function afterCrisis(S) { roundSetup(S); catchUpOrder(S); S.step = "place"; startPlace(S); }
-// Catch-up order: no blind bid. The studio with the fewest VP right now acts first; ties go to the smaller team, then a coin flip. Round 1 keeps the setup order.
+// Catch-up order: no blind bid. The studio with the fewest VP right now acts first; ties go to the smaller team, then to the studio that did not go first last round, then seat order. Round 1 keeps the setup order. Only public VP counts (secret objectives and synergy are left out).
 function catchUpOrder(S) {
   if (S.round <= 1 && !S.lastOrderSet) { S.lastOrderSet = 1; S.prevFirst = S.order[0]; return; }
-  const sc = E.score(S).map(x => x.total), ids = S.players.map(p => p.id), key = i => [sc[i], P(S, i).workers.length, rnd(S)], k = {}; ids.forEach(i => k[i] = key(i));
-  ids.sort((a, b) => { for (let j = 0; j < 3; j++) if (k[a][j] !== k[b][j]) return k[a][j] - k[b][j]; return 0; });
+  const sc = E.score(S).map(x => x.total - (x.parts.objectives || 0) - (x.parts.synergy || 0)), ids = S.players.map(p => p.id), key = i => [sc[i], P(S, i).workers.length, S.prevFirst === i ? 1 : 0, i], k = {}; ids.forEach(i => k[i] = key(i));
+  ids.sort((a, b) => { for (let j = 0; j < 4; j++) if (k[a][j] !== k[b][j]) return k[a][j] - k[b][j]; return 0; });
   if (S.cfg.noRepeatFirst && S.prevFirst != null && ids[0] === S.prevFirst && ids.length > 1) { const f = ids.shift(); if (S.cfg.noRepeatFirst === 1) ids.push(f); else ids.splice(1, 0, f); }
   S.prevFirst = ids[0];
   S.order = ids; S.lastBids = {};
@@ -914,6 +914,7 @@ function stepAction(S, a, actor) {
         const c = E.canBuyWs(S, pi); if (!c.ok) return err(c.reason);
         gain(S, pi, "gold", -c.cost); p.ws++; p.rs.wsBought = (p.rs.wsBought || 0) + 1; log(S, p.name + " powers up a workstation (" + c.cost + "G, " + p.ws + " in total, kept until the phase ends)"); return { ok: true };
       }
+      if (a.type === "train") return doTrain(S, p, a.worker);
       if (a.type !== "place") return err("Place a worker or pass");
       const r = doPlace(S, pi, a.worker, a.target, a); if (r.ok) bumpPlace(S); return r;
     }
@@ -930,6 +931,26 @@ function claimMile(S, p, a) {
   drawMile(S, pi, true); log(S, p.name + " cashes in " + m.name + " (+" + m.gold + "G)"); return { ok: true };
 }
 
+// Training is a free action any time it is your turn (Place or Manage). Done in Place, the Junior sits out the rest of this round; done in Manage, the next round.
+E.canTrain = function (S, pi, w) {
+  const p = P(S, pi), c = S.cfg;
+  if (!w || w.lvl !== "Jr") return { ok: false, reason: "Only Juniors train" };
+  if (S.round >= PHASE_ENDS[3]) return { ok: false, reason: "The game ends this round: no time to train" };
+  if (w.placed || w.build) return { ok: false, reason: "Worked or building this round" };
+  if (w.training || w.trainNow) return { ok: false, reason: "Already training" };
+  if ((p.rs.trains || 0) >= c.trainsPerRest) return { ok: false, reason: "Training limit reached this round" };
+  if (p.gold < c.trainCost) return { ok: false, reason: "Needs " + c.trainCost + "G" };
+  return { ok: true };
+};
+function doTrain(S, p, wid) {
+  const pi = p.id, c = S.cfg, w = p.workers.find(x => x.id === wid), ck = E.canTrain(S, pi, w); if (!ck.ok) return err(ck.reason);
+  const early = S.step === "place";
+  gain(S, pi, "gold", -c.trainCost); gain(S, pi, "culture", c.trainCulture); w.training = true; w.trained = (w.trained || 0) + 1;
+  if (early) { w.trainNow = true; w.trainLeft = trainDur(S) - 1; } else w.trainLeft = trainDur(S);
+  p.rs.trains = (p.rs.trains || 0) + 1; p.cs.trainings = (p.cs.trainings || 0) + 1;
+  log(S, p.name + " trains a Junior " + dn(w.disc) + " (" + w.trained + "/" + c.trainNeeded + "): -" + c.trainCost + "G, Culture +" + c.trainCulture + ". They sit out " + (early ? "the rest of this round" : "the next " + (trainDur(S) > 1 ? trainDur(S) + " rounds" : "round")) + (early && trainDur(S) > 1 ? " and " + (trainDur(S) - 1) + " more" : ""));
+  return { ok: true };
+}
 function restAction(S, a, p) {
   const pi = p.id, c = S.cfg;
   switch (a.type) {
@@ -953,16 +974,7 @@ function restAction(S, a, p) {
       const cost = E.promoGold(S); if (p.gold < cost) return err("Needs " + cost + "G");
       gain(S, pi, "gold", -cost); w.lvl = "Sr"; w.trained = 0; p.promos++; p.cs.promotions++; log(S, p.name + " promotes " + dn(w.disc) + " to Sr"); return { ok: true };
     }
-    case "train": {
-      const w = p.workers.find(x => x.id === a.worker); if (!w || w.lvl !== "Jr") return err("Pick a Junior worker");
-      if (S.round >= PHASE_ENDS[3]) return err("The game ends this round: no time to train");
-      if (w.placed || w.build) return err("A worker who worked or is building cannot train this round");
-      if (w.training) return err("Already training");
-      if ((p.rs.trains || 0) >= c.trainsPerRest) return err("Training limit reached this round");
-      if (p.gold < c.trainCost) return err("Needs " + c.trainCost + "G");
-      gain(S, pi, "gold", -c.trainCost); gain(S, pi, "culture", c.trainCulture); w.training = true; w.trained = (w.trained || 0) + 1; w.trainLeft = trainDur(S); p.rs.trains = (p.rs.trains || 0) + 1; p.cs.trainings = (p.cs.trainings || 0) + 1;
-      log(S, p.name + " trains a Junior " + dn(w.disc) + " (" + w.trained + "/" + c.trainNeeded + "): -" + c.trainCost + "G, Culture +" + c.trainCulture + ". They sit out the next " + (trainDur(S) > 1 ? trainDur(S) + " rounds" : "round")); return { ok: true };
-    }
+    case "train": return doTrain(S, p, a.worker);
   }
   return err("Invalid rest action");
 }
