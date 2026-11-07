@@ -1215,7 +1215,7 @@ const MILE_CHECK = {
   "Influencer Network": (S, p) => sysCount(p, "Reach") >= 2,
   "Community Built": (S, p) => p.workers.filter(w => w.disc === "PX").length >= 2,
   "Ad Blitz": (S, p) => p.rs.hypeGained >= 10,
-  "Peak Hype": (S, p) => p.hype >= 30,
+  "Peak Hype": (S, p) => p.hype >= 22,
   "Sustained Buzz": (S, p) => p.cs.hypeStreak >= 3,
   "Market Leader": (S, p) => p.mktg >= 6 && S.players.every(q => q.id === p.id || q.mktg < p.mktg)
 };
