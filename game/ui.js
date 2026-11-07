@@ -477,39 +477,25 @@ function startScreen(S) {
 }
 function stepScreens(S) {
   if (S.round === 1) return startScreen(S);
-  const out = [], rn = S.rnote && S.rnote.r === S.round ? S.rnote : null, ph = S.data.phases[S.phase], r = S.round, me = viewIndex(S);
-  const sg = n => (n > 0 ? "+" : n < 0 ? "−" : "") + Math.abs(n);
+  const r = S.round, ph = S.data.phases[S.phase], pe = S.cfg.phaseEnds || [2, 8, 11, 12], starts = [1].concat(pe.slice(0, 3).map(x => x + 1));
   const f1 = v => { const n = Math.round(+v * 10) / 10; return Number.isInteger(n) ? String(n) : n.toFixed(1); };
-  const pe = S.cfg.phaseEnds || [2, 8, 11, 12], starts = [1].concat(pe.slice(0, 3).map(x => x + 1)), rng = k => [starts[k], pe[k]]; const firstOfPhase = starts.includes(r);
-  const prevPhase = S.phase - 1;
-  const cols = S.players.map(p => ({ p, n: rn ? (rn.p[p.id] || {}) : {} }));
-  const th = `<thead><tr><th></th>${cols.map(c => `<th style="text-align:right;color:${c.p.color}">${esc(c.p.name)}</th>`).join("")}</tr></thead>`;
-  const row = (label, hint, f) => `<tr><td><b>${label}</b><div class="mute" style="font-size:11px">${hint}</div></td>${cols.map(c => `<td style="text-align:right">${f(c.n, c.p)}</td>`).join("")}</tr>`;
-  // 1. phase end (previous phase just closed, with its gate)
-  if (r > 1 && firstOfPhase) {
-    const g = (S.gates || []).slice(-1)[0], logs = S.log.filter(l => l.r === r - 1 && /^(GATE:|HYPE LEADER)|banks \d+ Hype/.test(l.m));
-    out.push({ key: "end", step: "Phase end", title: `${esc(S.data.phases[prevPhase].name)} is complete`, body: `${g ? `<div class="dsec"><h4>Publisher Gate: ${esc(g.name)}</h4><div>Passed: <b>${g.passed.length ? g.passed.map(i => esc(S.players[i].name)).join(", ") : "nobody"}</b>${g.failed.length ? `<br>Missed: <b>${g.failed.map(i => esc(S.players[i].name)).join(", ")}</b>` : ""}${g.best != null ? `<br>Publisher's favorite: <b>${esc(S.players[g.best].name)}</b>` : ""}</div></div>` : ""}${logs.length ? `<div class="dsec"><h4>Phase-end results</h4>${logs.filter(l => !/^GATE:/.test(l.m)).map(l => `<div class="mute" style="font-size:13px">${esc(l.m)}</div>`).join("") || '<span class="mute">Nothing to report.</span>'}</div>` : ""}<div class="dsec"><h4>Standings</h4>${liveVpPanel(S)}</div>` });
+  const sc = E.score(S), vp = {}; sc.forEach(x => { vp[x.id] = x.total - (x.parts.objectives || 0) - (x.parts.synergy || 0); });
+  const closed = Object.keys(S.closed || {}).map(id => { const sp = S.data.spots.find(x => x.id === id); return sp ? sp.row : id; });
+  const closedHtml = closed.length ? `<div class="dsec"><h4>Industry News: closed this round</h4><div class="mute">${closed.map(esc).join(" · ")}</div></div>` : "";
+  const total = S.cfg.rounds || 12;
+  // Ordinary round: just say which round it is, who goes first and what each studio has
+  if (!starts.includes(r)) {
+    const rows = S.order.map((i, k) => { const p = S.players[i]; return `<tr><td>${k + 1}</td><td><b style="color:${p.color}">${esc(p.name)}</b></td><td style="text-align:right">${p.gold}G</td><td style="text-align:right">${p.workers.length}</td></tr>`; }).join("");
+    return [{ key: "round", step: null, title: `Round ${r} of ${total} <span class="mute" style="font-size:14px;font-weight:400">· ${esc(ph.name)}</span>`, body: `<table class="tbl" style="width:100%"><thead><tr><th>Turn</th><th>Studio</th><th style="text-align:right">Gold</th><th style="text-align:right">Workers</th></tr></thead><tbody>${rows}</tbody></table><div class="mute" style="font-size:12px;margin-top:6px">Fewest VP goes first. The studio that went first last round is never first twice in a row.</div>${closedHtml}` }];
   }
-  // 2. reveal: the new phase
-  if (firstOfPhase) {
-    const gs = E.gateList(S) || [], g = gs.find(x => x.phase === S.phase);
-    const newSp = E.activeSpots(S).filter(sp => !(sp.phases || []).includes(S.phase - 1) && (sp.phases || []).includes(S.phase)).map(sp => (sp.row === "CREW" ? (sp.note || sp.id).replace(/^Strike Team( of \d)?: /, "Strike Team: ") : sp.row.charAt(0) + sp.row.slice(1).toLowerCase()) + (sp.fx ? " (" + sp.fx + ")" : "")).slice(0, 10);
-    out.push({ key: "phase", step: "Reveal", title: `${esc(ph.name)} begins <span class="mute" style="font-size:14px;font-weight:400">· rounds ${rng(S.phase)[0]}${rng(S.phase)[1] !== rng(S.phase)[0] ? "–" + rng(S.phase)[1] : ""}</span>`, body: `<p>${esc(PHASE_GOAL[S.phase] || "")}</p>${g ? `<div class="dsec"><h4>Publisher Gate due at the end of this phase</h4><div><b>${esc(g.name)}</b> [${esc(g.lvlName || "Medium")}]: needs ${esc((g.reqs || []).join(", "))}<br>Pass: ${gatePass(S, g)} · Miss: ${E.gateEff(S, g).miss.replace("-", "−")}</div></div>` : ""}${newSp.length ? `<div class="dsec"><h4>New on the board this phase</h4><div class="mute" style="font-size:13px">${newSp.map(esc).join(" · ")}</div></div>` : ""}` });
-  }
-  if (r > 1 && rn) {
-    out.push({ key: "upkeep", step: "Upkeep", title: "Upkeep", body: `<p class="mute">What happened between rounds: Hype fades, Burnout moves, tired workers recover.</p><table class="tbl" style="width:100%">${th}<tbody>${row("Hype", "fades each round", n => n.hype ? sg(n.hype) : "-")}${row("Burnout", "from last round's work", n => (n.burn ? sg(n.burn) : "-") + `<div class="mute" style="font-size:11px">${esc(n.band || "")}</div>`)}${row("Workers lost", "Exhausted workers who quit", n => n.lost ? sg(-n.lost) : "-")}</tbody></table>` });
-  }
-  if (rn) {
-    out.push({ key: "income", step: "Income", title: "Income and salaries", body: `<table class="tbl" style="width:100%">${th}<tbody>${row("Income", "everyone, plus systems", n => `<span style="color:var(--good,#6c6)">${sg(n.income || 0)}G</span>`)}${row("Salaries", "every worker is paid", n => (n.salary ? `<span style="color:var(--bad,#e66)">${sg(-n.salary)}G</span>` : "0G") + (n.short ? `<div class="mute" style="font-size:11px">short by ${n.short}G</div>` : ""))}${cols.some(c => c.n.bonus) ? row("Bonuses", "Burnout band and systems", n => n.bonus ? sg(n.bonus) + "G" : "-") : ""}<tr><td><b>Gold now</b></td>${cols.map(c => `<td style="text-align:right"><b>${c.n.goldNow != null ? c.n.goldNow : c.p.gold}G</b></td>`).join("")}</tr></tbody></table>` });
-  }
-  // order
-  { const sc = E.score(S), vp = {}; sc.forEach(x => { vp[x.id] = x.total - (x.parts.objectives || 0) - (x.parts.synergy || 0); });
-    const closed = Object.keys(S.closed || {}).map(id => { const sp = S.data.spots.find(x => x.id === id); return sp ? sp.row : id; });
-    out.push({ key: "order", step: "Order", title: "Turn order", body: `<p class="mute">The studio with the fewest VP goes first. Ties go to the smaller team, then to the studio that did not go first last round. The studio that went first last round is never first twice in a row.</p><ol style="margin:6px 0 10px 18px">${S.order.map(i => `<li><b style="color:${S.players[i].color}">${esc(S.players[i].name)}</b> <span class="mute">· ${f1(vp[i])} VP now</span></li>`).join("")}</ol>${closed.length ? `<div class="dsec"><h4>Industry News: closed this round</h4><div class="mute">${closed.map(esc).join(" · ")}</div></div>` : ""}` }); }
-  // place
-  { const p = S.players[me], by = [0, 1, 2].map(k => p.workers.filter(w => w.fat === k && !w.build && !w.benched).length), locked = p.workers.filter(w => w.build || w.benched).length;
-    out.push({ key: "place", step: "Place", title: "Place your workers", body: `<p>Take turns placing one worker at a time on a tile. Each tile needs a free workstation (${S.cfg.wsFree} to start, ${S.cfg.wsCost}G each for more, kept until the phase ends). A Strike Team uses one workstation for the whole team.</p><div class="dsec"><h4>Your team</h4><div>${by[0]} Fresh · ${by[1]} Tired · ${by[2]} Exhausted${locked ? " · " + locked + " busy (building or training)" : ""}</div><div class="mute" style="font-size:12px">Placing an Exhausted worker earns no skill, adds Burnout and risks a quit.</div></div>` }); }
-  return out;
+  // First round of a phase: recap the phase that just closed with a snapshot of every studio, then preview the new phase
+  const prev = S.data.phases[S.phase - 1], g = (S.gates || []).slice(-1)[0], gs = E.gateList(S) || [], ng = gs.find(x => x.phase === S.phase);
+  const nm = i => esc(S.players[i].name);
+  const snap = S.order.map(i => { const p = S.players[i]; return `<tr><td><b style="color:${p.color}">${esc(p.name)}</b></td><td style="text-align:right">${p.gold}</td><td style="text-align:right">${p.workers.length}</td><td style="text-align:right">${p.systems.length}</td><td style="text-align:right">${p.prod}</td><td style="text-align:right">${p.hype}${p.mktg ? " +" + p.mktg : ""}</td><td style="text-align:right">${Math.round(E.debtPct(S, p))}%</td><td style="text-align:right">${p.burnout}</td><td style="text-align:right"><b>${f1(vp[i])}</b></td></tr>`; }).join("");
+  const newSp = E.activeSpots(S).filter(sp => !(sp.phases || []).includes(S.phase - 1) && (sp.phases || []).includes(S.phase)).map(sp => (sp.row === "CREW" ? (sp.note || sp.id).replace(/^Strike Team( of \d)?: /, "Strike Team: ") : sp.row.charAt(0) + sp.row.slice(1).toLowerCase()) + (sp.fx ? " (" + sp.fx + ")" : "")).slice(0, 10);
+  const gateLine = g ? `<div class="dsec"><h4>Publisher Gate: ${esc(g.name)}</h4><div>Passed: <b>${g.passed.length ? g.passed.map(nm).join(", ") : "nobody"}</b>${g.failed.length ? `<br>Missed: <b>${g.failed.map(nm).join(", ")}</b>` : ""}</div></div>` : "";
+  const nextGate = ng ? `<div class="dsec"><h4>Publisher Gate due at the end of ${esc(ph.name)}</h4><div><b>${esc(ng.name)}</b> [${esc(ng.lvlName || "Medium")}]: needs ${esc((ng.reqs || []).join(", "))}<br>Pass: ${gatePass(S, ng)} · Miss: ${E.gateEff(S, ng).miss.replace("-", "\u2212")}</div></div>` : "";
+  return [{ key: "phase", step: null, title: `${esc(prev.name)} complete · ${esc(ph.name)} begins <span class="mute" style="font-size:14px;font-weight:400">· Round ${r} of ${total}</span>`, body: `${gateLine}<div class="dsec"><h4>Studio snapshot</h4><table class="tbl" style="width:100%"><thead><tr><th>Studio</th><th style="text-align:right">Gold</th><th style="text-align:right">Workers</th><th style="text-align:right">Systems</th><th style="text-align:right">Progress</th><th style="text-align:right">Hype</th><th style="text-align:right">Debt</th><th style="text-align:right">Burnout</th><th style="text-align:right">VP</th></tr></thead><tbody>${snap}</tbody></table><div class="mute" style="font-size:11px;margin-top:4px">VP is public VP only (objectives and synergy stay secret). Hype shows banked Wishlists as +N.</div></div><p>${esc(PHASE_GOAL[S.phase] || "")}</p>${nextGate}${newSp.length ? `<div class="dsec"><h4>New on the board this phase</h4><div class="mute" style="font-size:13px">${newSp.map(esc).join(" · ")}</div></div>` : ""}${closedHtml}` }];
 }
 function manageScreen(S) {
   const p = S.players[viewIndex(S)], names = [].concat.apply([], Object.values(S.market || {})), can = names.filter(n => E.canBuild(S, p.id, n, false, null).ok).length;
@@ -518,12 +504,12 @@ function manageScreen(S) {
 function nextStepScreen(S) {
   if (!S._ssid) S._ssid = String(Math.random()).slice(2, 8);
   const seen = U.seenStep = U.seenStep || {}, id = S._ssid + ":" + S.round + ":";
-  const list = S.step === "place" ? stepScreens(S) : S.step === "rest" ? [manageScreen(S)] : [];
+  const list = S.step === "place" ? stepScreens(S) : [];
   const sc = list.find(x => !seen[id + x.key]);
   U.stepScreenOpen = !!sc;
   if (!sc) return "";
   U.stepKey = id + sc.key;
-  return stepShell(S, sc.step, sc.title, sc.body, sc.key === "place" || sc.key === "start" || sc.key === "manage" ? (sc.key === "manage" ? "Start managing" : "Start placing") : "Continue");
+  return stepShell(S, sc.step, sc.title, sc.body, "Start placing");
 }
 
 function crisisCardHtml(c) {
@@ -845,7 +831,7 @@ function render() {
   if (U.toast) $root.insertAdjacentHTML("beforeend", `<div class="toast">${SI.copyFix(esc(U.toast))}</div>`);
   if (keepFocus) { const el = document.getElementById(keepFocus); if (el && val != null) { try { el.value = val; el.focus(); } catch (e) {} } }
 }
-SI.render = render;
+SI.render = render; SI.stepScreens = stepScreens;
 SI.crisisPreview = crisisCardHtml; SI.symTag = symTag;
 SI.sysPreview = d => sysTile(d, true).replace('data-act="detail"', "");
 
