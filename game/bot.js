@@ -29,8 +29,8 @@ B.profiles = {
   casual: { slip: 0.12, noise: 0.7, quirk: 0.25, gate: 0.7, deny: 0.5, bidMode: "contest", bidScale: 0.2, bidNoise: 0.5, promoP: 0.85, buildSkip: 0.08, commit: 0.8 },
   expert: { slip: 0, noise: 0.1, quirk: 0, gate: 1.2, deny: 1, bidMode: "contest", bidScale: 0.12, bidNoise: 0.1, promoP: 1, buildSkip: 0, commit: 0.3 }
 };
-// Optimizer: plays to win with every lever (no slips, no noise, buys desks up to the cap, builds whenever it can, trains early, contests rivals' tiles). Knobs found by tools/btune.js.
-B.profiles.max = { slip: 0, noise: 0, quirk: 0, gate: 1.3, deny: 1.4, bidMode: "contest", bidScale: 0.12, bidNoise: 0, promoP: 1, buildSkip: 0, commit: 0.6, deskReserve: 0, deskPenalty: 0.1, buildFloor: 1, trainGold: 3 };
+// Optimizer: plays to win with every lever (no slips, no noise, buys desks up to the cap, builds whenever it can, trains early, contests rivals' tiles). Knobs found by random-search self-play against Expert bots (tools/btune.js) and checked on fresh seeds.
+B.profiles.max = { slip: 0, noise: 0, quirk: 0, bidMode: "contest", bidScale: 0.12, bidNoise: 0, buildSkip: 0, gate: 1.3, deny: 1.4, commit: 0.6, deskReserve: 0, deskPenalty: 0.1, buildFloor: 1, trainGold: 3, promoP: 1, w: {"prod": 1.16, "mktg": 1.4, "hype": 1, "gold": 1, "debt": 1, "spotDebt": 0.3, "resVal": 1.5, "recBase": 3.4, "recReserve": 0, "recMax": 1, "srCap": 0.45, "promoGold": 7, "crunchGold": 15, "crunchRound": 9, "buildScale": 1, "buildBias": 0, "srVal": 0.96, "thr": 0.3, "gateSurplus": 0.97, "gatePace": 4.19, "workers": 0, "convHold": 1, "crewCost": 3} };
 B.profileNames = [["", "Standard"], ["novice", "Novice"], ["casual", "Human-like"], ["expert", "Expert"], ["max", "Optimizer"]];
 let PF = null;
 const quirk = (S, p) => { if (!p.qk) p.qk = [E.rnd(S), E.rnd(S), E.rnd(S), E.rnd(S), E.rnd(S)]; return p.qk; };
@@ -64,6 +64,7 @@ B.decide = function (S) {
   const pi = E.currentActor(S); if (pi < 0) return null;
   const p = S.players[pi]; const d = S.dq[0];
   W = Object.assign({}, NEUTRAL, S.cfg.botW || {}, ((S.cfg.botPersonas || B.personas)[p.persona]) || {}); PF = ((S.cfg.botProfiles || B.profiles)[p.profile]) || null;
+  if (PF && PF.w) W = Object.assign(W, PF.w);
   if (PF) { const q = quirk(S, p), k = PF.quirk; W.prod *= 1 + (q[0] - 0.5) * 2 * k; W.mktg *= 1 + (q[1] - 0.5) * 2 * k; W.hype *= 1 + (q[2] - 0.5) * 2 * k; W.gold *= 1 + (q[3] - 0.5) * 2 * k; W.debt *= 1 + (q[4] - 0.5) * 2 * k; W.gate *= PF.gate; }
   gateFactors(S, p);
   if (d) return decision(S, p, d);

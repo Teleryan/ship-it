@@ -6,7 +6,7 @@ const path = require("path"), G = path.join(__dirname, "..", "game");
 const D = require(path.join(G, "data.js")), E = require(path.join(G, "engine.js")), B = require(path.join(G, "bot.js"));
 const PERS = ["", "crunch", "hype", "systems", "clean"];
 function run(n, games, over, base0) {
-  const prof = Object.assign({}, B.profiles, { max: Object.assign({}, B.profiles.max, (over || {}).profile || {}) });
+  const prof = Object.assign({}, B.profiles, { max: Object.assign({}, B.profiles.max, (over || {}).profile || {}, (over || {}).W ? { w: (over || {}).W } : {}) });
   const pers = Object.assign({}, B.personas, { maxp: (over || {}).W || {} });
   let sum = 0, wins = 0, rank = 0, rival = 0, nr = 0, win = [], det = { desks: 0, sys: 0, trains: 0, gold: 0, workers: 0 };
   for (let gi = 0; gi < games; gi++) {
