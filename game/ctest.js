@@ -23,6 +23,10 @@ S = toStep(mk(5), 'place', 1);
 ok(S.players.every(p => p.workers.length === S.cfg.startWorkers), 'every studio opens with ' + S.cfg.startWorkers + ' Juniors');
 
 // ---- recruit, price ladder ----
+{ // bought workstations last until the phase ends, then reset
+  const T = toStep(mk(3, 3), 'place', 2); T.players[0].ws = 5;
+  const T2 = until(T, s => s.round === 3 && s.step === 'place'); ok(T2.players[0].ws === 5, 'a bought workstation is back in the next round of the same phase');
+  const T3 = until(T2, s => s.round === 4 && s.step === 'place'); ok(T3.players[0].ws === T3.cfg.wsFree, 'a new phase resets workstations to the free ones'); }
 S = toStep(mk(3, 3), 'place', 3);
 { const a = E.currentActor(S), p = S.players[a];
   S.players.forEach(x => { x.gold = 20; x.hireDiscount = 0 }); const cost = E.recruitCost(S, a), n0 = p.workers.length;

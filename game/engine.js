@@ -287,7 +287,7 @@ function roundSetup(S) {
   S.players.forEach(p => {
     p.rs = { spent: 0, gained: 0, spentRes: 0, hires: 0, placed: 0, triggers: 0, builds: 0, debtRemoved: 0, hypeGained: 0, discards: 0, cashed: 0, debtStart: p.debt };
     p.workers.forEach(w => { w.placed = false; w.as = null; w.benched = false; w.training = false; w.trainNow = false; if (w.trainLeft > 0) { w.benched = "Training"; w.trainLeft--; } });
-    p.ws = S.cfg.wsMax ? (S.cfg.wsKeep ? Math.max(p.ws || 0, Math.min(S.cfg.wsMax, S.cfg.wsFree || 0)) : Math.min(S.cfg.wsMax, S.cfg.wsFree || 0)) : 0; p.wsUsed = 0; p.rd = false; p.rdDisc = 0; p.refreshed = 0; p.builds = 0; p.promos = 0; p.hunts = 0; p.swapObj = 0; p.swapMile = 0; p.recruited = 0; p.recruitExtra = 0;
+    p.ws = S.cfg.wsMax ? (S.cfg.wsKeep && S.round > 1 && PHASE_OF_ROUND(S.round) === PHASE_OF_ROUND(S.round - 1) ? Math.max(p.ws || 0, Math.min(S.cfg.wsMax, S.cfg.wsFree || 0)) : Math.min(S.cfg.wsMax, S.cfg.wsFree || 0)) : 0; p.wsUsed = 0; p.rd = false; p.rdDisc = 0; p.refreshed = 0; p.builds = 0; p.promos = 0; p.hunts = 0; p.swapObj = 0; p.swapMile = 0; p.recruited = 0; p.recruitExtra = 0;
     p.systems.forEach(s => s.t = false);
   });
   S.occ = {}; S.passed = []; S.closed = {};
@@ -912,7 +912,7 @@ function stepAction(S, a, actor) {
       }
       if (a.type === "buyws") {
         const c = E.canBuyWs(S, pi); if (!c.ok) return err(c.reason);
-        gain(S, pi, "gold", -c.cost); p.ws++; p.rs.wsBought = (p.rs.wsBought || 0) + 1; log(S, p.name + " powers up a workstation (" + c.cost + "G, " + p.ws + " in total, kept)"); return { ok: true };
+        gain(S, pi, "gold", -c.cost); p.ws++; p.rs.wsBought = (p.rs.wsBought || 0) + 1; log(S, p.name + " powers up a workstation (" + c.cost + "G, " + p.ws + " in total, kept until the phase ends)"); return { ok: true };
       }
       if (a.type !== "place") return err("Place a worker or pass");
       const r = doPlace(S, pi, a.worker, a.target, a); if (r.ok) bumpPlace(S); return r;
