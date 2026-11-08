@@ -8,7 +8,7 @@ Version string in the app: **Playtest 1 · A rules · 9 Nov 2026**. Do not chang
 - Income 7 Gold a round at every player count.
 - Systems print their real VP on the card (3 or 6). No synergy scoring.
 - Instant builds (config toggle `instantBuild`, on): a system works the moment it is built, no build time and no crew locked. There is no Crunch. R&D gives 2 skills of your choice. Set `instantBuild` to 0 in Data Studio for the old 1-3 round builds.
-- Training: a shared board tile in Production and Polish (config `trainTile`, on). One Junior per player per round becomes a Senior at once. Uses a workstation, costs 1G or 1 skill of the worker's role, +1 Culture; no skill earned, no fatigue or Burnout, no recovery. Manage-panel train and promote are off.
+- Training: a shared board tile in Concept, Production and Polish (config `trainTile`, on). One Junior per player per round becomes a Senior at once. Uses a workstation, costs 1G or 1 skill of the worker's role, +1 Culture; no skill earned, no fatigue or Burnout, no recovery. Manage-panel train and promote are off.
 - Team Event: 3G, two workers, -3 Burnout.
 - Launch board: Party (merged Press/Platform/Ship), Launch Crew, Keynote, Convert, plus the usual Perks. Polish: Contract and Playtest 1 removed, Plan 1 and Test 2 narrowed.
 - Score band used for balance work: winners 33-63 VP.

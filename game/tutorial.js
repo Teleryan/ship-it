@@ -199,7 +199,9 @@ SI.tutTick = function () {
 SI.tutHold = () => SI.tutLockMode() === "hard";
 SI.tutGate = function (a) {
   const u = U(), T = u.tut; if (!T || T.auto) return null;
-  const st = cur(); if (!st || !st.allow) return null;
+  const st = cur(); if (!st) return null;
+  if (a && a.type === "place" && a.target === "spot:train" && st.id !== "promote") return MSG("msg_train_later"); // the Training tile is taught in round 4
+  if (!st.allow) return null;
   return st.allow(a, u.S);
 };
 // hard = nothing but the coach is clickable; soft = the board is locked but popups still work (Crisis decisions)

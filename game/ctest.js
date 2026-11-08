@@ -145,7 +145,7 @@ const mkTrain = (seed, round, mut) => { const T = mk(seed, 3); T.cfg.trainTile =
 { const { T, pi, q } = mkTrain(41, 4, p => { p.gold = 0; p.code = 0; p.ideas = 5; }); ok(!E.act(T, { type: 'place', p: pi, worker: 970, target: 'spot:train' }).ok, 'Training tile: refused with no Gold and none of their skill'); }
 { const { T, pi, q } = mkTrain(41); E.act(T, { type: 'place', p: pi, worker: 970, target: 'spot:train' }); const o = E.placementOptions(T, pi, q.workers.find(x => x.id === 971)).find(x => x.target === 'spot:train'); ok(o && !o.ok, 'Training tile: only one worker per player per round'); }
 { const { T, pi, q } = mkTrain(41); const o = E.placementOptions(T, pi, q.workers[0]); q.workers[0].lvl = 'Sr'; const o2 = E.placementOptions(T, pi, q.workers[0]).find(x => x.target === 'spot:train'); ok(o2 && !o2.ok, 'Training tile: Seniors cannot use it'); }
-{ const T = mk(42, 3); T.cfg.trainTile = 1; toStep(T, 'place', 12); ok(!E.activeSpots(T).some(s => s.id === 'train'), 'Training tile: not on the board in Launch'); const T2 = mk(42, 3); T2.cfg.trainTile = 1; toStep(T2, 'place', 2); ok(!E.activeSpots(T2).some(s => s.id === 'train'), 'Training tile: not on the board in Concept'); }
+{ const T = mk(42, 3); T.cfg.trainTile = 1; toStep(T, 'place', 12); ok(!E.activeSpots(T).some(s => s.id === 'train'), 'Training tile: not on the board in Launch'); const T2 = mk(42, 3); T2.cfg.trainTile = 1; toStep(T2, 'place', 2); ok(E.activeSpots(T2).some(s => s.id === 'train'), 'Training tile: on the board in Concept'); }
 { const { T, pi, q } = mkTrain(43); ok(!E.canTrain(T, pi, q.workers[0]).ok, 'Training tile on: Manage-panel training is off'); }
 
 // ---- convert (Launch) ----
