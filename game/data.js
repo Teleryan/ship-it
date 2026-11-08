@@ -7,7 +7,7 @@
 (function(root){
 const D = {};
 
-D.version = "v47-proto-0.1";
+D.version = "Playtest 1 · A rules · 9 Nov 2026";
 
 D.disciplines = {
   ENG:{name:"Engineer",   cat:"Development", short:"Flexible", util:"Flexible: may fix Tech Debt instead of gaining Progress"},
@@ -409,7 +409,7 @@ D.config = {
   "gateLevelDefs":{"E":{"thr":0.7,"reward":0.75,"penalty":0.5},"M":{"thr":1,"reward":1,"penalty":1},"H":{"thr":1.3,"reward":1.5,"penalty":1.5}},
   "sysGoldAdd":0,
   "botW":{"res":1,"crewCost":3,"prod":1,"mktg":1,"hype":1,"gold":1,"debt":1,"spotDebt":0.3,"buildBias":0,"cat":{},"workers":0,"bid":1,"gate":1,"gateSurplus":1.1,"gatePace":4,"resVal":1.5,"recBase":3.4,"recReserve":2,"recMax":0,"srCap":0.5,"promoGold":7,"crunchGold":16,"crunchRound":8,"buildScale":1,"srVal":1.2,"convHold":1,"thr":0.3},
-  "botPersonas":{"crunch":{"prod":1.8,"mktg":0.6,"hype":0.6,"spotDebt":0.4,"cat":{"Innovation":2},"workers":1},"hype":{"prod":0.7,"mktg":1.8,"hype":1.6,"cat":{"Reach":2.5}},"systems":{"gold":1.5,"buildBias":3,"cat":{"Innovation":1,"Reach":1,"Revenue":3,"Stability":1},"workers":-1},"clean":{"debt":1.8,"spotDebt":1.4,"cat":{"Stability":2},"gold":1.1,"resVal":1.1,"recMax":1}},
+  "botPersonas":{"crunch":{"prod":1.5,"mktg":0.8,"hype":0.8,"spotDebt":0.6,"cat":{"Innovation":1.5,"Stability":1},"workers":0,"buildBias":2},"hype":{"prod":0.7,"mktg":1.8,"hype":1.6,"cat":{"Reach":2.5}},"systems":{"gold":1.5,"buildBias":3,"cat":{"Innovation":1,"Reach":1,"Revenue":3,"Stability":1},"workers":-1},"clean":{"debt":1.8,"spotDebt":1.4,"cat":{"Stability":2},"gold":1.1,"resVal":1.1,"recMax":1}},
   "botProfiles":{"novice":{"slip":0.3,"noise":1.5,"quirk":0.4,"gate":0.25,"deny":0,"bidMode":"random","promoP":0.5,"buildSkip":0.3,"commit":0},"casual":{"slip":0.12,"noise":0.7,"quirk":0.25,"gate":0.7,"deny":0.5,"bidMode":"contest","bidScale":0.2,"bidNoise":0.5,"promoP":0.85,"buildSkip":0.08,"commit":0.8},"expert":{"slip":0,"noise":0.1,"quirk":0,"gate":1.2,"deny":1,"bidMode":"contest","bidScale":0.12,"bidNoise":0.1,"promoP":1,"buildSkip":0,"commit":0.3}},
   "synergyOn":0,
   "rowNames":{"EARN":["Backlog","Backlog","Backlog","Backlog"],"PROGRESS":["Prototype","Vertical Slice","Beta Build","Gold Master"],"HYPE":["Pitch Deck","Trailer Drop","Press Tour","Launch Party"],"CREW":["Game Jam","Game Jam","Game Jam","Game Jam"],"UTILITY":["Studio Perks","Studio Perks","Studio Perks","Studio Perks"]},
@@ -481,7 +481,7 @@ D.config = {
   "dropByN":{"2":["0:code2","0:pitch2","0:proto1","0:protosprint","1:buzz1","1:create2","1:labcrew","1:build2","1:campaign","2:labcrew","2:playtest1","2:artpass","2:pmarket1","2:opt3","2:launchprep"],"3":["0:pitch2","0:proto1","1:buzz1","1:create2","1:labcrew","2:labcrew","2:playtest1","2:opt3"]},
   "bigAdd":{"2":["launchcrew","keynote"],"3":["launchcrew","keynote"],"4":["launchcrew","keynote"],"5":["market3","artpush","vslice","trailer","launchcrew","keynote"]},
   "spotPatch":{"launchcrew_b":{"fx":"+7 Progress, +4 Hype"},"keynote_b":{"fx":"+3 Hype, +1 Wishlists"},"press":{"phases":[]},"platform":{"phases":[]},"ship":{"phases":[]},"party":{"fx":"+2 Progress, +2 Culture OR +2 Hype, +2 Culture"},"plan1":{"phases":[0,1]},"test2":{"phases":[1]},"contract":{"phases":[]},"playtest1":{"phases":[]}},
-  "cfgByN":{"2":{"income":8}},
+  "cfgByN":{},
   "overTileDock":1,
   "launchCap":1,
   "overCrew":1,

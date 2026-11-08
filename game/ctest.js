@@ -244,4 +244,12 @@ for (const n of [2, 3, 4, 5]) { const T = mk(60 + n, n); const R = toStep(mk(60 
   ok(spots > 0, n + ' players: board has spots (' + spots + ')');
   ok(R.recruit.length === E.recruitSize(R), n + ' players: recruitment pool size ' + R.recruit.length); }
 { const cnt = n => { const T = mk(3, n); T.phase = 1; return E.activeSpots(T).length }; ok(cnt(2) < cnt(4) && cnt(4) <= cnt(6), 'smaller tables play on a smaller board (' + [2, 4, 6].map(cnt).join('/') + ' spots)'); }
+
+/* bot difficulty presets: every preset finishes a game at every table size, and the Optimizer preset really differs from Standard */
+{ const names = B.profileNames.map(x => x[0]);
+  ok(names.length >= 5 && names.includes('novice') && names.includes('max'), 'bot skill presets are listed (' + names.map(x => x || 'standard').join(', ') + ')');
+  const play = (pf, n, seed) => { const T = mk(seed, n); T.players.forEach((p, i) => { if (i === 0) p.profile = pf }); let g = 0; while (!T.over && g++ < 80000) { if (!B.step(T).ok) break } return T };
+  names.forEach(pf => [2, 3, 4, 5].forEach(n => { const T = play(pf, n, 11); ok(T.over && T.winner != null, 'preset "' + (pf || 'standard') + '" finishes a ' + n + '-player game') }));
+  const a = play('', 4, 21), b = play('max', 4, 21);
+  ok(JSON.stringify(a.scores.map(s => s.total)) !== JSON.stringify(b.scores.map(s => s.total)), 'the Optimizer preset plays differently from Standard (profile is picked up from the saved config)'); }
 console.log('fails', fails);

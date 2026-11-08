@@ -864,7 +864,7 @@ function buildOnline(meta, log) {
   const st = SI.applyDiff(meta.ovr ? JSON.parse(meta.ovr) : null);
   const seats = meta.seats.map((s, i) => ({ name: s.name || ("Player " + (i + 1)), bot: s.kind === "bot" }));
   const S = E.newGame(seats, { seed: meta.seed, config: E.clone(st.config), data: E.clone(st.data) });
-  S.players.forEach((p, i) => { if (meta.seats[i].persona) p.persona = meta.seats[i].persona; });
+  S.players.forEach((p, i) => { if (meta.seats[i].persona) p.persona = meta.seats[i].persona; if (meta.seats[i].skill && p.bot) p.profile = meta.seats[i].skill; });
   for (let k = 0; k < log.length; k++) { S.seed = log[k].s; const r = E.act(S, log[k].a); if (!r.ok) return { S, bad: k }; }
   return { S, n: log.length };
 }
@@ -921,9 +921,10 @@ function lobbyView() {
     else who = `<span class="mute">Waiting for a player</span>`;
     const nameEdit = (host && (s.kind === "bot" || !s.cid)) || mine ? `<input data-lname="${i}" value="${esc(s.name)}" placeholder="Name" maxlength="20" style="width:130px">` : `<b>${esc(s.name || "Player " + (i + 1))}</b>`;
     const kind = host ? `<select data-lkind="${i}" ${mine && i === 0 ? "disabled" : ""}><option value="human" ${s.kind !== "bot" ? "selected" : ""}>Human</option><option value="bot" ${s.kind === "bot" ? "selected" : ""}>Bot</option></select>` : "";
+    const skill = host && s.kind === "bot" ? `<select data-lskill="${i}" title="Bot skill">${(root.ShipItBot ? root.ShipItBot.profileNames : [["", "Standard"]]).map(o => `<option value="${o[0]}" ${(s.skill || "") === o[0] ? "selected" : ""}>${o[1]}</option>`).join("")}</select>` : "";
     const pers = host && s.kind === "bot" ? `<select data-lpers="${i}">${PERSONAS.map(p => `<option value="${p[0]}" ${s.persona === p[0] ? "selected" : ""}>${p[1]}</option>`).join("")}</select>` : "";
     const btn = free ? `<button class="btn sm primary" data-act="lobby-claim" data-v="${i}">Take this seat</button>${n.mine.length ? `<button class="btn sm" data-act="lobby-claim" data-v="${i}" data-x="1" title="Play this seat on this device too (pass-and-play)">Also on this device</button>` : ""}` : mine ? `<button class="btn sm" data-act="lobby-free" data-v="${i}">Give up seat</button>` : "";
-    return `<div class="seat"><span class="dot" style="background:${COLORS[i]}"></span>${nameEdit}${kind}${pers}<span class="grow"></span>${who}${btn}</div>`;
+    return `<div class="seat"><span class="dot" style="background:${COLORS[i]}"></span>${nameEdit}${kind}${skill}${pers}<span class="grow"></span>${who}${btn}</div>`;
   }).join("");
   const ready = !seats.some(s => s.kind !== "bot" && !s.cid);
   return `<div class="center-screen"><div class="card-box" style="max-width:640px">
@@ -939,7 +940,7 @@ function lobbyView() {
   <p class="dim" style="margin:12px 0 0;font-size:12px">Bots run on the host's device. If you lose connection, reopen the page and join the same code: your seat is kept.${host && U.tuned && U.tuned !== "default" ? ` Using tuning: ${esc(U.tuned)}.` : ""}</p></div></div>`;
 }
 function lobbySend() { // host pushes the seat layout
-  const M = U.net.meta; N.send({ t: "cfg", seats: M.seats.map(s => ({ name: s.name, kind: s.kind, persona: s.persona })) });
+  const M = U.net.meta; N.send({ t: "cfg", seats: M.seats.map(s => ({ name: s.name, kind: s.kind, persona: s.persona, skill: s.skill })) });
 }
 function lobbyStart() {
   const df = SI.diffOf(U.active || U.studio), gl = resolveGateLevels(); if (gl) { df.config = Object.assign({}, df.config, { gateLevels: gl }); }
@@ -1087,8 +1088,9 @@ $root.addEventListener("click", e => {
 $root.addEventListener("change", e => {
   const t = e.target;
   if (t.dataset.seatn != null) { const n = +t.value; while (U.seats.length < n) U.seats.push({ name: "Player " + (U.seats.length + 1), bot: true }); U.seats.length = n; render(); return; }
-  if (t.dataset.lcount != null && U.net && U.net.host) { const k = +t.value, M = U.net.meta; const seats = M.seats.map(x => Object.assign({}, x)); while (seats.length < k) seats.push({ name: "Bot " + (seats.length + 1), kind: "bot", persona: "", cid: null }); seats.length = k; M.seats = seats; lobbySend(); return; }
+  if (t.dataset.lcount != null && U.net && U.net.host) { const k = +t.value, M = U.net.meta; const seats = M.seats.map(x => Object.assign({}, x)); while (seats.length < k) seats.push({ name: "Bot " + (seats.length + 1), kind: "bot", persona: "", skill: "", cid: null }); seats.length = k; M.seats = seats; lobbySend(); return; }
   if (t.dataset.lkind != null && U.net && U.net.host) { const M = U.net.meta, s = M.seats[+t.dataset.lkind]; s.kind = t.value; if (s.kind === "bot") { s.cid = null; if (!s.name) s.name = "Bot " + (+t.dataset.lkind + 1); } lobbySend(); return; }
+  if (t.dataset.lskill != null && U.net && U.net.host) { U.net.meta.seats[+t.dataset.lskill].skill = t.value; lobbySend(); return; }
   if (t.dataset.lpers != null && U.net && U.net.host) { U.net.meta.seats[+t.dataset.lpers].persona = t.value; lobbySend(); return; }
   if (t.dataset.lname != null && U.net) { const i = +t.dataset.lname, M = U.net.meta, s = M.seats[i]; s.name = t.value.slice(0, 20); if (s.cid === N.cid()) { setName(s.name); N.send({ t: "claim", seat: i, name: s.name, extra: true }); } else if (U.net.host) lobbySend(); return; }
   if (t.dataset.pname != null) { setName(t.value); return; }

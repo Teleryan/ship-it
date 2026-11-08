@@ -63,7 +63,7 @@ B.cfg = { skill: 1 };
 B.decide = function (S) {
   const pi = E.currentActor(S); if (pi < 0) return null;
   const p = S.players[pi]; const d = S.dq[0];
-  W = Object.assign({}, NEUTRAL, S.cfg.botW || {}, ((S.cfg.botPersonas || B.personas)[p.persona]) || {}); PF = ((S.cfg.botProfiles || B.profiles)[p.profile]) || null;
+  W = Object.assign({}, NEUTRAL, S.cfg.botW || {}, ((S.cfg.botPersonas && Object.assign({}, B.personas, S.cfg.botPersonas) || B.personas)[p.persona]) || {}); PF = ((S.cfg.botProfiles && Object.assign({}, B.profiles, S.cfg.botProfiles) || B.profiles)[p.profile]) || null;
   if (PF && PF.w) W = Object.assign(W, PF.w);
   if (PF) { const q = quirk(S, p), k = PF.quirk; W.prod *= 1 + (q[0] - 0.5) * 2 * k; W.mktg *= 1 + (q[1] - 0.5) * 2 * k; W.hype *= 1 + (q[2] - 0.5) * 2 * k; W.gold *= 1 + (q[3] - 0.5) * 2 * k; W.debt *= 1 + (q[4] - 0.5) * 2 * k; W.gate *= PF.gate; }
   gateFactors(S, p);
@@ -250,7 +250,7 @@ function mile(S, p) {
 }
 
 // Tension probe for tools/tension.js: values every placement ignoring rivals' occupancy vs what is actually open
-B.probe = function(S,pi){ const p=S.players[pi]; W = Object.assign({}, NEUTRAL, S.cfg.botW || {}, ((S.cfg.botPersonas || B.personas)[p.persona]) || {}); PF = ((S.cfg.botProfiles || B.profiles)[p.profile]) || null; gateFactors(S,p); const orig=E.rnd; E.rnd=()=>0.5; const out=[]; try{ const occ=S.occ; const real={}; p.workers.forEach(w=>{ E.placementOptions(S,pi,w).forEach(o=>{ if(o.ok) real[w.id+'|'+o.target]=1; }); }); const sp=E.activeSpots(S); const occ2={}; Object.keys(occ).forEach(k=>{ const sd=sp.find(s=>s.id===k); if(!sd || (sd.mode||'single')!=='single' || occ[k].includes(pi) || occ[k].includes(-1)) occ2[k]=occ[k]; }); S.occ=occ2; try{ p.workers.forEach(w=>{ E.placementOptions(S,pi,w).forEach(o=>{ if(o.ok){ out.push({w:w.id,lvl:w.lvl,fat:w.fat,target:o.target,spot:o.spot&&o.spot.id,s:fxScore(S,p,w,o),avail:!!real[w.id+'|'+o.target]}); } }); }); } finally { S.occ=occ; } } finally { E.rnd=orig; } return out; };
+B.probe = function(S,pi){ const p=S.players[pi]; W = Object.assign({}, NEUTRAL, S.cfg.botW || {}, ((S.cfg.botPersonas && Object.assign({}, B.personas, S.cfg.botPersonas) || B.personas)[p.persona]) || {}); PF = ((S.cfg.botProfiles && Object.assign({}, B.profiles, S.cfg.botProfiles) || B.profiles)[p.profile]) || null; gateFactors(S,p); const orig=E.rnd; E.rnd=()=>0.5; const out=[]; try{ const occ=S.occ; const real={}; p.workers.forEach(w=>{ E.placementOptions(S,pi,w).forEach(o=>{ if(o.ok) real[w.id+'|'+o.target]=1; }); }); const sp=E.activeSpots(S); const occ2={}; Object.keys(occ).forEach(k=>{ const sd=sp.find(s=>s.id===k); if(!sd || (sd.mode||'single')!=='single' || occ[k].includes(pi) || occ[k].includes(-1)) occ2[k]=occ[k]; }); S.occ=occ2; try{ p.workers.forEach(w=>{ E.placementOptions(S,pi,w).forEach(o=>{ if(o.ok){ out.push({w:w.id,lvl:w.lvl,fat:w.fat,target:o.target,spot:o.spot&&o.spot.id,s:fxScore(S,p,w,o),avail:!!real[w.id+'|'+o.target]}); } }); }); } finally { S.occ=occ; } } finally { E.rnd=orig; } return out; };
 B.step = function (S) { const a = B.decide(S); if (!a) return { ok: false, error: "no action" }; const r = E.act(S, a); if (!r.ok) r.action = a; return r; };
 B.isBotTurn = function (S) { const pi = E.currentActor(S); return pi >= 0 && S.players[pi].bot; };
 // run bots until a human must act (or the game ends). Returns number of steps.

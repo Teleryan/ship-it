@@ -14,7 +14,7 @@ function run(n, games, over, base0) {
     const cfg = Object.assign({}, D.config, { botProfiles: prof, botPersonas: pers }, (over || {}).cfg || {});
     const S = E.newGame(seats, { seed: (base0 || 20000) + n * 1000 + gi, config: cfg });
     const me = gi % n;
-    S.players.forEach((p, i) => { if (i === me) { p.profile = "max"; p.persona = "maxp"; } else { p.profile = "expert"; const q = PERS[(i + gi) % PERS.length]; if (q) p.persona = q; } });
+    S.players.forEach((p, i) => { if (i === me) { p.profile = "max"; p.persona = "maxp"; } else if (process.env.BT_OPP === "std") { p.profile = ""; } else { p.profile = "expert"; const q = PERS[(i + gi) % PERS.length]; if (q) p.persona = q; } });
     let g = 0, peak = 0; while (!S.over && g++ < 80000) { if (S.players[me].ws > peak) peak = S.players[me].ws; if (!B.step(S).ok) break; }
     if (!S.over) continue;
     const t = S.scores.map(s => s.total), mine = t[me], best = Math.max.apply(null, t);
