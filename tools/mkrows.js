@@ -103,7 +103,7 @@ r("objectives","Card 3 · pick objectives","Pick your secret objectives","",
 r("team","Card 4 · your team","Your starting team","Next",
 "These are your workers. You start with **{startWorkers} Juniors**, each with a **role** such as Designer or Advertising (the colour is the discipline). More workers come from **Recruit**, which opens in round {recruitMinRound}.");
 r("board_backlog","Card 5 · the board","The board: Backlog","Next",
-"The **main board** is where your workers act. **Backlog** tiles earn **skills**, which you spend later to build systems:\n**Light bulb** Ideas · **Brackets** Code · **Gear** Process · **Megaphone** Buzz\n\nA worker earns the skill of their own role: **+{resJr}** for a Junior, **+{resSr}** for a Senior. The other rows score Progress and Hype; we meet them in Production.");
+"The **main board** is where your workers act. **Backlog** tiles earn **skills**, which you spend later to build systems:\n**Light bulb** Ideas\n**Brackets** Code\n**Gear** Process\n**Megaphone** Buzz\n\nA worker earns the skill of their own role: **+{resJr}** for a Junior, **+{resSr}** for a Senior. The other rows score Progress and Hype; we meet them in Production.");
 r("place1","Round 1 · first worker (nothing selected)","Place your first worker","",
 ">> Click one of your workers in the **Studio Workers** panel to select it.\n\nYou and the Rival take turns, one worker at a time. Most tiles hold only one worker, so going early matters.");
 r("place1b","Round 1 · first worker (worker selected)","Place your first worker","",
