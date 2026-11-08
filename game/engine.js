@@ -385,7 +385,7 @@ function rollRecruit(S) {
 E.recruitCost = function (S, pi) { const p = P(S, pi), c = S.cfg; const taken = (S.recruit || []).filter(o => o.by != null).length; return Math.max(0, (c.recruitCost == null ? 3 : c.recruitCost) + (c.recruitLadder || 0) * taken + (S.mod && S.mod.hireAdd && !protectedFromCrisis(S, p) ? S.mod.hireAdd : 0) - Math.min(p.hireDiscount || 0, 1)); };
 E.canRecruit = function (S, pi, idx) {
   const p = P(S, pi); if (S.step !== "place") return { ok: false, reason: "Not available" };
-  if (S.phase === 3 && !S.cfg.recruitInLaunch) return { ok: false, reason: "No hiring in Launch" };
+  if (S.phase === 3 && !S.cfg.recruitInLaunch) return { ok: false, reason: "No recruiting in Launch" };
   if (S.cfg.recruitMinRound && S.round < S.cfg.recruitMinRound) return { ok: false, reason: "Recruiting opens in round " + S.cfg.recruitMinRound };
   const o = (S.recruit || [])[idx]; if (!o) return { ok: false, reason: "No such offer" };
   if (o.by != null) return { ok: false, reason: "Already taken" };
@@ -485,7 +485,7 @@ function upkeepPlayers(S) {
     p.workers.forEach(w => { if (!w.placed && w.fat > 0) w.fat--; });
     p.flags.freeBuildUsed = false;
   });
-  log(S, "UPKEEP: Hype -" + S.cfg.hypeDecay + ", Culture toward 0, workers recover");
+  log(S, "UPKEEP: Hype -" + S.cfg.hypeDecay + (S.round >= (S.cfg.decayFromRound || 0) ? "" : " (not before round " + S.cfg.decayFromRound + ")") + ", workers recover");
 }
 // The round closes (gates), the next round opens with Upkeep (not in round 1), then Income and turn order. No Upkeep after the last round.
 function roundEnd(S) {
@@ -625,7 +625,7 @@ function spotUsableBase(S, pi, w, spot) {
   if (spot.cost && spot.cost.gold > p.gold) return { ok: false, reason: "Needs " + spot.cost.gold + "G" };
   if (spot.cost && spot.cost.res && E.resTotal(p) < spot.cost.res) return { ok: false, reason: "Needs " + spot.cost.res + " skills" };
   if (spot.special === "talent") {
-    if (S.phase === 3 && !S.cfg.recruitInLaunch) return { ok: false, reason: "No hiring in Launch" };
+    if (S.phase === 3 && !S.cfg.recruitInLaunch) return { ok: false, reason: "No recruiting in Launch" };
     if (S.cfg.recruitMinRound && S.round < S.cfg.recruitMinRound) return { ok: false, reason: "Recruiting opens in round " + S.cfg.recruitMinRound };
     if (!(S.recruit || []).some(o => o.by == null)) return { ok: false, reason: "Nobody left in the recruitment pool" };
   }

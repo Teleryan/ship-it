@@ -1,4 +1,4 @@
-function wsPriceText(c){var ord=function(n){return n+(n==2?"nd":n==3?"rd":"th")},from=c.wsLadderFrom!=null?c.wsLadderFrom:c.wsFree,o=[];for(var k=c.wsFree+1;k<=c.wsMax;k++)o.push("the "+ord(k)+" costs **"+(c.wsCost+(c.wsStep||0)*Math.max(0,k-1-from))+"G**");return o.join(", ")}
+function wsPriceText(c){var ord=function(n){return n+(n==2?"nd":n==3?"rd":"th")},from=c.wsLadderFrom!=null?c.wsLadderFrom:c.wsFree,g=[];for(var k=c.wsFree+1;k<=c.wsMax;k++){var pr=c.wsCost+(c.wsStep||0)*Math.max(0,k-1-from),l=g[g.length-1];if(l&&l.pr==pr)l.to=k;else g.push({from:k,to:k,pr:pr})}return g.map(function(x){return (x.from==x.to?"the "+ord(x.from):"the "+ord(x.from)+" to "+ord(x.to))+" <b>"+x.pr+"G</b>"+(x.from==x.to?"":" each")}).join(", ")}
 /* ============================================================
    SHIP IT!: GUIDED TUTORIAL
    A scripted first game (You vs. a Rival bot). Pure add-on: the engine is
@@ -42,18 +42,19 @@ function fmt(s, tok) {
 const hintId = S => ({ place: "hint_place", rest: "hint_manage" }[S.step] || "hint_wait");
 function tokens(S) {
   const c = S.cfg, p = me(S), gs = S.gateSet && S.gateSet.length ? S.gateSet : S.data.publisherGates;
-  const g = gs.find(x => x.phase === 0) || gs[0] || {}, g2 = gs.find(x => x.phase === 1) || gs[1] || {};
+  const g = gs.find(x => x.phase === 0) || gs[0] || {}, g2 = gs.find(x => x.phase === 1) || gs[1] || {}, g3 = gs.find(x => x.phase === 2) || gs[2] || {};
   const done = (S.gates || []).find(x => x.phase === 0);
   const crisis = S.crisisCard && S.data.crisis.find(x => x.id === S.crisisCard);
   const t = {
     income: c.income, salaryJr: c.salaryJr, salarySr: c.salarySr, resJr: c.resJr, resSr: c.resSr, hypeDecay: c.hypeDecay,
     recruitCost: c.recruitCost, recruitN: S.recruit ? S.recruit.length : E.recruitSize(S),
     buildDelay: c.buildDelay, crunchGold: c.crunchGold, buildsPerRound: c.buildsPerRound, bank: p.ideas + p.code + p.process + p.buzz,
-    convertRate: c.convertRate || 3, refreshGold: c.marketRefreshGold, gateName: esc(g.name || ""), gate2Name: esc(g2.name || ""), gateReqs: esc((g.reqs || []).join(", ")),
+    convertRate: c.convertRate || 3, refreshGold: c.marketRefreshGold, gateName: esc(g.name || ""), gate2Name: esc(g2.name || ""), gate3Name: esc(g3.name || ""), gateReqs: esc((g.reqs || []).join(", ")),
     gateEnd: (c.phaseEnds || [])[g.phase || 0] || "", gateFund: g.fund || 0, gatePenalty: g.penalty || 0, gateMiss: E.gateEff(S, g).miss.replace("-", "lose "), gateVP: E.gateEff(S, g).vp, baseVP: c.baseVP || 0, raceDen: c.raceDen || 3, objPer: c.objGraded || 1, objBonus: c.objBonus || 0,
-    crisisLine: crisis ? ": <b>" + esc(crisis.name) + "</b>. " + esc(crisis.text) : "",
+    crisisName: crisis ? "<b>" + esc(crisis.name) + "</b>" : "a <b>Crisis</b>",
+    sysMult: c.sysVPMult || 1, payroll: (c.startWorkers || 0) * (c.salaryJr || 0), teamCost: ((S.data.spots.find(x => x.id === "team") || {}).cost || {}).gold || 0,
     nPlayers: S.players.length, gateLossCap: c.gateLossCap || 4, goldPerVP: c.goldPerVP || 3, raceFirst: (E.rankTable(c, S.players.length) || [])[0], raceLast: (E.rankTable(c, S.players.length) || []).slice(-1)[0],
-    burnVP: Object.keys(c.burnVP || {}).filter(k => (c.burnVP[k] || 0) < 0).map(k => "Burnout " + k + ": " + c.burnVP[k]).join(", "), cultureBase: c.cultureFoldBase,
+    burnVP: (function () { var ks = Object.keys(c.burnVP || {}).filter(function (k) { return (c.burnVP[k] || 0) < 0 }).map(Number).sort(function (a, b) { return a - b }), o = []; ks.forEach(function (k) { var v = c.burnVP[k], l = o[o.length - 1]; if (l && l.v === v && l.to === k - 1) l.to = k; else o.push({ from: k, to: k, v: v }) }); return o.map(function (x) { return (x.from === x.to ? x.from : x.from + "-" + x.to) + ": " + x.v + " VP" }).join(", ") })(), cultureBase: c.cultureFoldBase,
     hypeBank: c.hypeBank || 0, trainCost: c.trainCost, trainCulture: c.trainCulture, trainNeeded: c.trainNeeded,
     freeBuild: p.freeBuilds ? "<br><br><b>A free build is on the house this round.</b>" : "",
     burnMax: c.burnMax, burnOverStep: c.burnOverStep, burnOverMax: c.burnOverMax, burnUnpaidMin: c.burnUnpaidMin, burnRelief: c.burnRelief, burnTeamRelief: c.burnTeamRelief,
@@ -62,10 +63,10 @@ function tokens(S) {
   { const pg = (c.promoGoldByN && c.promoGoldByN[2]) || 0; t.promoCostText = pg ? "it costs " + pg + "G" : "it is free"; }
   t.startWorkers = c.startWorkers; t.recruitLadder = c.recruitLadder; t.trainTimes = c.trainNeeded + (c.trainNeeded === 1 ? " time" : " times"); t.wsFree = c.wsFree; t.wsCost = c.wsCost;  t.wsPrices = wsPriceText(c); t.wsMax = c.wsMax;
   t.foldNote = "\n\nThere is no separate Culture track: <b>Culture is " + c.cultureFoldBase + " minus Burnout</b>. Anything that gives Culture (Team Events, Training, some tiles) lowers Burnout, and anything that costs Culture raises it.";
-  t.trainEffect = "lowers <b>Burnout</b> by " + c.trainCulture + " (that is +" + c.trainCulture + " Culture)";
-  t.teamEventEffect = "to lower Burnout by " + (c.teamEventCulture + c.burnTeamRelief);
+  t.trainEffect = "lowers <b>Burnout</b> by " + c.trainCulture;
+  t.teamRelief = c.teamEventCulture + c.burnTeamRelief; t.teamEventEffect = "to lower Burnout by " + t.teamRelief;
   t.burnOverPer = c.burnOverStep > 1 ? c.burnOverStep + " Exhausted workers" : "Exhausted worker";
-  const td = c.trainDuration || 1; t.trainAway = td > 1 ? "sits out the next " + td + " rounds" : "sits out the next round";
+  const td = c.trainDuration || 1; t.trainAway = td > 1 ? "sit out the next " + td + " rounds" : "sit out the next round";
   t.promoLesson = c.trainNeeded > 1 ? " For this lesson one of your Juniors has already trained " + (c.trainNeeded - 1) + " time" + (c.trainNeeded > 2 ? "s" : "") + "." : "";
   t.promoRest = c.promoByRest ? " A Junior who worked and then sits out a round can also be promoted without training." : "";
   t.gateResult = done ? fmt(rw(done.passed.includes(0) ? "gate_pass" : "gate_miss").text, t) : "";
@@ -92,7 +93,7 @@ const doing = (id, o) => mk(id, Object.assign({ kind: "do" }, o));
 const play = (id, o) => mk(id, Object.assign({ kind: "free", allow: () => null }, o));
 // Build lives in the Manage (rest) step, so "after build" means "built, or unable to, during Manage"
 const cantBuild = S => !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)));
-const builtInManage = (S, r, crunch) => S.round > r || (S.round === r && S.step === "rest" && (crunch ? me(S).cs.crunched >= 1 : (me(S).building || []).length + me(S).systems.length >= 1));
+const builtInManage = (S, r, crunch) => S.round > r || (S.round === r && S.step === "rest" && (crunch ? (me(S).rs.crunched || 0) >= 1 : (me(S).building || []).length + me(S).systems.length >= 1));
 const reachedRound = (S, r, stage) => S.round > r || (S.round === r && RANK[S.step] >= RANK[stage]);
 
 let STEPS = [
@@ -105,8 +106,7 @@ let STEPS = [
   info("team", { hl: () => "[data-tut=workers]" }),
   info("boardintro", { hl: () => "[data-tut=board]" }),
   info("board_backlog", { hl: () => "[data-row=EARN]" }),
-  info("board_prototype", { hl: () => "[data-row=PROGRESS]" }),
-  info("board_pitch", { hl: () => "[data-row=HYPE]" }),
+  info("board_prototype", { hl: () => "[data-row=PROGRESS],[data-row=HYPE]" }),
   info("income", { hl: () => ".pt[data-pid='0'] .st.rs.g" }),
   info("placeintro", { hl: () => "[data-tut=board]" }),
   doing("place1", { hl: () => (U().sel == null ? "[data-tut=workers] .wk:not(.placed), [data-tut=board]" : "[data-tut=board]"),
@@ -115,13 +115,11 @@ let STEPS = [
     allow: a => a.type === "place" ? null : a.type === "pass" ? MSG("msg_place_first") : MSG("msg_place") }),
   info("stats", { hl: () => ".pt[data-pid='0'] .stats.res" }),
   info("ws1", { hl: () => ".pt[data-pid='0'] [data-tut=ws]" }),
-  doing("place2", { hl: () => ".pt[data-pid='0'] [data-tut=ws], [data-tut=workers]", done: S => after(S, "place", 1) || S.round > 1, allow: a => (a.type === "buyws" || a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
+  doing("place2", { hl: () => ".pt[data-pid='0'] [data-tut=ws]", done: S => after(S, "place", 1) || S.round > 1, allow: a => (a.type === "buyws" || a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
   doing("build", { hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"), done: S => builtInManage(S, 1),
     allow: (a, S) => a.type === "build" ? null : a.type === "done" ? ((me(S).builds >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : MSG("msg_build_first")) : MSG("msg_build") }),
-  info("build_rd", { hl: () => "[data-spot=rd]" }),
   info("tired", { hl: () => "[data-tut=workers]" }),
   info("burnout", { hl: () => ".pt[data-pid='0'] .st.bo" }),
-  info("culture", { hl: () => ".pt[data-pid='0'] .st.bo" }),
   info("board_perks", { hl: () => ".shared" }),
   doing("rest1", { hl: () => "[data-tut=miles]", done: S => after(S, "rest", 1), allow: a => a.type === "train" ? MSG("msg_train_later") : (a.type === "done" || a.type === "claim") ? null : MSG("msg_rest") }),
   info("upkeep", { hl: () => ".step[data-step=Upkeep]" }),
@@ -131,7 +129,7 @@ let STEPS = [
     allow: (a, S) => (a.type === "buyws" || a.type === "place" || a.type === "recruit") ? null : a.type === "pass" ? MSG("msg_recruit") : MSG("msg_recruit") }),
   doing("r2place", { hl: () => "[data-tut=workers]", done: S => reachedRound(S, 2, "rest"), allow: a => (a.type === "buyws" || a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
   doing("r2crunch", { hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"), done: S => builtInManage(S, 2, true),
-    allow: (a, S) => a.type === "build" ? (a.crunch || (S.cfg.rdCrunch && me(S).rd) ? null : MSG("msg_crunch")) : a.type === "done" ? ((me(S).cs.crunched >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : MSG("msg_crunch")) : null }),
+    allow: (a, S) => a.type === "build" ? (a.crunch || (S.cfg.rdCrunch && me(S).rd) ? null : MSG("msg_crunch")) : a.type === "done" ? (((me(S).rs.crunched || 0) >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : MSG("msg_crunch")) : null }),
   info("board_jam", { hl: () => "[data-row=CREW]" }),
   play("r3", { hl: () => null, done: S => S.round >= 4 }),
   /* ---- production ---- */
@@ -277,7 +275,7 @@ function tutHighlight0(rootEl) {
       const box = scrolls ? sc.getBoundingClientRect() : { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth };
       const top = Math.max(box.top, 0) + 16;
       let bottom = Math.min(box.bottom, window.innerHeight) - 16;
-      if (cr && cr.top > window.innerHeight * 0.4 && cr.right > box.left && cr.left < box.right) bottom = Math.min(bottom, cr.top - 12); // the coach covers the lower part of this column
+      if (cr && cr.top > window.innerHeight * 0.2 && cr.right > box.left && cr.left < box.right) bottom = Math.min(bottom, cr.top - 12); // the coach covers the lower part of this column
       const r = el.getBoundingClientRect();
       if (r.top < top || r.bottom > bottom) {
         const room = bottom - top, dy = r.height > room ? r.top - top : r.top - top - Math.max(0, (room - r.height) / 2);
@@ -290,24 +288,25 @@ function tutHighlight0(rootEl) {
 /* ---------- autoplay + score explainer ---------- */
 SI.tutAuto = function () { const u = U(), T = u.tut; T.auto = true; u.S.players[0].bot = true; };
 const PARTS = [
-  ["prodShare", "Progress race", "VP for where your Progress ranks against the other studios: 1st place pays most, ties split the points."],
-  ["hypeStrength", "Hype race", "Where your Hype ranks. At the end of the game your Wishlists are added to your Hype, so Wishlists are permanent while Hype itself fades every round."],
-  ["debtPenalty", "Tech Debt", "The studio with the most Debt loses the most VP; the studio with the least loses none. Debt comes from crunched spots and some systems; Quality workers, Engineers and Stability systems clear it."],
-  ["culture", "Culture", "The studio with the lowest Culture loses the most VP; the best loses none. Good culture also helps workers stay."],
-  ["objectives", "Objectives", "Your secret goals. VP only for the ones you completed."],
+  ["prodShare", "Progress race", "1 VP for every {raceDen} points of Progress."],
+  ["hypeStrength", "Hype race", "1 VP for every {raceDen} points of Hype. Your Wishlists are added to your Hype at the end of the game."],
+  ["debtPenalty", "Tech Debt", "The studio with the most Debt loses the most VP; the studio with the least loses none. Debt comes from spots and systems with a red Debt mark; Quality workers, Engineers and Stability systems clear it."],
+  ["burnout", "Burnout", "High Burnout at the end of the game costs VP."],
+  ["objectives", "Objectives", "Your secret goals: {objPer} VP for each requirement you met, plus {objBonus} if you met them all."],
   ["synergy", "Synergy", "Bonus when a built system shares a symbol with a completed objective."],
-  ["systems", "Systems", "The printed VP on each system you built."],
-    ["gold", "Gold", "Leftover gold converts to VP at a fixed rate."],
+  ["systems", "Systems", "The printed VP on each system you built, times {sysMult}."],
+    ["gold", "Gold", "Every {goldPerVP} leftover Gold is 1 VP."],
   ["crisis", "Crisis & Gates", "VP gained or lost from Crisis cards and Publisher Gates (passed gates can pay VP, missed ones cost VP)."]
 ];
 SI.tutScoreExplainer = function (S) {
   const r = S.scores.find(x => x.id === 0); if (!r) return "";
-  const note = esc(rw("explain_note").text);
-  const PT = PARTS.filter(p => p[0] !== "culture").map(p => [p[0], rw("explain_" + p[0]).title || p[1], rw("explain_" + p[0]).text || p[2]]);
+  const note = fmt(rw("explain_note").text, tokens(S));
+  const tk = tokens(S);
+  const PT = PARTS.map(p => [p[0], rw("explain_" + p[0]).title || p[1], rw("explain_" + p[0]).text || p[2]]);
   const q = r.parts;
   return `<div class="explain"><h3>How your ${b(Math.round(r.total) + " VP")} was made</h3>
   <p class="mute" style="margin:2px 0 8px">Your row, in plain language. You finished with ${b(S.players[0].debt + " Debt")} and ${b(S.players[0].mktg + " Wishlists")}.</p>
-  <table class="scoretbl"><tbody>${PT.map(p => `<tr><td style="white-space:nowrap">${esc(p[1])}</td><td class="mono" style="text-align:right;padding:0 10px">${(+q[p[0]]).toFixed(0)}</td><td class="mute" style="font-size:12px;text-align:left">${esc(p[2])}</td></tr>`).join("")}</tbody></table>
+  <table class="scoretbl"><tbody>${PT.map(p => `<tr><td style="white-space:nowrap">${esc(p[1])}</td><td class="mono" style="text-align:right;padding:0 10px">${(+q[p[0]]).toFixed(0)}</td><td class="mute" style="font-size:12px;text-align:left">${fmt(p[2], tk)}</td></tr>`).join("")}</tbody></table>
   <p class="mute" style="margin-top:8px">${note}</p></div>`;
 };
 
