@@ -42,6 +42,7 @@ async function lockState(env, ip) { try { return JSON.parse((await env.UPD.get("
 const TYPES = { html: "text/html; charset=utf-8", js: "text/javascript; charset=utf-8", css: "text/css; charset=utf-8", json: "application/json" };
 const CODE_CH = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const newCode = () => { let s = ""; const b = crypto.getRandomValues(new Uint8Array(4)); for (const x of b) s += CODE_CH[x % CODE_CH.length]; return s; };
+const LOG_RANK = { active: 0, abandoned: 1, early: 2, complete: 2 };
 const SITE = () => "d"; // one shipped game (KV keys site:d and cfg:*:d)
 
 export default {
@@ -97,20 +98,35 @@ export default {
     if (P === "/__log" && request.method === "POST") {
       const raw = await request.text(); if (raw.length > (owner ? 900000 : 120000)) return json({ error: "Too large." }, 413);
       let g; try { g = JSON.parse(raw); } catch { return json({ error: "Bad request." }, 400); }
-      if (g && g.mode === "simbatch" && !owner) return json({ error: "Owner only." }, 403);
-      if (g && g.mode !== "simbatch" && raw.length > 120000) return json({ error: "Too large." }, 413);
-      if (!g || typeof g.id !== "string" || !/^[A-Za-z0-9]{6,32}$/.test(g.id)) return json({ error: "Bad id." }, 400);
-      g.role = role; g.recv = Date.now();
-      await env.UPD.put((g.mode === "simbatch" ? "s:" : "g:") + g.id, JSON.stringify(g), { expirationTtl: 60 * 60 * 24 * 400 });
+      if (!g || typeof g !== "object" || Array.isArray(g)) return json({ error: "Bad request." }, 400);
+      if (g.mode === "simbatch" && !owner) return json({ error: "Owner only." }, 403);
+      if (g.mode !== "simbatch" && raw.length > 120000) return json({ error: "Too large." }, 413);
+      if (typeof g.id !== "string" || !/^[A-Za-z0-9]{6,32}$/.test(g.id)) return json({ error: "Bad id." }, 400);
+      g.role = role; g.recv = Date.now(); // role and receive time come from the server, never from the client
+      const sim = g.mode === "simbatch", key = (sim ? "s:" : "g:") + g.id;
+      if (!sim) {
+        // one record per game id (upsert). A final record is never replaced by an interim one, a late interim never replaces a newer one,
+        // and a host's record wins over a guest's fallback record of the same rank.
+        g.status = g.status || (g.completed ? "complete" : "abandoned"); g.seq = g.seq | 0;
+        let prev = null; try { const pv = await env.UPD.get(key); if (pv) prev = JSON.parse(pv); } catch {}
+        if (prev) {
+          const rg = LOG_RANK[g.status] == null ? 0 : LOG_RANK[g.status], rp = LOG_RANK[prev.status || (prev.completed ? "complete" : "abandoned")] || 0;
+          const better = rg !== rp ? rg > rp : ((g.src === "guest") !== (prev.src === "guest") ? g.src !== "guest" : g.seq >= (prev.seq | 0));
+          if (!better) return json({ ok: true, kept: true });
+        }
+      }
+      await env.UPD.put(key, JSON.stringify(g), { expirationTtl: 60 * 60 * 24 * 400, metadata: { r: g.recv, s: String(g.status || "").slice(0, 12), n: g.n | 0 } });
       return json({ ok: true });
     }
     if (P === "/__games" && request.method === "GET") {
       if (!owner) return json({ error: "Owner only." }, 403);
-      const keys = []; let cursor; const pre = url.searchParams.get("kind") === "sims" ? "s:" : "g:";
-      for (let i = 0; i < 5; i++) { const l = await env.UPD.list({ prefix: pre, cursor, limit: 1000 }); keys.push(...l.keys.map((k) => k.name)); if (l.list_complete) break; cursor = l.cursor; }
-      const games = [];
-      for (let i = 0; i < keys.length && i < (pre === "s:" ? 400 : 1500); i += 50) (await Promise.all(keys.slice(i, i + 50).map((k) => env.UPD.get(k)))).forEach((v) => { try { if (v) games.push(JSON.parse(v)); } catch {} });
-      return secure(new Response(JSON.stringify({ games, n: games.length }), { headers: { "content-type": "application/json", "cache-control": "no-store" } }));
+      // keys are listed with their metadata (receive time), newest first, then fetched one page at a time (offset/limit) so the dashboard can read everything
+      const pre = url.searchParams.get("kind") === "sims" ? "s:" : "g:", keys = []; let cursor;
+      for (let i = 0; i < 40; i++) { const l = await env.UPD.list({ prefix: pre, cursor, limit: 1000 }); keys.push(...l.keys.map((k) => ({ name: k.name, r: (k.metadata && k.metadata.r) || 0 }))); if (l.list_complete) break; cursor = l.cursor; }
+      keys.sort((a, b) => b.r - a.r);
+      const lim = Math.max(1, Math.min(pre === "s:" ? 400 : 800, +url.searchParams.get("limit") || (pre === "s:" ? 400 : 800))), off = Math.max(0, +url.searchParams.get("offset") | 0), page = keys.slice(off, off + lim), games = [], step = pre === "s:" ? 20 : 50;
+      for (let i = 0; i < page.length; i += step) (await Promise.all(page.slice(i, i + step).map((k) => env.UPD.get(k.name)))).forEach((v) => { try { if (v) games.push(JSON.parse(v)); } catch {} });
+      return secure(new Response(JSON.stringify({ games, n: games.length, total: keys.length, offset: off, more: off + page.length < keys.length, now: Date.now() }), { headers: { "content-type": "application/json", "cache-control": "no-store" } }));
     }
     if (P === "/__clear" && request.method === "POST") {
       if (!owner) return json({ error: "Owner only." }, 403);

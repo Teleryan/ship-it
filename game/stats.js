@@ -10,11 +10,13 @@ const SI = root.SI = root.SI || {};
 const esc = SI.esc;
 const T = SI.stats = {};
 const M = () => SI.U.master;
-const AN = () => { const m = M(); return m.a || (m.a = { view: "players", env: "all", done: true, n: "all", mode: "all", detail: null }); };
+const AN = () => { const m = M(); return m.a || (m.a = { view: "players", env: "all", done: true, n: "all", mode: "all", hum: "humans", lbl: "all", detail: null }); };
 const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
 const med = a => { if (!a.length) return 0; const b = a.slice().sort((x, y) => x - y), m = b.length >> 1; return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; };
 const f1 = x => (Math.round(x * 10) / 10).toString();
 const pct = (a, b) => b ? Math.round(a / b * 100) + "%" : "–";
+const BAND = () => SI.BAND || [33, 63]; // goal band for the winner's VP (rules are tuned to 33 to 63)
+const ABANDON_MS = 30 * 60 * 1000; // an "active" record that has been quiet this long is shown as abandoned
 const CAP = 20 * 60; // a round longer than 20 minutes means someone stepped away: count it as 20 minutes
 const mmss = s => { s = Math.round(s); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
 
@@ -24,17 +26,27 @@ T.expand = function (games) {
   (games || []).forEach(g => { if (g.mode === "simbatch") (g.games || []).forEach(x => out.push(Object.assign({ sim: true, mode: "sim", env: "sim", tuned: g.label || x.tuned, label: g.label }, x))); else out.push(g); });
   return out;
 };
-const statusOf = g => g.status || (g.completed ? "complete" : "abandoned");
-const envOf = g => g.sim ? "sim" : (g.test || /^test/.test(g.tuned || "")) ? "test" : "live";
+T.now = () => (T.serverNow ? T.serverNow + (Date.now() - (T.serverAt || Date.now())) : Date.now()); // the server clock when the list came from the server (the owner's device clock may be off)
+const lastSeen = g => g.recv || g.endedAt || g.startedAt || 0;
+const rawStatus = g => g.status || (g.completed ? "complete" : "abandoned");
+// complete / early (host ended before round 12) / abandoned / active (still being played) / timed out: an active record that went quiet counts as abandoned
+const statusOf = g => { const s = rawStatus(g); return s === "active" && !g.sim && T.now() - lastSeen(g) > ABANDON_MS ? "abandoned" : s; };
+T.statusOf = statusOf;
+const isDone = g => !!g.scores && statusOf(g) === "complete";
+const envOf = g => g.sim ? "sim" : (g.test || /^test/.test(g.tuned || "")) ? "test" : (/^default$/.test(g.tuned || "default") && g.hash && g.hash !== "base") ? "local" : "live";
+T.envOf = envOf;
+const sOf = (g, i) => (g.scores || []).find(x => x.id === i) || (g.scores || [])[i]; // a seat's score, matched by player id
 const winVP = g => (g.scores || []).length ? Math.max.apply(null, g.scores.map(s => s.total)) : null;
 const gapOf = g => { const t = (g.scores || []).map(s => s.total).sort((a, b) => b - a); return t.length > 1 ? t[0] - t[1] : null; };
-function roundSecs(g) { // seconds for each round, capped; null when there is no timing
-  if (g.sim) return null; const s = (g.snaps || []).filter(x => x.t != null).sort((a, b) => a.t - b.t); if (s.length < 2) return null;
-  const out = []; for (let i = 1; i < s.length; i++) out.push(Math.min(CAP, (s[i].t - s[i - 1].t) / 1000)); return out;
+function roundSecs(g) { // seconds for each round, capped; null when there is no timing. Only consecutive rounds that both have a time are used.
+  if (g.sim) return null; const s = (g.snaps || []).filter(x => x.t != null && x.k !== 99).sort((a, b) => a.t - b.t); if (s.length < 2) return null;
+  const out = []; for (let i = 1; i < s.length; i++) if (s[i].r === s[i - 1].r + 1) out.push(Math.min(CAP, (s[i].t - s[i - 1].t) / 1000)); return out.length ? out : null;
 }
 function filtered(all, a) {
-  return all.filter(g => (a.view === "sims" ? g.sim : !g.sim) && (a.env === "all" || a.view === "sims" || envOf(g) === a.env) && (!a.done || statusOf(g) === "complete") && (a.n === "all" || g.n === +a.n) && (a.view === "sims" || a.mode === "all" || g.mode === a.mode));
+  return all.filter(g => (a.view === "sims" ? g.sim : !g.sim) && (a.env === "all" || a.view === "sims" || envOf(g) === a.env) && (!a.done || statusOf(g) === "complete") && (a.n === "all" || g.n === +a.n) && (a.view === "sims" || a.mode === "all" || g.mode === a.mode)
+    && (a.view === "sims" || !a.hum || a.hum === "all" || (a.hum === "bots" ? !(g.humans > 0) : g.humans > 0)) && (a.view === "sims" || !a.lbl || a.lbl === "all" || (g.lbl || "") === (a.lbl === "(none)" ? "" : a.lbl)));
 }
+T.filtered = filtered;
 
 /* ---------- charts ---------- */
 const CH = {};
@@ -94,29 +106,30 @@ function perRound(gs, fn) { // average per player at the start of each round
   const rs = Object.keys(R).map(Number).sort((a, b) => a - b); return { rs, get: k => rs.map(r => R[r].v[k] / R[r].n) };
 }
 T.kpis = function (gs, a) {
-  const done = gs.filter(g => g.scores), win = done.map(winVP).filter(v => v != null), gaps = done.map(gapOf).filter(v => v != null);
-  const lens = gs.map(g => { const r = roundSecs(g); return r ? r.reduce((x, y) => x + y, 0) / 60 : null; }).filter(v => v != null);
+  const done = gs.filter(isDone), win = done.map(winVP).filter(v => v != null), gaps = done.map(gapOf).filter(v => v != null);
+  const lens = done.map(g => { const r = roundSecs(g); return r ? r.reduce((x, y) => x + y, 0) / 60 : null; }).filter(v => v != null);
   const rl = [].concat.apply([], gs.map(g => roundSecs(g) || [])); const names = new Set(); gs.forEach(g => (g.seats || []).forEach(s => { if (!s.bot && s.name) names.add(s.name.toLowerCase()); }));
-  const t = [["Games", gs.length], [a.view === "sims" ? "Bot seats" : "Players (distinct names)", a.view === "sims" ? gs.reduce((x, g) => x + g.n, 0) : names.size], ["Avg players per game", f1(avg(gs.map(g => g.n)))]];
+  const cnt = k => gs.filter(g => statusOf(g) === k).length;
+  const t = [["Games", gs.length, done.length + " finished · " + cnt("abandoned") + " left · " + cnt("active") + " in progress" + (cnt("early") ? " · " + cnt("early") + " ended early" : "")], [a.view === "sims" ? "Bot seats" : "Players (distinct names)", a.view === "sims" ? gs.reduce((x, g) => x + g.n, 0) : names.size], ["Avg players per game", f1(avg(gs.map(g => g.n)))]];
   if (a.view !== "sims") t.push(["Avg game length", lens.length ? Math.round(avg(lens)) + " min" : "–", lens.length ? "median " + Math.round(med(lens)) : ""], ["Avg round length", rl.length ? mmss(avg(rl)) : "–", rl.length ? "median " + mmss(med(rl)) : ""]);
-  t.push(["Avg rounds", f1(avg(gs.map(g => g.rounds || 0)))], ["Avg winner VP", win.length ? f1(avg(win)) : "–", win.length ? "median " + f1(med(win)) : ""], ["Winner in 38 to 68", win.length ? pct(win.filter(v => v >= 38 && v <= 68).length, win.length) : "–", "goal"], ["Median VP gap", gaps.length ? f1(med(gaps)) : "–", gaps.length ? "blowouts " + pct(gaps.filter(x => x >= 25).length, gaps.length) : ""]);
+  const B = BAND(); t.push(["Avg rounds (finished)", done.length ? f1(avg(done.map(g => g.rounds || 0))) : "–"], ["Avg winner VP", win.length ? f1(avg(win)) : "–", win.length ? "median " + f1(med(win)) : ""], ["Winner in " + B[0] + " to " + B[1], win.length ? pct(win.filter(v => v >= B[0] && v <= B[1]).length, win.length) : "–", "goal"], ["Median VP gap", gaps.length ? f1(med(gaps)) : "–", gaps.length ? "blowouts " + pct(gaps.filter(x => x >= 25).length, gaps.length) + " · ties " + done.filter(g => g.tie || gapOf(g) === 0).length : ""]);
   return `<div class="kpis">${t.map(k => `<div class="kpi"><small>${k[0]}</small><b>${k[1]}</b>${k[2] ? `<span>${k[2]}</span>` : ""}</div>`).join("")}</div>`;
 };
 T.charts = function (gs, a) {
-  const out = [], done = gs.filter(g => g.scores);
+  const out = [], done = gs.filter(isDone);
   const eco = perRound(gs, p => ({ g: p.g, i: p.rs[0], c: p.rs[1], p: p.rs[2], b: p.rs[3], pr: p.pr, mk: p.mk, hy: p.hy, db: p.db, cu: p.cu, w: p.w, sy: p.sy, ob: p.ob, ml: p.ml, sr: p.sr, bd: p.bd }));
   const xs = eco.rs.map(r => "R" + r); const L = (n, c, k) => ({ n, c, v: eco.get(k) });
   out.push(chart("c1", eco.rs.length ? { type: "line", title: "Economy: what each player holds at the start of each round", note: "Average per player. Skills held, not earned.", xs, series: [L("Gold", "var(--gold)", "g"), L("Ideas", "var(--ideas)", "i"), L("Code", "var(--code)", "c"), L("Process", "var(--process)", "p"), L("Buzz", "var(--buzz)", "b")] } : { title: "Economy", empty: "No round data yet." }));
   out.push(chart("c2", eco.rs.length ? { type: "line", title: "Progress and tracks by round", note: "Average per player.", xs, series: [L("Progress", "var(--pr)", "pr"), L("Wishlists", "var(--mk)", "mk"), L("Hype", "var(--hype)", "hy"), L("Tech Debt", "var(--bad)", "db"), L("Culture", "#7bd88f", "cu")] } : { title: "Progress and tracks", empty: "No round data yet." }));
   out.push(chart("c3", eco.rs.length ? { type: "line", title: "Studio growth by round", note: "Average per player. Crews are workers committed to a system under construction.", xs, series: [L("Workers", "var(--code)", "w"), L("Seniors", "var(--process)", "sr"), L("Systems built", "var(--gold)", "sy"), L("Crews building", "var(--buzz)", "bd"), L("Objectives held", "var(--ideas)", "ob"), L("Milestones claimed", "var(--hype)", "ml")] } : { title: "Studio growth", empty: "No round data yet." }));
   const byN = {}; done.forEach(g => { (byN[g.n] = byN[g.n] || []).push(g); }); const ns = Object.keys(byN).sort();
-  out.push(chart("c4", ns.length ? { type: "bar", title: "Winner and last-place VP by player count", note: "Green band = the 38 to 68 goal for the winner.", xs: ns.map(n => n + " players"), bands: [[38, 68, "goal"]], series: [{ n: "Winner (average)", c: "var(--good)", v: ns.map(n => avg(byN[n].map(winVP))) }, { n: "Last place (average)", c: "var(--bad)", v: ns.map(n => avg(byN[n].map(g => Math.min.apply(null, g.scores.map(s => s.total))))) }] } : { title: "Winner and last-place VP", empty: "No completed games yet." }));
+  out.push(chart("c4", ns.length ? { type: "bar", title: "Winner and last-place VP by player count", note: "Green band = the " + BAND()[0] + " to " + BAND()[1] + " goal for the winner.", xs: ns.map(n => n + " players"), bands: [[BAND()[0], BAND()[1], "goal"]], series: [{ n: "Winner (average)", c: "var(--good)", v: ns.map(n => avg(byN[n].map(winVP))) }, { n: "Last place (average)", c: "var(--bad)", v: ns.map(n => avg(byN[n].map(g => Math.min.apply(null, g.scores.map(s => s.total))))) }] } : { title: "Winner and last-place VP", empty: "No completed games yet." }));
   const keys = PARTS(done), wsum = {}, asum = {}; let np = 0, nw = 0;
   done.forEach(g => g.scores.forEach(s => { np++; const w = g.winner === s.id; if (w) nw++; keys.forEach(k => { const v = s.parts && s.parts[k] || 0; asum[k] = (asum[k] || 0) + v; if (w) wsum[k] = (wsum[k] || 0) + v; }); }));
   out.push(chart("c5", keys.length ? { type: "bar", title: "Where the score comes from", note: "Average VP per player from each source; winners next to everyone.", xs: keys.map(nice), rot: 1, series: [{ n: "All players", c: "var(--prod)", v: keys.map(k => asum[k] / np) }, { n: "Winners", c: "var(--gold)", v: keys.map(k => nw ? wsum[k] / nw : 0) }] } : { title: "Where the score comes from", empty: "No completed games yet." }));
   const rl = {}; gs.forEach(g => { const r = roundSecs(g); if (r) r.forEach((s, i) => { (rl[i + 1] = rl[i + 1] || []).push(s); }); }); const rk = Object.keys(rl).map(Number).sort((x, y) => x - y);
   out.push(chart("c6", rk.length ? { type: "line", title: "Average round length", note: "Minutes. A round over 20 minutes counts as 20 (someone stepped away).", xs: rk.map(r => "R" + r), series: [{ n: "Minutes", c: "var(--gold)", v: rk.map(r => avg(rl[r]) / 60) }], fmt: x => f1(x) + " min" } : { title: "Average round length", empty: a.view === "sims" ? "Simulated games have no human timing." : "No timing data yet." }));
-  const lens = gs.map(g => { const r = roundSecs(g); return r ? r.reduce((x, y) => x + y, 0) / 60 : null; }).filter(v => v != null), bk = {}; lens.forEach(m => { const b = Math.floor(m / 10) * 10; bk[b] = (bk[b] || 0) + 1; });
+  const lens = done.map(g => { const r = roundSecs(g); return r ? r.reduce((x, y) => x + y, 0) / 60 : null; }).filter(v => v != null), bk = {}; lens.forEach(m => { const b = Math.floor(m / 10) * 10; bk[b] = (bk[b] || 0) + 1; });
   const bmax = lens.length ? Math.floor(Math.max.apply(null, lens) / 10) * 10 : 0, bx = []; for (let b = 0; b <= bmax; b += 10) bx.push(b);
   out.push(chart("c7", lens.length ? { type: "bar", title: "Game length", note: "Number of games in each 10-minute bucket.", xs: bx.map(b => b + "–" + (b + 10)), series: [{ n: "Games", c: "var(--code)", v: bx.map(b => bk[b] || 0) }], fmt: x => String(Math.round(x)) } : { title: "Game length", empty: a.view === "sims" ? "Simulated games have no human timing." : "No timing data yet." }));
   const slot = {}; done.forEach(g => { if (g.winner == null) return; const o = (g.seats || []).map(s => s.order); const wi = g.winner; g.seats.forEach((s, i) => { const key = g.n + "|" + (s.order + 1); const q = slot[key] = slot[key] || { g: 0, w: 0 }; q.g++; if (i === wi) q.w++; }); });
@@ -127,27 +140,38 @@ T.charts = function (gs, a) {
   const gt = {}; gs.forEach(g => (g.gates || []).forEach(x => { const q = gt[x.name] = gt[x.name] || { p: 0, f: 0 }; q.p += (x.passed || []).length; q.f += (x.failed || []).length; })); const gk = Object.keys(gt);
   out.push(chart("c9", gk.length ? { type: "bar", title: "Publisher gates: pass rate", note: "Share of studios that met each gate.", xs: gk, rot: gk.length > 4 ? 1 : 0, fmt: x => Math.round(x) + "%", max: 100, series: [{ n: "Passed", c: "var(--good)", v: gk.map(k => gt[k].p / ((gt[k].p + gt[k].f) || 1) * 100) }] } : { title: "Publisher gates", empty: "No gate data yet." }));
   { const hasBo = gs.some(g => (g.snaps || []).some(s => (s.p || []).some(p => p.bo))); if (hasBo) { const bo = perRound(gs, p => ({ b: p.bo || 0 })); out.push(chart("c10", { type: "line", title: "Burnout by round", note: "Average Burnout per player at the start of each round (0 to 6). Strained from 3, Burned out from 5.", xs: bo.rs.map(r => "R" + r), series: [{ n: "Burnout", c: "var(--bad)", v: bo.get("b") }], min: 0, max: 6 })); } }
-  { const ty = {}; done.forEach(g => { const avgT = avg(g.scores.map(z => z.total)); g.seats.forEach((x, i) => { const k = x.bot ? (x.persona || "standard") + (x.profile ? " · " + x.profile : "") : "human", q = ty[k] = ty[k] || { g: 0, w: 0, vp: 0, d: 0, ex: 0 }; q.g++; q.vp += g.scores[i] ? g.scores[i].total : 0; q.d += (g.scores[i] ? g.scores[i].total : 0) - avgT; q.ex += 100 / g.n; if (g.winner === i) q.w++; }); });
+  { const ty = {}; done.forEach(g => { const avgT = avg(g.scores.map(z => z.total)); g.seats.forEach((x, i) => { const k = x.bot ? (x.persona || "standard") + (x.profile ? " · " + x.profile : "") : "human", q = ty[k] = ty[k] || { g: 0, w: 0, vp: 0, d: 0, ex: 0 }; q.g++; q.vp += sOf(g, i) ? sOf(g, i).total : 0; q.d += (sOf(g, i) ? sOf(g, i).total : 0) - avgT; q.ex += 100 / g.n; if (g.winner === i) q.w++; }); });
     const tk = Object.keys(ty).sort(); if (tk.length > 1) { out.push(chart("c11", { type: "bar", title: "Win rate by player type", note: "Share of seats that won, next to the rate an even table would give. Persona · skill level.", xs: tk, rot: 1, fmt: x => Math.round(x) + "%", series: [{ n: "Win rate", c: "var(--good)", v: tk.map(k => ty[k].w / ty[k].g * 100) }, { n: "Even-table rate", c: "var(--line)", v: tk.map(k => ty[k].ex / ty[k].g) }] }));
       out.push(chart("c12", { type: "bar", title: "Average VP by player type", note: "Average final VP, and how far above or below the table average each type finishes.", xs: tk, rot: 1, series: [{ n: "Average VP", c: "var(--prod)", v: tk.map(k => ty[k].vp / ty[k].g) }, { n: "VP vs table average", c: "var(--gold)", v: tk.map(k => ty[k].d / ty[k].g) }] })); } }
   return out.join("");
 };
 
 /* ---------- tables ---------- */
+T.tiles = function (gs) { // placements per board tile, with the number of games in which the tile was on the board
+  const R = {};
+  gs.forEach(g => { if (!g.tl || !g.sp) return; const ids = {}; g.sp.forEach(arr => (arr || []).forEach(id => { ids[id] = 1; })); Object.keys(g.tl).forEach(id => { if (id.indexOf("S:") !== 0) ids[id] = 1; });
+    Object.keys(ids).forEach(id => { const q = R[id] = R[id] || { id, avail: 0, uses: 0 }; q.avail++; q.uses += g.tl[id] || 0; }); });
+  return Object.keys(R).map(k => R[k]).sort((x, y) => y.uses / (y.avail || 1) - x.uses / (x.avail || 1));
+};
 const tbl = (head, rows, cls) => `<div class="scroll-x"><table class="scoretbl ${cls || ""}"><thead><tr>${head.map(h => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 T.tables = function (gs, a) {
-  const done = gs.filter(g => g.scores), byN = {}; done.forEach(g => { (byN[g.n] = byN[g.n] || []).push(g); });
+  const done = gs.filter(isDone), byN = {}; done.forEach(g => { (byN[g.n] = byN[g.n] || []).push(g); });
   const rows = Object.keys(byN).sort().map(n => { const x = byN[n], w = x.map(winVP), gp = x.map(gapOf).filter(v => v != null), lens = x.map(g => { const r = roundSecs(g); return r ? r.reduce((p, q) => p + q, 0) / 60 : null; }).filter(v => v != null);
-    return [n, x.length, f1(med(w)), f1(avg(w)), f1(Math.min.apply(null, w)) + " – " + f1(Math.max.apply(null, w)), pct(w.filter(v => v >= 38 && v <= 68).length, w.length), f1(med(gp)), pct(gp.filter(v => v >= 25).length, gp.length), lens.length ? Math.round(avg(lens)) + " min" : "–"]; });
-  let h = `<h3>Games by player count <span class="mute" style="text-transform:none;letter-spacing:0">(goal: winner 38 to 68, no blowouts)</span></h3>` + (rows.length ? tbl(["Players", "Games", "Median winner VP", "Average", "Low to high", "In 38 to 68", "Median gap", "Blowouts (25+)", "Avg length"], rows) : '<p class="mute">No completed games match the filters.</p>');
-  const per = {}; done.forEach(g => g.seats.forEach((s, i) => { const k = s.bot ? (s.persona || "standard bot") + (s.profile ? " · " + s.profile : "") : "human"; const q = per[k] = per[k] || { g: 0, w: 0, vp: 0 }; q.g++; q.vp += g.scores[i] ? g.scores[i].total : 0; if (g.winner === i) q.w++; }));
+    return [n, x.length, f1(med(w)), f1(avg(w)), f1(Math.min.apply(null, w)) + " – " + f1(Math.max.apply(null, w)), pct(w.filter(v => v >= BAND()[0] && v <= BAND()[1]).length, w.length), f1(med(gp)), pct(gp.filter(v => v >= 25).length, gp.length), lens.length ? Math.round(avg(lens)) + " min" : "–"]; });
+  let h = `<h3>Games by player count <span class="mute" style="text-transform:none;letter-spacing:0">(goal: winner ${BAND()[0]} to ${BAND()[1]}, no blowouts)</span></h3>` + (rows.length ? tbl(["Players", "Games", "Median winner VP", "Average", "Low to high", "In " + BAND()[0] + " to " + BAND()[1], "Median gap", "Blowouts (25+)", "Avg length"], rows) : '<p class="mute">No completed games match the filters.</p>');
+  const per = {}; done.forEach(g => g.seats.forEach((s, i) => { const k = s.bot ? (s.persona || "standard bot") + (s.profile ? " · " + s.profile : "") : "human"; const q = per[k] = per[k] || { g: 0, w: 0, vp: 0 }; q.g++; q.vp += sOf(g, i) ? sOf(g, i).total : 0; if (g.winner === i) q.w++; }));
   if (Object.keys(per).length) h += `<h3>Win rate by player type</h3>` + tbl(["Player type", "Seats played", "Win rate", "Average VP"], Object.keys(per).sort().map(k => [esc(k), per[k].g, pct(per[k].w, per[k].g), f1(per[k].vp / per[k].g)]));
-  { const pn = {}; done.forEach(g => g.seats.forEach((x, i) => { const k = x.bot ? (x.persona || "standard bot") + (x.profile ? " · " + x.profile : "") : "human", q = (pn[k] = pn[k] || {}), c = (q[g.n] = q[g.n] || { g: 0, w: 0, vp: 0, d: 0 }); c.g++; const t = g.scores[i] ? g.scores[i].total : 0, avgT = avg(g.scores.map(z => z.total)); c.vp += t; c.d += t - avgT; if (g.winner === i) c.w++; }));
+  { const pn = {}; done.forEach(g => g.seats.forEach((x, i) => { const k = x.bot ? (x.persona || "standard bot") + (x.profile ? " · " + x.profile : "") : "human", q = (pn[k] = pn[k] || {}), c = (q[g.n] = q[g.n] || { g: 0, w: 0, vp: 0, d: 0 }); c.g++; const t = sOf(g, i) ? sOf(g, i).total : 0, avgT = avg(g.scores.map(z => z.total)); c.vp += t; c.d += t - avgT; if (g.winner === i) c.w++; }));
     const ks = Object.keys(pn).sort(), nn = Object.keys(byN).sort();
     if (ks.length > 1 && nn.length) h += `<h3>Player type by player count <span class="mute" style="text-transform:none;letter-spacing:0">(win rate · average VP · VP vs table average; an even game wins 100 divided by players)</span></h3>` + tbl(["Player type"].concat(nn.map(n => n + " players")), ks.map(k => [esc(k)].concat(nn.map(n => { const c = pn[k][n]; return c ? `${pct(c.w, c.g)} · ${f1(c.vp / c.g)} · ${c.d / c.g >= 0 ? "+" : ""}${f1(c.d / c.g)} (${c.g})` : "–"; })))); }
   if (a.view === "sims") { const lab = {}; gs.forEach(g => { const k = g.label || "(no label)"; const q = lab[k] = lab[k] || { g: 0, w: [] }; q.g++; const w = winVP(g); if (w != null) q.w.push(w); }); h += `<h3>Simulation batches by label</h3>` + tbl(["Label", "Games", "Avg winner VP"], Object.keys(lab).map(k => [esc(k), lab[k].g, f1(avg(lab[k].w))])); }
+  if (a.view !== "sims") {
+    const bv = {}; gs.forEach(g => { const k = (g.v || "?") + "|" + (g.hash || "base") + "|" + (g.tuned || "default"); const q = bv[k] = bv[k] || { v: g.v || "?", h: g.hash || "base", t: g.tuned || "default", g: 0, d: 0 }; q.g++; if (isDone(g)) q.d++; });
+    h += `<h3>Builds and data in view <span class="mute" style="text-transform:none;letter-spacing:0">(more than one row means mixed data)</span></h3>` + tbl(["Version", "Data hash", "Tuning", "Games", "Finished"], Object.keys(bv).sort().map(k => [esc(bv[k].v), esc(bv[k].h), esc(bv[k].t), bv[k].g, bv[k].d]));
+    const tu = T.tiles(gs); if (tu.length) h += `<h3>Board tile usage <span class="mute" style="text-transform:none;letter-spacing:0">(games with a tile log; a tile is available only in some phases)</span></h3>` + tbl(["Tile", "Games available", "Placements", "Per game", "Team Event"], tu.map(r => [esc(r.id), r.avail, r.uses, f1(r.uses / (r.avail || 1)), r.id.indexOf("team") === 0 ? r.uses : ""]));
+  }
   const recent = gs.slice().sort((x, y) => (y.endedAt || 0) - (x.endedAt || 0)).slice(0, 200);
-  h += `<h3>Recent games <span class="mute" style="text-transform:none;letter-spacing:0">(newest 200 of ${gs.length})</span></h3>` + tbl(["When", "Mode", "Env", "Players", "Winner", "VP", "Gap", "Rounds", "Status", ""], recent.map(g => { const w = winVP(g); return [g.endedAt ? new Date(g.endedAt).toLocaleString() : "", esc(g.mode + (g.code ? " " + g.code : "")), envOf(g), g.n, g.winner != null && g.seats[g.winner] ? esc(g.seats[g.winner].name) : "–", w != null ? f1(w) : "–", gapOf(g) != null ? f1(gapOf(g)) : "–", g.rounds, statusOf(g), `<button class="btn sm" data-act="m-an-open" data-v="${esc(g.id)}">Open</button>`]; }));
+  h += `<h3>Recent games <span class="mute" style="text-transform:none;letter-spacing:0">(newest 200 of ${gs.length})</span></h3>` + tbl(["When", "Mode", "Env", "Label", "Players", "Winner", "VP", "Gap", "Rounds", "Status", ""], recent.map(g => { const w = winVP(g); return [g.endedAt ? new Date(g.endedAt).toLocaleString() : "", esc(g.mode + (g.code ? " " + g.code : "")), envOf(g), esc(g.lbl || ""), g.n + (g.humans ? "" : " (bots)"), g.winner != null && g.seats[g.winner] ? esc(g.seats[g.winner].name) : "–", w != null ? f1(w) : "–", gapOf(g) != null ? f1(gapOf(g)) : "–", g.rounds, statusOf(g) + (g.tie ? " · tie" : ""), `<button class="btn sm" data-act="m-an-open" data-v="${esc(g.id)}">Open</button>`]; }));
   return h;
 };
 
@@ -156,6 +180,10 @@ T.detail = function (g) {
   const rs = (g.snaps || []).filter(s => s.k !== 99), xs = rs.map(s => "R" + s.r), cols = ["var(--prod)", "var(--gold)", "var(--pol)", "var(--hype)", "var(--code)", "var(--ideas)"];
   const seatLine = (key, title, k) => chart("d" + k, { type: "line", title, xs, series: g.seats.map((s, i) => ({ n: s.name + (s.bot ? " (bot)" : ""), c: cols[i % 6], v: rs.map(r => key(r.p[i])) })) });
   let h = `<div class="row wrap"><button class="btn sm" data-act="m-an-back">Back to the list</button><b>${esc(g.mode)}${g.code ? " " + esc(g.code) : ""}</b><span class="mute">${g.endedAt ? new Date(g.endedAt).toLocaleString() : ""} · ${g.n} players · ${g.rounds} rounds · ${statusOf(g)} · data ${esc(g.hash || g.tuned || "base")}</span></div>`;
+  const flags = [g.v && "version " + esc(g.v), g.lbl && "label " + esc(g.lbl), g.tut != null && ("tutorial " + ["not done", "done before", "just played"][g.tut]), g.res && "resumed " + g.res + "x", g.part && "partial (joined late / state lost)", g.tie && "tie at the top", g.early && "ended early", g.src && "from " + g.src, g.role && "account " + g.role, g.device && g.device, g.trim && "trimmed " + g.trim].filter(Boolean);
+  if (flags.length) h += `<p class="mute" style="font-size:12px">${flags.join(" · ")}</p>`;
+  if (g.cn) h += `<h3>What each seat did</h3>` + tbl(["Seat", "Placements", "Passes", "Desks bought", "Trainings", "Promotions", "Recruits", "Builds", "Milestones", "Team Event", "Placed Exhausted"], g.cn.map((c, i) => [i + 1, c.p, c.x, c.ws, c.tr, c.pro, c.rc, c.bd, c.cl, c.tm, c.ov]));
+  if (g.tl) h += `<div class="mute" style="font-size:12px;margin:4px 0">Tiles used: ` + Object.keys(g.tl).filter(k => k.indexOf("S:") !== 0).sort((a, b) => g.tl[b] - g.tl[a]).map(k => esc(k) + " " + g.tl[k]).join(" · ") + `</div>`;
   if (g.scores) { const keys = PARTS([g]); h += `<h3>Final scores</h3>` + tbl(["Seat", "Name", "Turn slot", "Total"].concat(keys.map(nice)), g.scores.map(s => { const st = g.seats[s.id] || {}; return [s.id + 1, esc(st.name || "") + (st.bot ? " (bot" + (st.persona ? ", " + esc(st.persona) : "") + ")" : "") + (g.winner === s.id ? " ★" : ""), (st.order != null ? st.order + 1 : ""), "<b>" + f1(s.total) + "</b>"].concat(keys.map(k => f1(s.parts && s.parts[k] || 0))); })); }
   if ((g.gates || []).length) h += `<h3>Publisher gates</h3>` + tbl(["Gate", "Phase", "Passed (seats)", "Missed (seats)"], g.gates.map(x => [esc(x.name), (x.ph | 0) + 1, (x.passed || []).map(i => i + 1).join(", ") || "–", (x.failed || []).map(i => i + 1).join(", ") || "–"]));
   h += `<div class="charts">` + seatLine(p => p.pr, "Progress by round", 1) + seatLine(p => p.g, "Gold by round", 2) + seatLine(p => p.hy, "Hype by round", 3) + seatLine(p => p.sy, "Systems built by round", 4) + `</div>`;
@@ -167,11 +195,14 @@ const cq = v => { v = String(v == null ? "" : v); return /[",\n\r]/.test(v) ? '"
 T.csv = function (gs, kind) {
   const rows = [];
   if (kind === "games") {
-    const keys = PARTS(gs); rows.push(["game_id", "started", "env", "mode", "status", "players", "humans", "rounds", "play_minutes", "avg_round_seconds", "winner_seat", "data_hash", "device", "seat", "name", "bot", "persona", "turn_slot", "total_vp"].concat(keys.map(k => "vp_" + k), ["gold", "ideas", "code", "process", "buzz", "progress", "marketing", "hype", "debt", "culture", "workers", "seniors", "systems", "objectives"]));
-    gs.forEach(g => { const r = roundSecs(g) || []; g.seats.forEach((s, i) => { const f = (g.final || [])[i] || {}, sc = (g.scores || [])[i] || {}; rows.push([g.id, g.startedAt ? new Date(g.startedAt).toISOString() : "", envOf(g), g.mode, statusOf(g), g.n, g.humans, g.rounds, r.length ? (r.reduce((x, y) => x + y, 0) / 60).toFixed(1) : "", r.length ? Math.round(avg(r)) : "", g.winner != null ? g.winner + 1 : "", g.hash || g.tuned || "", g.device || "", i + 1, s.name, s.bot ? 1 : 0, s.persona || "", s.order != null ? s.order + 1 : "", sc.total != null ? sc.total : ""].concat(keys.map(k => sc.parts && sc.parts[k] != null ? sc.parts[k] : ""), [f.g, (f.rs || [])[0], (f.rs || [])[1], (f.rs || [])[2], (f.rs || [])[3], f.pr, f.mk, f.hy, f.db, f.cu, f.w, f.sr, f.sy, f.ob])); }); });
+    const keys = PARTS(gs); rows.push(["game_id", "started", "env", "mode", "status", "players", "humans", "rounds", "play_minutes", "avg_round_seconds", "winner_seat", "data_hash", "device", "seat", "name", "bot", "persona", "turn_slot", "total_vp", "version", "label", "tie", "tutorial", "resumed", "bot_skill", "desks_bought", "trainings", "promotions", "tired_end", "exhausted_end", "burnout_end", "team_event_uses", "systems_built"].concat(keys.map(k => "vp_" + k), ["gold", "ideas", "code", "process", "buzz", "progress", "marketing", "hype", "debt", "culture", "workers", "seniors", "systems", "objectives"]));
+    gs.forEach(g => { const r = roundSecs(g) || []; g.seats.forEach((s, i) => { const f = (g.final || [])[i] || {}, sc = (g.scores || [])[i] || {}; rows.push([g.id, g.startedAt ? new Date(g.startedAt).toISOString() : "", envOf(g), g.mode, statusOf(g), g.n, g.humans, g.rounds, r.length ? (r.reduce((x, y) => x + y, 0) / 60).toFixed(1) : "", r.length ? Math.round(avg(r)) : "", g.winner != null ? g.winner + 1 : "", g.hash || g.tuned || "", g.device || "", i + 1, s.name, s.bot ? 1 : 0, s.persona || "", s.order != null ? s.order + 1 : "", sc.total != null ? sc.total : "", g.v || "", g.lbl || "", g.tie ? 1 : 0, g.tut != null ? g.tut : "", g.res || "", s.profile || "", ((g.cn || [])[i] || {}).ws, f.tn, f.pm, f.td, f.ex, f.bo, ((g.cn || [])[i] || {}).tm, (f.si || []).join(" + ")].concat(keys.map(k => sc.parts && sc.parts[k] != null ? sc.parts[k] : ""), [f.g, (f.rs || [])[0], (f.rs || [])[1], (f.rs || [])[2], (f.rs || [])[3], f.pr, f.mk, f.hy, f.db, f.cu, f.w, f.sr, f.sy, f.ob])); }); });
+  } else if (kind === "events") {
+    rows.push(["game_id", "round", "seat", "action", "arg", "seconds_into_game"]);
+    gs.forEach(g => (g.ev || []).forEach(e => rows.push([g.id, e[0], e[1] >= 0 ? e[1] + 1 : "", e[2], Array.isArray(e[3]) ? e[3].join("|") : e[3], e[4] == null ? "" : e[4]])));
   } else {
-    rows.push(["game_id", "round", "seconds_into_game", "seat", "gold", "ideas", "code", "process", "buzz", "progress", "marketing", "hype", "debt", "culture", "workers", "seniors", "systems", "objectives", "milestones", "crews_building"]);
-    gs.forEach(g => (g.snaps || []).forEach(s => { if (s.k === 99) return; (s.p || []).forEach((p, i) => rows.push([g.id, s.r, s.t != null ? Math.round(s.t / 1000) : "", i + 1, p.g, p.rs[0], p.rs[1], p.rs[2], p.rs[3], p.pr, p.mk, p.hy, p.db, p.cu, p.w, p.sr, p.sy, p.ob, p.ml, p.bd])); }));
+    rows.push(["game_id", "round", "seconds_into_game", "seat", "gold", "ideas", "code", "process", "buzz", "progress", "marketing", "hype", "debt", "culture", "workers", "seniors", "systems", "objectives", "milestones", "crews_building", "burnout", "desks", "tired", "exhausted", "desks_end_of_place", "tired_end_of_place", "exhausted_end_of_place"]);
+    gs.forEach(g => (g.snaps || []).forEach(s => { if (s.k === 99) return; (s.p || []).forEach((p, i) => rows.push([g.id, s.r, s.t != null ? Math.round(s.t / 1000) : "", i + 1, p.g, p.rs[0], p.rs[1], p.rs[2], p.rs[3], p.pr, p.mk, p.hy, p.db, p.cu, p.w, p.sr, p.sy, p.ob, p.ml, p.bd, p.bo, p.ws, p.td, p.ex].concat(s.m && s.m[i] ? [s.m[i][0], s.m[i][1], s.m[i][2]] : ["", "", ""]))); }));
   }
   return rows.map(r => r.map(cq).join(",")).join("\r\n") + "\r\n";
 };
@@ -181,25 +212,33 @@ const sel = (key, vals, cur) => `<select data-an="${key}">${vals.map(v => `<opti
 T.render = function (ctx) {
   const m = M(), a = AN(), all = T.expand((m.games || []).concat(m.sims || [])); T.all = all;
   if (a.detail) { const g = all.find(x => x.id === a.detail); if (g) return T.detail(g); a.detail = null; }
+  if (m.now) { T.serverNow = m.now; T.serverAt = m.nowAt || Date.now(); }
   const gs = filtered(all, a); T.cur = gs;
   const simN = all.filter(g => g.sim).length, plN = all.length - simN;
   let h = `<div class="row wrap an-bar"><span class="seg"><button class="btn sm ${a.view === "players" ? "primary" : ""}" data-act="m-an-view" data-v="players">Player games (${plN})</button><button class="btn sm ${a.view === "sims" ? "primary" : ""}" data-act="m-an-view" data-v="sims">Simulations (${simN})</button></span>`;
-  if (a.view === "players") h += `<span class="seg">${[["all", "All"], ["live", "Live"], ["test", "Test"]].map(e => `<button class="btn sm ${a.env === e[0] ? "primary" : ""}" data-act="m-an-env" data-v="${e[0]}">${e[1]}</button>`).join("")}</span>`;
-  h += `${sel("n", [["all", "Any player count"], [2, "2 players"], [3, "3 players"], [4, "4 players"], [5, "5 players"]], a.n)}${a.view === "players" ? sel("mode", [["all", "Any mode"], ["hotseat", "Hot-seat"], ["online", "Online"]], a.mode) : ""}<label class="row" style="gap:5px"><input type="checkbox" data-an="done" ${a.done ? "checked" : ""}> Completed only</label><button class="btn sm" data-act="m-refresh">Refresh</button><button class="btn sm" data-act="m-an-csv" data-v="games">Games CSV</button><button class="btn sm" data-act="m-an-csv" data-v="rounds">Rounds CSV</button></div>`;
+  if (a.view === "players") h += `<span class="seg">${[["all", "All"], ["live", "Live"], ["test", "Test"], ["local", "Local edits"]].map(e => `<button class="btn sm ${a.env === e[0] ? "primary" : ""}" data-act="m-an-env" data-v="${e[0]}">${e[1]}</button>`).join("")}</span>`;
+  const lbls = Array.from(new Set(all.filter(g => !g.sim).map(g => g.lbl || "(none)"))).sort();
+  h += `${sel("n", [["all", "Any player count"], [2, "2 players"], [3, "3 players"], [4, "4 players"], [5, "5 players"]], a.n)}${a.view === "players" ? sel("mode", [["all", "Any mode"], ["hotseat", "Hot-seat"], ["online", "Online"]], a.mode) + sel("hum", [["humans", "Games with humans"], ["bots", "Bot-only games"], ["all", "Humans and bots-only"]], a.hum) + sel("lbl", [["all", "Any session label"]].concat(lbls.map(l => [l, l])), a.lbl) : ""}<label class="row" style="gap:5px"><input type="checkbox" data-an="done" ${a.done ? "checked" : ""}> Completed only</label><button class="btn sm" data-act="m-refresh">Refresh</button><button class="btn sm" data-act="m-an-csv" data-v="games">Games CSV</button><button class="btn sm" data-act="m-an-csv" data-v="rounds">Rounds CSV</button><button class="btn sm" data-act="m-an-csv" data-v="events">Events CSV</button><button class="btn sm" data-act="m-an-json">All records (JSON)</button>${a.view === "players" ? `<button class="btn sm" data-act="m-an-del">${a.confirmDel ? "Click again: delete the " + gs.length + " records shown" : "Delete shown records"}</button>` : ""}</div>`;
   if (a.view === "sims") h += `<div id="sim-slot">${SI.simPanel ? SI.simPanel(ctx) : ""}</div>`;
-  if (!gs.length) return h + `<p class="mute">${all.length ? "No games match these filters." : "No games recorded yet."} Every game on the hosted site sends a record at the start of each round from round 2 and when it ends.</p>`;
+  if (!gs.length) return h + `<p class="mute">${all.length ? "No games match these filters." : "No games recorded yet."} Every game on the hosted site sends a record at the start of each round and when it ends; a game that goes quiet for 30 minutes shows as abandoned.</p>`;
   return h + T.kpis(gs, a) + `<p class="mute" style="font-size:11px;margin:4px 0">Timing: any round over 20 minutes counts as 20 minutes, so a tea break does not skew the averages. Skills are what each player holds at the start of the round.</p><div class="charts">${T.charts(gs, a)}</div>` + T.tables(gs, a);
 };
 SI.statsRender = T.render;
 SI.statsAct = function (act, t, ctx) {
   const a = AN(), v = t.dataset.v;
   if (act === "m-an-view") { a.view = v; a.detail = null; a.n = "all"; }
-  else if (act === "m-an-env") a.env = v;
+  else if (act === "m-an-env") { a.env = v; a.confirmDel = false; }
   else if (act === "m-an-open") a.detail = v;
   else if (act === "m-an-back") a.detail = null;
   else if (act === "m-an-zoom") { T.zoom(v); return; }
+  else if (act === "m-an-json") { SI.stu2 && SI.stu2.dl("shipit-records-" + new Date().toISOString().slice(0, 10) + ".json", JSON.stringify(M().games || [], null, 1), "application/json"); return; }
+  else if (act === "m-an-del") { // delete exactly the records on screen (set the filters first: e.g. Tuning = Test, or one session label)
+    if (!a.confirmDel) { a.confirmDel = true; ctx.render(); return; }
+    a.confirmDel = false; const ids = (T.cur || []).map(g => g.id).filter(Boolean), m = M();
+    (async () => { try { for (let i = 0; i < ids.length; i += 400) { const r = await fetch("/__clear", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ids: ids.slice(i, i + 400) }) }); if (!r.ok) throw new Error(r.status); } m.msg = "Deleted " + ids.length + " records"; } catch (e) { m.msg = "Delete failed: " + e.message; } SI.adminRefresh ? SI.adminRefresh(ctx) : ctx.render(); })(); return;
+  }
   else if (act === "m-an-csv") { SI.stu2 && SI.stu2.dl("shipit-" + v + "-" + new Date().toISOString().slice(0, 10) + ".csv", T.csv(T.cur || [], v), "text/csv"); return; }
   ctx.render();
 };
-document.addEventListener("change", e => { const t = e.target; if (!t || !t.dataset || !t.dataset.an || !SI.U || !SI.U.master) return; const a = AN(); if (t.dataset.an === "done") a.done = t.checked; else a[t.dataset.an] = t.value; SI.render(); });
+document.addEventListener("change", e => { const t = e.target; if (!t || !t.dataset || !t.dataset.an || !SI.U || !SI.U.master) return; const a = AN(); a.confirmDel = false; if (t.dataset.an === "done") a.done = t.checked; else a[t.dataset.an] = t.value; SI.render(); });
 })(typeof window !== "undefined" ? window : globalThis);

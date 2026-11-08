@@ -2,7 +2,8 @@
  "name": "ship-it",
  "private": true,
  "scripts": {
-  "test": "cd game && node test.js && node ctest.js",
+  "test": "cd game && node test.js && node ctest.js && cd .. && node tools/an_test.js",
+  "an": "node tools/an_test.js",
   "fuzz": "node game/fuzz.js",
   "golden": "node tools/golden.js | diff -u tests/golden.expected.txt - && echo golden ok",
   "golden:update": "node tools/golden.js > tests/golden.expected.txt",

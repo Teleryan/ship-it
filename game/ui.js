@@ -93,19 +93,19 @@ function noteRecruits() {
   });
   if (msgs.length) setTimeout(() => toast(msgs.join(" · "), 5000, "info"), 0);
 }
-function snapshot() { try { return JSON.stringify(U.S, (k, v) => k === "data" ? undefined : v); } catch (e) { return null; } }
-function restore(js) { const data = U.S.data; const S = JSON.parse(js); S.data = data; U.S = S; }
-function save() { try { root.localStorage.setItem("shipit.save.v1", JSON.stringify(U.S)); toast("Game saved in this browser", 2600, "info"); U.toast = null; } catch (e) { toast("Could not save"); } }
-function loadSave() { try { const j = root.localStorage.getItem("shipit.save.v1"); if (!j) return false; U.S = JSON.parse(j); U.tut = null; U.screen = "game"; U.undo = []; U.sel = null; return true; } catch (e) { return false; } }
+function snapshot() { try { return SI.an.mark() + "|" + JSON.stringify(U.S, (k, v) => k === "data" ? undefined : v); } catch (e) { return null; } } // the number before | is the analytics event count, so Undo also rewinds the event log
+function restore(js) { const data = U.S.data; const bar = js.indexOf("|"), mk = +js.slice(0, bar); const S = JSON.parse(js.slice(bar + 1)); S.data = data; U.S = S; SI.an.rebind(S, mk); }
+function save() { try { root.localStorage.setItem("shipit.save.v1", JSON.stringify(U.S)); try { root.localStorage.setItem("shipit.save.tg", U.tutGame ? "1" : "0"); } catch (e2) {} if (!U.tutGame) SI.an.saveFor(); toast("Game saved in this browser", 2600, "info"); U.toast = null; } catch (e) { toast("Could not save"); } }
+function loadSave() { try { const j = root.localStorage.getItem("shipit.save.v1"); if (!j) return false; U.S = JSON.parse(j); U.tut = null; U.tutGame = root.localStorage.getItem("shipit.save.tg") === "1"; U.screen = "game"; U.undo = []; U.sel = null; return true; } catch (e) { return false; } }
 /* autosave: reloading or tabbing away must never drop you out of a game in progress */
 const AUTO_KEY = "shipit.auto.v1";
 function autosave() {
   if (U.net) return;
   clearTimeout(U.autoT);
-  U.autoT = setTimeout(() => { try { if (U.screen === "game" && U.S) root.localStorage.setItem(AUTO_KEY, JSON.stringify({ S: U.S, tut: U.tut })); } catch (e) {} }, 250);
+  U.autoT = setTimeout(() => { try { if (U.screen === "game" && U.S) root.localStorage.setItem(AUTO_KEY, JSON.stringify({ S: U.S, tut: U.tut, tg: U.tutGame ? 1 : 0, an: U.tut || U.tutGame ? null : SI.an.curId() })); } catch (e) {} }, 250);
 }
 function clearAuto() { clearTimeout(U.autoT); try { root.localStorage.removeItem(AUTO_KEY); } catch (e) {} }
-function loadAuto() { try { const j = root.localStorage.getItem(AUTO_KEY); if (!j) return false; const o = JSON.parse(j); if (!o || !o.S || (o.tut && o.tut.ver !== SI.TUT_VER)) return false; U.S = o.S; U.tut = o.tut || null; U.screen = "game"; U.undo = []; U.sel = null; U.detail = null; return true; } catch (e) { return false; } }
+function loadAuto() { try { const j = root.localStorage.getItem(AUTO_KEY); if (!j) return false; const o = JSON.parse(j); if (!o || !o.S || (o.tut && o.tut.ver !== SI.TUT_VER)) return false; U.anId = o.an || null; U.tutGame = !!o.tg; U.S = o.S; U.tut = o.tut || null; U.screen = "game"; U.undo = []; U.sel = null; U.detail = null; return true; } catch (e) { return false; } }
 function hasAuto() { try { const o = JSON.parse(root.localStorage.getItem(AUTO_KEY) || "null"); return !!(o && o.S && !o.S.over && (!o.tut || o.tut.ver === SI.TUT_VER)); } catch (e) { return false; } }
 function hasSave() { try { return !!root.localStorage.getItem("shipit.save.v1"); } catch (e) { return false; } }
 
@@ -146,19 +146,24 @@ function scheduleBots() {
     render(); scheduleBots();
   }, allBots ? 30 : U.speed);
 }
+function anMeta(st, tut) { return { mode: "hotseat", site: SI.net.site(), hash: SI.hashOf(st), tuned: U.tuned, test: U.testEnv, seats: [], tut }; }
+function anResume(kind) { // a game came back from the autosave or the manual save: re-attach it to its analytics record
+  if (U.tut || U.tutGame || !U.S) { SI.an.abandon(); return; }
+  SI.an.resume(U.S, { kind, id: U.anId, meta: anMeta(U.active || U.studio, SI.an.tutDone() ? 1 : 0) });
+}
 function newGame() {
   const seats = U.seats.map((s, i) => ({ name: s.name || ("Player " + (i + 1)), bot: s.bot }));
   const st = U.active || U.studio; U.tutDone = false;
   const cfgG = E.clone(st.config), gl = resolveGateLevels(); if (gl) cfgG.gateLevels = gl;
-  U.S = E.newGame(seats, { config: cfgG, data: E.clone(st.data) });
+  U.S = E.newGame(seats, { config: cfgG, data: E.clone(st.data) }); U.tutGame = false;
   if (U.botSkill) U.S.players.forEach(p => { if (p.bot) p.profile = U.botSkill; });
-  SI.an.abandon(U.prev); U.prev = null;
-  SI.an.begin(U.S, { mode: "hotseat", site: SI.net.site(), hash: SI.hashOf(st), tuned: U.tuned, test: U.testEnv, seats: [] }); U.prev = U.S;
+  SI.an.abandon();
+  SI.an.begin(U.S, anMeta(st, U.tutFlow ? 2 : (SI.an.tutDone() ? 1 : 0))); U.tutFlow = false;
   U.tut = null; U.detail = null; U.screen = "game"; U.undo = []; U.sel = null; U.pop = null; U.cover = null; U.modal = null; U.view = null; U.seenCrisis = null; U.seenRound = null;
   render(); scheduleBots();
 }
 function startTutorial() {
-  clearTimeout(U.botT); U.S = SI.tutNew(); U.tut = SI.tutInit(); U.tutDone = false;
+  clearTimeout(U.botT); SI.an.abandon(); U.S = SI.tutNew(); U.tut = SI.tutInit(); U.tutDone = false; U.tutGame = true;
   U.detail = null; U.screen = "game"; U.undo = []; U.sel = null; U.pop = null; U.cover = null; U.modal = null; U.view = null; U.seenCrisis = null; U.seenRound = null; U.keep = null; U.marketCat = null;
   render(); scheduleBots();
 }
@@ -218,12 +223,13 @@ function menuView() {
   ${gatePanel()}
   <div class="mute" style="margin-top:10px;font-size:12px">Who is playing? Type your name, and set each seat to Human or Bot.</div>
   <div style="margin:10px 0">${U.seats.map((s, i) => `<div class="seat"><span class="dot" style="background:${["#e74c3c","#3498db","#27ae60","#f39c12","#9b59b6","#16a085"][i]}"></span><input data-seatname="${i}" value="${esc(s.name)}" placeholder="${s.bot ? "Bot name" : "Your name"}" maxlength="20"><select data-seatbot="${i}"><option value="0" ${!s.bot ? "selected" : ""}>Human</option><option value="1" ${s.bot ? "selected" : ""}>Bot</option></select></div>`).join("")}</div>
+  <div class="row wrap" style="margin:0 0 10px"><label class="mute" for="sesslabel">Session label <span class="dim">(optional, saved with your games)</span></label><input id="sesslabel" data-sesslabel value="${esc(SI.an.label())}" placeholder="e.g. Table 2" maxlength="24" style="width:150px"></div>
   <div class="row wrap menubtns"><button class="btn primary" data-act="tutorial">Learn to play <span class="rsub">guided game, about 15 min</span></button><button class="btn" data-act="start">Start new game</button>${hasAuto() ? '<button class="btn" data-act="continue">Continue where you left off</button>' : ""}${hasSave() ? '<button class="btn" data-act="resume">Resume saved game</button>' : ""}${U.owner ? '<button class="btn" data-act="studio">Data Studio</button><button class="btn" data-act="master">Master</button>' : ""}</div>
   ${U.hosted ? `<div style="margin:16px 0 0;padding:12px;border:1px solid var(--line,#2b3350);border-radius:10px"><div class="mute" style="margin-bottom:8px">Play online with friends on their own devices</div>
   <div class="row wrap"><input data-pname value="${esc(myName() === "Player" ? "" : myName())}" placeholder="Your name" maxlength="20" style="width:140px"><button class="btn primary" data-act="online-create">Create online game</button><input data-jcode placeholder="CODE" maxlength="4" style="width:80px;text-transform:uppercase;letter-spacing:.2em"><button class="btn" data-act="online-join">Join</button></div>
   ${U.joinErr ? `<p style="color:var(--bad);margin:8px 0 0">${esc(U.joinErr)}</p>` : ""}</div>` : ""}
   <div class="row wrap" style="margin:14px 0 0"><button class="btn sm" data-act="cleardata">Clear saved data</button>${U.hosted ? '<button class="btn sm" data-act="logout">Log out</button>' : ""}</div>
-  <p class="dim" style="margin:14px 0 0;font-size:12px">Hot-seat: pass the device between humans. Bots play the rest. Online: each player uses their own device, and hot-seat seats can share one device.${U.tuned && U.tuned !== "default" ? ` Tuning in use: ${esc(U.tuned)}.` : ""}</p>
+  <p class="dim" style="margin:14px 0 0;font-size:12px">Hot-seat: pass the device between humans. Bots play the rest. Online: each player uses their own device, and hot-seat seats can share one device.${U.tuned && U.tuned !== "default" ? ` Tuning in use: ${esc(U.tuned)}.` : ""}${SI.an.pending() ? ` <span style="color:var(--gold)" title="Game records are kept on this device and sent again automatically">${SI.an.pending()} game record${SI.an.pending() > 1 ? "s" : ""} waiting to upload.</span>` : ""}</p>
   </div></div>`;
 }
 
@@ -943,7 +949,7 @@ function openRoom(opts) {
   N.open(opts, onNet); render();
 }
 function leaveRoom() {
-  if (U.net) { SI.an.abandon(U.S); N.close(); }
+  if (U.net) { SI.an.abandon(); N.close(); }
   U.net = null; U.S = null; clearTimeout(U.botT); clearTimeout(U.rcT);
   try { root.localStorage.removeItem("shipit.room"); } catch (e) {}
   U.screen = "menu"; U.modal = null; render();
@@ -956,10 +962,18 @@ function buildOnline(meta, log) {
   for (let k = 0; k < log.length; k++) { S.seed = log[k].s; const r = E.act(S, log[k].a); if (!r.ok) return { S, bad: k }; }
   return { S, n: log.length };
 }
+function anOnline(meta, nlog) { // online: the host records the game; a guest only keeps a fallback final record
+  const S = U.S, host = U.net.host;
+  const base = { mode: "online", site: N.site(), code: meta.code, seed: meta.seed, started: meta.started, tuned: host && U.tuned && U.tuned !== "default" ? U.tuned : (meta.ovr ? "custom" : "default"), hash: meta.ovr ? SI.hash(meta.ovr) : "base", test: !!U.testEnv, seats: meta.seats, tut: SI.an.tutDone() ? 1 : 0 };
+  const id = SI.an.onlineId(base), cur = SI.an.meta;
+  if (cur && cur.id === id && !!cur.guest === !host) { SI.an.rebind(S); return; } // reconnected inside the same game: keep what was collected
+  if (!host) { SI.an.watch(S, base); return; }
+  if (nlog === 0) SI.an.begin(S, base); else SI.an.resume(S, { kind: "net", meta: base, fresh: false });
+}
 function enterGame(meta, log) {
   const b = buildOnline(meta, log); if (b.bad != null) { toast("Could not replay the game (action " + b.bad + ")"); return; }
   U.S = b.S; U.net.n = log.length; U.net.log = log.length; U.screen = "game"; U.tut = null; U.undo = []; U.sel = null; U.pop = null; U.detail = null; U.modal = null; U.cover = null; U.view = null; U.seenCrisis = null; U.seenRound = null;
-  if (U.net.host && !SI.an.meta) SI.an.begin(U.S, { mode: "online", site: N.site(), code: meta.code, seed: meta.seed, tuned: meta.ovr ? "custom" : "default", seats: meta.seats });
+  U.tutGame = false; anOnline(meta, log.length);
   render(); scheduleBots();
 }
 function onNet(m) {
@@ -989,6 +1003,7 @@ function onNet(m) {
     U.S.seed = m.s; const r = E.act(U.S, m.a);
     if (!r.ok) { toast("Out of sync: reloading"); N.reopen(); return; }
     n.n++; U.sel = null; U.pop = null; U.detail = null;
+    if (U.S.over && n.host) N.send({ t: "over" }); // the last action came from another seat: the room still has to be told the game is over (rematch needs it)
     if (U.cover != null && !(U.S.dq[0] && U.S.dq[0].p === U.cover)) U.cover = null;
     render(); scheduleBots(); return;
   }
@@ -1061,15 +1076,15 @@ $root.addEventListener("click", e => {
     case "lobby-exit": leaveRoom(); return;
     case "master": U.modal = "master"; if (SI.adminOpen) SI.adminOpen(masterCtx()); render(); return;
     case "tutorial": U.modal = null; startTutorial(); return;
-    case "tut-play": { const nm = myName(); U.seats = [{ name: nm && nm !== "Player" ? nm : "You", bot: false }, { name: "Bot", bot: true }]; U.modal = null; newGame(); return; }
-    case "tut-next": SI.tutAck(); if (SI.tutFinished()) { U.tut = null; U.tutDone = true; render(); scheduleBots(); return; } render(); return;
+    case "tut-play": { U.tutFlow = true; SI.an.markTut(); const nm = myName(); U.seats = [{ name: nm && nm !== "Player" ? nm : "You", bot: false }, { name: "Bot", bot: true }]; U.modal = null; newGame(); return; }
+    case "tut-next": SI.tutAck(); if (SI.tutFinished()) { U.tut = null; U.tutDone = true; SI.an.markTut(); render(); scheduleBots(); return; } render(); return;
     case "tut-back": SI.tutBack(); render(); return;
     case "tut-fwd": SI.tutFwd(); render(); return;
     case "tut-auto": SI.tutAuto(); U.pop = null; U.detail = null; U.sel = null; U.modal = null; render(); scheduleBots(); return;
     case "tut-free": U.tut = null; U.tutDone = true; render(); scheduleBots(); return;
     case "tut-exit": clearAuto(); if (U.S && !U.S.over) { U.tut = null; U.tutDone = true; U.modal = null; render(); scheduleBots(); return; } U.tut = null; U.screen = "menu"; U.modal = null; clearTimeout(U.botT); render(); return;
-    case "resume": if (loadSave()) { render(); scheduleBots(); } return;
-    case "continue": if (loadAuto()) { render(); scheduleBots(); } return;
+    case "resume": if (loadSave()) { anResume("save"); render(); scheduleBots(); } return;
+    case "continue": if (loadAuto()) { anResume("auto"); render(); scheduleBots(); } return;
     case "studio": U.modal = "studio"; render(); if (SI.stu2) SI.stu2.loadPub(); return;
     case "endgame": U.modal = "endgame"; render(); return;
     case "endgame-yes": {
@@ -1082,7 +1097,7 @@ $root.addEventListener("click", e => {
     case "cleardata": U.modal = "cleardata"; render(); return;
     case "cleardata-do": {
       const w = v, rm = k => { try { root.localStorage.removeItem(k); } catch (e) {} };
-      if (w === "save" || w === "all") { rm("shipit.save.v1"); clearAuto(); }
+      if (w === "save" || w === "all") { rm("shipit.save.v1"); SI.an.clearSave(); clearAuto(); }
       if (w === "room" || w === "all") rm("shipit.room");
       if ((w === "studio" || w === "all") && U.owner) { U.studio = SI.resetStudio(); SI.clearDraft(); U.active = SI.defaults(); }
       if (w === "all") { rm("shipit.name"); U.name = ""; }
@@ -1100,7 +1115,7 @@ $root.addEventListener("click", e => {
       if (S && S.over && !U.modal && !U.pop) U.modal = "noresults"; else U.modal = null;
       U.pop = null; render(); return; }
     case "stepnext": { if (U.stepKey) { U.seenStep = U.seenStep || {}; U.seenStep[U.stepKey] = true; } U.stepScreenOpen = false; render(); scheduleBots(); return; }
-    case "menu": if (U.net) { leaveRoom(); return; } SI.an.abandon(U.S); U.screen = "menu"; U.modal = null; clearTimeout(U.botT); clearAuto(); render(); return;
+    case "menu": if (U.net) { leaveRoom(); return; } SI.an.abandon(); U.screen = "menu"; U.modal = null; clearTimeout(U.botT); clearAuto(); render(); return;
     case "milesref": U.modal = "milesref"; render(); return;
     case "scoreref": U.modal = "scoreref"; render(); return;
     case "log": U.logOpen = !U.logOpen; render(); return;
@@ -1184,6 +1199,7 @@ $root.addEventListener("change", e => {
   if (t.dataset.lpers != null && U.net && U.net.host) { U.net.meta.seats[+t.dataset.lpers].persona = t.value; lobbySend(); return; }
   if (t.dataset.lname != null && U.net) { const i = +t.dataset.lname, M = U.net.meta, s = M.seats[i]; s.name = t.value.slice(0, 20); if (s.cid === N.cid()) { setName(s.name); N.send({ t: "claim", seat: i, name: s.name, extra: true }); } else if (U.net.host) lobbySend(); return; }
   if (t.dataset.pname != null) { setName(t.value); return; }
+  if (t.dataset.sesslabel != null) { SI.an.setLabel(t.value); return; }
   if (t.dataset.seatname != null) { const si = +t.dataset.seatname; U.seats[si].name = t.value; if (!U.seats[si].bot && U.seats.findIndex(s => !s.bot) === si && t.value.trim()) setName(t.value.trim()); return; }
   if (t.dataset.botskill != null) { U.botSkill = t.value; render(); return; }
   if (gsChange(t)) return;
@@ -1201,6 +1217,7 @@ async function liveConfig() {
 }
 (async function boot() {
   const w = await N.whoami();
+  SI.an.enabled = !!w; // records are only sent when the game is served by the Worker
   if (w) {
     U.hosted = true; U.role = w.role; U.owner = !!w.owner;
     const base = await liveConfig();
@@ -1211,7 +1228,7 @@ async function liveConfig() {
   } else { // standalone: local passphrase gate, local Data Studio
     await loadScript("studio.js"); await loadScript("studio2.js"); U.owner = !!SI.renderStudio; U.active = SI.loadStudio(); U.studio = SI.loadDraft() || SI.applyDiff(SI.diffOf(U.active)); if (D.applyText) D.applyText(U.active.data.text); U.tuned = "default";
     let ok = false; try { ok = sessionStorage.getItem("shipit.ok") === "1"; } catch (e) {} U.screen = ok ? "menu" : "gate";
-    if (ok && loadAuto()) { render(); scheduleBots(); return; }
+    if (ok && loadAuto()) { anResume("auto"); render(); scheduleBots(); return; }
   }
   render();
 })();

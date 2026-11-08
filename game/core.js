@@ -6,6 +6,7 @@ const E = root.ShipItEngine, B = root.ShipItBot, D = root.SHIPIT_DATA;
 const KEY = "shipit.studio.v2"; // v2 stores only deliberate edits (differences from the shipped defaults)
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 SI.esc = esc;
+SI.BAND = [33, 63]; // goal band for the winner's VP (the rules are tuned to 33-63); the master dashboard reads it
 
 // array data normally has to match the default length; the tutorial list is matched by row id so rows can be added later without losing edits
 const mergeRows = (def, over) => { const m = {}; (over || []).forEach(r => { if (r && r.id) m[r.id] = r; }); return def.map(r => m[r.id] ? Object.assign({}, r, { title: m[r.id].title, btn: m[r.id].btn, text: m[r.id].text }) : r); };

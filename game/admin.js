@@ -16,12 +16,15 @@ async function jget(url) { const r = await fetch(url, { cache: "no-store" }); if
 async function jsend(url, method, body) { const r = await fetch(url, { method, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined }); const o = await r.json().catch(() => ({})); if (!r.ok) throw new Error(o.error || r.status); return o; }
 async function loadAll(ctx) {
   const m = M(); m.loading = true; ctx.render();
-  try { const g = await jget("/__games"); m.games = g.games || []; try { m.sims = (await jget("/__games?kind=sims")).games || []; } catch (e2) { m.sims = []; } } catch (e) { m.games = m.games || []; m.msg = "Could not load games: " + e.message; }
+  try { const g = await jget("/__games"); m.games = g.games || []; m.now = g.now; m.nowAt = Date.now(); m.total = g.total; let off = m.games.length, more = g.more; // the server pages the list (newest first): read every page
+    for (let k = 0; more && k < 40; k++) { const g2 = await jget("/__games?offset=" + off); m.games = m.games.concat(g2.games || []); off += (g2.games || []).length; more = g2.more && (g2.games || []).length > 0; }
+    if (m.total && m.games.length < m.total) m.msg = "Only " + m.games.length + " of " + m.total + " records could be read."; try { m.sims = (await jget("/__games?kind=sims")).games || []; } catch (e2) { m.sims = []; } } catch (e) { m.games = m.games || []; m.msg = "Could not load games: " + e.message; }
   const site = SI.net.site();
   try { m.cfg = { live: await jget("/__config?env=live&site=" + site), test: await jget("/__config?env=test&site=" + site) }; } catch (e) {}
   try { m.rooms = (await jget("/__rooms")).rooms; } catch (e) {}
   m.loading = false; ctx.render();
 }
+SI.adminRefresh = ctx => loadAll(ctx);
 SI.adminOpen = function (ctx) { ctx.U.master = ctx.U.master || { tab: "analytics", f: { env: "all", mode: "all", tuned: "all" } }; if (ctx.U.hosted) loadAll(ctx); else { M().games = []; M().msg = "Not connected to the server: analytics and publishing are available on the hosted game only."; } };
 
 /* ---------- aggregation ---------- */
@@ -34,7 +37,7 @@ function summary(gs) {
   const byN = {}; done.forEach(g => { (byN[g.n] = byN[g.n] || []).push(g); });
   const rows = Object.keys(byN).sort().map(n => {
     const a = byN[n], win = a.map(g => Math.max.apply(null, g.scores.map(s => s.total))), gp = a.map(gap).filter(x => x != null);
-    return { n, games: a.length, avgWin: avg(win), medWin: med(win), band: win.filter(v => v >= 38 && v <= 68).length / a.length, gap: med(gp), minWin: Math.min.apply(null, win), maxWin: Math.max.apply(null, win), rounds: avg(a.map(g => g.rounds)), mins: avg(a.map(g => (g.endedAt - g.startedAt) / 60000)) };
+    return { n, games: a.length, avgWin: avg(win), medWin: med(win), band: win.filter(v => v >= SI.BAND[0] && v <= SI.BAND[1]).length / a.length, gap: med(gp), minWin: Math.min.apply(null, win), maxWin: Math.max.apply(null, win), rounds: avg(a.map(g => g.rounds)), mins: avg(a.map(g => (g.endedAt - g.startedAt) / 60000)) };
   });
   // win rate by persona (bots), by seat position, by turn order slot
   const persona = {}, order = {};
@@ -52,6 +55,7 @@ function summary(gs) {
   const accts = new Set(); gs.forEach(g => g.seats.forEach(s => { if (s.acct) accts.add(s.acct); }));
   return { done, rows, persona, order, src, srcW, np, nw, gates, rounds, accts: accts.size };
 }
+SI.adminSummary = summary; // exposed for the test harness (tools/an_test.js)
 const opts = (vals, cur) => vals.map(v => `<option ${v === cur ? "selected" : ""}>${esc(v)}</option>`).join("");
 function table(head, rows) { return `<table class="scoretbl"><thead><tr>${head.map(h => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`; }
 
@@ -60,7 +64,7 @@ function renderAnalytics() {
   const envs = ["all"].concat(Array.from(new Set(all.map(g => g.env)))), tunes = ["all"].concat(Array.from(new Set(all.map(g => g.tuned)))), modes = ["all", "hotseat", "online"];
   let h = `<div class="row wrap" style="gap:8px;margin-bottom:10px"><label class="mute">Environment</label><select data-mf="env">${opts(envs, m.f.env)}</select><label class="mute">Mode</label><select data-mf="mode">${opts(modes, m.f.mode)}</select><label class="mute">Tuning</label><select data-mf="tuned">${opts(tunes, m.f.tuned)}</select><button class="btn sm" data-act="m-refresh">Refresh</button><span class="mute">${gs.length} of ${all.length} games · ${S.done.length} finished · ${S.accts} online accounts</span></div>`;
   if (!gs.length) return h + `<p class="mute">No games recorded yet. Every game played on the hosted site sends a record when it ends (or when someone leaves after round 2).</p>`;
-  h += `<h3>Winning score by player count <span class="mute" style="text-transform:none;letter-spacing:0">(goal: 38–68)</span></h3>` + table(["Players", "Games", "Median winner VP", "Average", "Low – high", "In 38–68", "Median 1st–2nd gap", "Avg minutes"],
+  h += `<h3>Winning score by player count <span class="mute" style="text-transform:none;letter-spacing:0">(goal: ${SI.BAND[0]}–${SI.BAND[1]})</span></h3>` + table(["Players", "Games", "Median winner VP", "Average", "Low – high", "In " + SI.BAND[0] + "–" + SI.BAND[1], "Median 1st–2nd gap", "Avg minutes"],
     S.rows.map(r => [r.n, r.games, f1(r.medWin), f1(r.avgWin), `${f1(r.minWin)} – ${f1(r.maxWin)}`, Math.round(r.band * 100) + "%", f1(r.gap), f1(r.mins)]));
   h += `<h3>Who wins</h3>` + table(["Player type", "Seats played", "Win rate", "Average VP"], Object.keys(S.persona).sort().map(k => { const p = S.persona[k]; return [esc(k), p.g, pct(p.w, p.g), f1(p.vp / p.g)]; }));
   h += `<div class="mute" style="margin:6px 0">Turn order slot (slot/players): ` + Object.keys(S.order).sort().map(k => `<b>${k}</b> ${pct(S.order[k].w, S.order[k].g)} (${S.order[k].g})`).join(" · ") + `</div>`;
