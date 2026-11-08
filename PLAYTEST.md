@@ -7,7 +7,7 @@ Version string in the app: **Playtest 1 · A rules · 9 Nov 2026**. Do not chang
 - 3 starting Juniors. 1 free workstation (desk); desks 2-4 cost 2G each, 5th 3G, 6th 4G (max 6). Bought desks stay for the phase and reset when a new phase starts (R4, R9, R12).
 - Income 7 Gold a round at every player count.
 - Systems print their real VP on the card (3 or 6). No synergy scoring.
-- Instant builds (config toggle `instantBuild`, on): a system works the moment it is built, no build time and no crew locked. Crunch (2G or tire a worker) now adds +2 Progress to that build. R&D gives 2 skills of your choice. Set `instantBuild` to 0 in Data Studio for the old 1-3 round builds.
+- Instant builds (config toggle `instantBuild`, on): a system works the moment it is built, no build time and no crew locked. There is no Crunch. R&D gives 2 skills of your choice. Set `instantBuild` to 0 in Data Studio for the old 1-3 round builds.
 - Team Event: 3G, two workers, -3 Burnout.
 - Launch board: Party (merged Press/Platform/Ship), Launch Crew, Keynote, Convert, plus the usual Perks. Polish: Contract and Playtest 1 removed, Plan 1 and Test 2 narrowed.
 - Score band used for balance work: winners 33-63 VP.
@@ -27,7 +27,7 @@ If Data Studio tuning was ever published to Live from the master account, it ove
 6. Talent and Outsource: are they must-take first picks?
 7. Are the merged Launch tiles too narrow in round 12?
 8. Do players chase objectives on purpose (bots do not)?
-9. Instant builds: do players crunch for the +2 Progress, and is R&D (2 free skills) now a must-take tile?
+9. Instant builds: is R&D (2 free skills) now a must-take tile?
 10. Where in the tutorial do people stop reading, and which step do they get stuck on?
 
 Game logs and analytics are posted per game; the owner reads them in the admin view.

@@ -213,7 +213,7 @@ function buildScore(S, p, d) {
 // normal builds finish two rounds later; rush when the clock is short (or the Gold is plentiful)
 function bcrunch(S, p, d, free) {
   if (p.rd && S.cfg.rdCrunch) return undefined;
-  if (S.cfg.instantBuild) { const cg0 = S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold, bg0 = free ? 0 : E.buildGold(S, d, p); return p.gold - bg0 - cg0 >= W.crunchGold * 0.5 ? "gold" : undefined; } // crunch = bonus Progress: only with spare Gold
+  if (S.cfg.instantBuild) return undefined;
   const need = S.round + (S.cfg.buildDelay || 2) > 12, late = S.round >= W.crunchRound, rich = p.gold >= W.crunchGold;
   if (!(need || late || rich)) return undefined;
   const cg = S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold, bg = free ? 0 : E.buildGold(S, d, p);

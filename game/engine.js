@@ -842,7 +842,7 @@ E.buildRounds = function (S, p, crunch, def) { if (S.cfg.instantBuild) return 0;
 E.buildDelay = function (S, p, crunch, def) { return S.cfg.instantBuild ? 0 : 1 + E.buildRounds(S, p, crunch, def); };
 let FATMAX = 2;
 E.crunchWorker = function (p) { const c = p.workers.filter(w => w.fat < FATMAX).sort((x, y) => x.fat - y.fat || x.id - y.id); return c[0] || null; };
-E.canBuild = function (S, pi, name, free, crunch) {
+E.canBuild = function (S, pi, name, free, crunch) { if (S.cfg.instantBuild) crunch = undefined;
   const p = P(S, pi), def = sysDef(S, name); if (!def) return { ok: false, reason: "Unknown tile" };
   const nb = p.building || [];
   {
@@ -865,7 +865,7 @@ E.canBuild = function (S, pi, name, free, crunch) {
   if (bg && p.gold < bg) return { ok: false, reason: "Needs " + bg + " Gold" };
   return { ok: true };
 };
-function doBuild(S, pi, name, useFree, crunchIn, crewPick, crunchWho) {
+function doBuild(S, pi, name, useFree, crunchIn, crewPick, crunchWho) { if (S.cfg.instantBuild) crunchIn = undefined;
   const p = P(S, pi); const free = !!useFree && p.freeBuilds > 0;
   const crunch = crunchIn === "gold" || crunchIn === "fat" ? crunchIn : null;
   const chk = E.canBuild(S, pi, name, free, crunch); if (!chk.ok) return err(chk.reason);
@@ -882,7 +882,6 @@ function doBuild(S, pi, name, useFree, crunchIn, crewPick, crunchWho) {
     crewIds.forEach(id => { p.workers.find(q => q.id === id).build = name; });
     if (crunch === "gold" && !rdFree(S, p)) { const cg = S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold; gain(S, pi, "gold", -cg); p.rs.spent += cg; }
     else if (crunch === "fat" && !rdFree(S, p)) { const cw = (crunchWho != null && p.workers.find(q => q.id === +crunchWho && q.fat < (S.cfg.fatMax||2))) || E.crunchWorker(p); cw.fat = Math.min(S.cfg.fatMax||2, cw.fat + 1); log(S, p.name + " crunches: " + cw.lvl + " " + dn(cw.disc) + " is more tired"); }
-    if (S.cfg.instantBuild && crunch) { const cp = S.cfg.crunchProgress == null ? 2 : S.cfg.crunchProgress; gain(S, pi, "prod", cp); log(S, p.name + " crunches " + name + ": +" + cp + " Progress"); }
     p.building.push({ name, cat: def.cat, rdy: S.round + d, rush, crew: crewIds }); p.rs.crunched = (p.rs.crunched || 0) + (rush ? 1 : 0); if (rush) p.cs.crunched = (p.cs.crunched || 0) + 1;
     log(S, p.name + (S.cfg.instantBuild ? " builds " : " starts building ") + name + " (" + def.cat + ")" + (S.cfg.instantBuild ? "" : ", ready in round " + (S.round + d)) + (crewIds.length ? " (crew: " + crewIds.map(id => { const q = p.workers.find(z => z.id === id); return q.lvl + " " + q.disc; }).join(", ") + ")" : "") + (rush ? " (crunched)" : "") + (free ? " FREE" : ""));
     if (S.cfg.instantBuild) completeBuilds(S);

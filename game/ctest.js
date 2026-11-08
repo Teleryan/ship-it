@@ -125,11 +125,8 @@ const mkBuild = (seed, round, inst) => { const T = mk(seed); T.cfg.instantBuild 
   const r = E.act(T, { type: 'build', p: pi, name: 'Version Control' });
   ok(r.ok && q.systems.some(s => s.name === 'Version Control') && q.building.length === 0, 'instant: system joins the studio at once');
   ok(!q.workers.some(w => w.build), 'instant: no crew is locked'); ok(q.prod === p1, 'instant: no crunch, no bonus Progress'); }
-{ const { T, pi, q } = mkBuild(6, 4, true); const g1 = q.gold, p1 = q.prod, base = E.buildCost(T, q, VC(), false).gold;
-  const r = E.act(T, { type: 'build', p: pi, name: 'Version Control', crunch: 'gold' });
-  ok(r.ok && q.prod === p1 + T.cfg.crunchProgress && q.gold === g1 - base - T.cfg.crunchGold, 'instant: crunch with Gold = +' + T.cfg.crunchProgress + ' Progress for ' + T.cfg.crunchGold + 'G'); }
-{ const { T, pi, q } = mkBuild(6, 4, true); const r = E.act(T, { type: 'build', p: pi, name: 'Version Control', crunch: 'fat' });
-  ok(r.ok && q.workers.some(w => w.fat > 0) && q.prod >= 0, 'instant: crunch by tiring a worker still tires one'); }
+{ const { T, pi, q } = mkBuild(6, 4, true); const g1 = q.gold, base = E.buildCost(T, q, VC(), false).gold; const r = E.act(T, { type: 'build', p: pi, name: 'Version Control', crunch: 'gold' });
+  ok(r.ok && q.gold === g1 - base && q.systems.length === 1, 'instant: a crunch request is ignored (no fee, no bonus)'); }
 { const { T, pi, q } = mkBuild(7, 12, true); ok(E.canBuild(T, pi, 'Version Control').ok, 'instant: building is allowed in the last round'); }
 { const { T, pi, q } = mkBuild(6, 4, true); q.rd = true; ok(E.buildDelay(T, q, undefined, VC()) === 0 && !E.rdFree(T, q), 'instant: R&D no longer rushes builds'); }
 { const T = mk(31, 2); T.cfg.instantBuild = 1; toStep(T, 'place', 3); const pi = E.currentActor(T), q = T.players[pi];
