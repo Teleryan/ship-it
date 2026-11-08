@@ -22,6 +22,7 @@ const onCol = hex => { const m = /^#?([0-9a-f]{6})$/i.exec(hex || ""); if (!m) r
 const fill = hex => `background:${hex};color:${onCol(hex)}`;
 const dcat = d => D.disciplines[d] ? D.disciplines[d].cat : "";
 const FAT = ["Fresh", "Tired", "Exhausted"];
+const FAT_TIP = ["Fresh: ready to work with no penalty.", "Tired: worked recently. Can work again, but then becomes Exhausted.", "Exhausted: placing this worker earns no skill and adds Burnout. Let them rest."];
 const nameOf = t => { const k = String(t).toUpperCase(); return D.disciplines[k] ? D.disciplines[k].name : t; };
 const fmtTrig = t => String(t).replace(/^(\d+)\s+(\S+)$/, (m, n, k) => n + " " + nameOf(k));
 const RC = { ideas: "var(--ideas)", code: "var(--code)", process: "var(--process)", buzz: "var(--buzz)" };
@@ -64,11 +65,14 @@ const crewChips = spot => (spot.crew || []).map(alt => alt.map(c => `<span class
 const fmtBuild = s => { const p = String(s).split("+"); const m = p[0].match(/^(\d+)([MG])$/); if (!m) return s; let head; if (m[2] === "M") { const need = E.buildNeed(E.parseBuild(s)), tot = E.RES.reduce((t, k) => t + need[k], 0), gp = U.S && U.S.cfg.sysGoldMult ? Math.round(tot * U.S.cfg.sysGoldMult) : 0; head = E.resText(need) + (gp ? " + " + gp + " Gold" : ""); } else head = m[1] + "G"; return head + (p.length > 1 ? " · needs " + p.slice(1).map(nameOf).join(" and ") + " workers" : ""); };
 const chip = (d, extra) => `<span class="chip" style="${fill(dcol(d))}" title="${esc(D.disciplines[d] ? D.disciplines[d].name : d)}">${esc(D.disciplines[d] ? D.disciplines[d].name : d)}${extra || ""}</span>`;
 const symTag = x => { const k = x.res || (x.build ? E.sysMainRes(x) : null); return k ? ic(k) : ""; };
+// player / phase / category colours are used as text on dark panels: lighten them so the text passes 4.5:1 (the swatches and fills keep the pure colour)
+const lite = c => `color-mix(in srgb, ${c} 58%, #fff)`;
 const catColor = { Innovation: "#e67e22", Stability: "#c0392b", Reach: "#e91e63", Revenue: "#f5c542" };
 const P = i => U.S.players[i];
 
 /* ---------- plumbing ---------- */
-function toast(m, ms) { U.toast = m; render(); clearTimeout(U.toastT); U.toastT = setTimeout(() => { U.toast = null; render(); }, ms || 2600); }
+// kind: "" = a refusal or error (red), "info" = a notice (blue), "undo" = a notice with an Undo button (a costly action was just taken)
+function toast(m, ms, kind) { U.toast = m; U.toastKind = kind || ""; render(); clearTimeout(U.toastT); U.toastT = setTimeout(() => { U.toast = null; render(); }, ms || 2600); }
 // Tell every player when someone else takes a worker from the shared Recruitment pool (a bot, or another seat online)
 let noticeSeen = 0;
 function noteNotices() { // a player was turned into "done placing" because no tile fits their remaining workers
@@ -76,7 +80,7 @@ function noteNotices() { // a player was turned into "done placing" because no t
   const ns = S.notices || []; if (noticeSeen > ns.length) noticeSeen = 0;
   const fresh = ns.slice(noticeSeen); noticeSeen = ns.length;
   const mine = fresh.filter(n => U.net ? U.net.mine.includes(n.p) : !S.players[n.p].bot);
-  if (mine.length) setTimeout(() => toast(mine[mine.length - 1].t + ".", 7000), 0);
+  if (mine.length) setTimeout(() => toast(mine[mine.length - 1].t + ".", 7000, "info"), 0);
 }
 function noteRecruits() {
   const S = U.S; if (!S || !S.recruit || U.tut || U.screen !== "game") return;
@@ -87,11 +91,11 @@ function noteRecruits() {
     const q = S.players[o.by]; if (!q || (U.net ? U.net.mine.includes(o.by) : !q.bot)) return; // you already know about your own recruit
     msgs.push(q.name + " recruited a " + nameOf(o.disc) + " from the pool (" + S.recruit.filter(x => x.by == null).length + " left)");
   });
-  if (msgs.length) setTimeout(() => toast(msgs.join(" · "), 5000), 0);
+  if (msgs.length) setTimeout(() => toast(msgs.join(" · "), 5000, "info"), 0);
 }
 function snapshot() { try { return JSON.stringify(U.S, (k, v) => k === "data" ? undefined : v); } catch (e) { return null; } }
 function restore(js) { const data = U.S.data; const S = JSON.parse(js); S.data = data; U.S = S; }
-function save() { try { root.localStorage.setItem("shipit.save.v1", JSON.stringify(U.S)); toast("Game saved in this browser"); U.toast = null; } catch (e) { toast("Could not save"); } }
+function save() { try { root.localStorage.setItem("shipit.save.v1", JSON.stringify(U.S)); toast("Game saved in this browser", 2600, "info"); U.toast = null; } catch (e) { toast("Could not save"); } }
 function loadSave() { try { const j = root.localStorage.getItem("shipit.save.v1"); if (!j) return false; U.S = JSON.parse(j); U.tut = null; U.screen = "game"; U.undo = []; U.sel = null; return true; } catch (e) { return false; } }
 /* autosave: reloading or tabbing away must never drop you out of a game in progress */
 const AUTO_KEY = "shipit.auto.v1";
@@ -101,7 +105,8 @@ function autosave() {
   U.autoT = setTimeout(() => { try { if (U.screen === "game" && U.S) root.localStorage.setItem(AUTO_KEY, JSON.stringify({ S: U.S, tut: U.tut })); } catch (e) {} }, 250);
 }
 function clearAuto() { clearTimeout(U.autoT); try { root.localStorage.removeItem(AUTO_KEY); } catch (e) {} }
-function loadAuto() { try { const j = root.localStorage.getItem(AUTO_KEY); if (!j) return false; const o = JSON.parse(j); if (!o || !o.S) return false; U.S = o.S; U.tut = o.tut || null; U.screen = "game"; U.undo = []; U.sel = null; U.detail = null; return true; } catch (e) { return false; } }
+function loadAuto() { try { const j = root.localStorage.getItem(AUTO_KEY); if (!j) return false; const o = JSON.parse(j); if (!o || !o.S || (o.tut && o.tut.ver !== SI.TUT_VER)) return false; U.S = o.S; U.tut = o.tut || null; U.screen = "game"; U.undo = []; U.sel = null; U.detail = null; return true; } catch (e) { return false; } }
+function hasAuto() { try { const o = JSON.parse(root.localStorage.getItem(AUTO_KEY) || "null"); return !!(o && o.S && !o.S.over && (!o.tut || o.tut.ver === SI.TUT_VER)); } catch (e) { return false; } }
 function hasSave() { try { return !!root.localStorage.getItem("shipit.save.v1"); } catch (e) { return false; } }
 
 function act(a) {
@@ -110,13 +115,22 @@ function act(a) {
   if (U.net && !U.net.mine.includes(actor)) { const w = actor >= 0 ? S.players[actor].name : "another player"; toast("Waiting for " + w); return { ok: false, error: "Not your seat" }; }
   const snap = (!U.net && actor >= 0 && !S.players[actor].bot) ? snapshot() : null;
   const s0 = S.seed;
+  // costly, easy-to-misclick actions get an Undo toast (not in the guided tutorial, which scripts them)
+  let undoMsg = "";
+  if (snap && !U.tut) {
+    if (a.type === "buyws") undoMsg = "Workstation bought for " + E.wsCost(S, actor) + "G";
+    else if (a.type === "recruit" && S.recruit && S.recruit[a.idx]) undoMsg = "Recruited a " + nameOf(S.recruit[a.idx].disc) + " for " + E.recruitCost(S, actor) + "G";
+    else if (a.type === "train") undoMsg = "Training started (" + S.cfg.trainCost + "G)";
+  }
   const r = E.act(S, a);
   if (!r.ok) { toast(r.error || "Not allowed"); return r; }
   if (U.net) { netSend(a, s0); if (S.over && U.net.host) N2().send({ t: "over" }); }
   if (snap) { U.undo.push(snap); if (U.undo.length > 25) U.undo.shift(); }
   U.sel = null; U.pop = null; U.detail = null;
   if (U.cover != null && !(S.dq[0] && S.dq[0].p === U.cover)) U.cover = null;
-  render(); scheduleBots(); return r;
+  render(); scheduleBots();
+  if (undoMsg) toast(undoMsg + ".", 6500, "undo");
+  return r;
 }
 SI.act = act;
 function scheduleBots() {
@@ -191,16 +205,20 @@ function gsChange(t) { // returns true when handled
   render(); return true;
 }
 /* ---------- menu ---------- */
+const skillNames = () => root.ShipItBot ? root.ShipItBot.profileNames : [["", "Standard"]];
+const skillInfo = id => (root.ShipItBot && root.ShipItBot.profileInfo && root.ShipItBot.profileInfo[id || ""]) || "";
+const skillSelect = (attr, cur, title) => `<select ${attr} ${title ? `title="${title}" aria-label="${title}"` : ""}>${skillNames().map(o => `<option value="${o[0]}" ${(cur || "") === o[0] ? "selected" : ""}>${o[1]}</option>`).join("")}</select>`;
 function menuView() {
   const n = U.seats.length;
   if (!U.seatInit) { U.seatInit = 1; const sv = myName(); if (sv !== "Player") { const f = U.seats.find(s => !s.bot); if (f && /^Player \d$/.test(f.name)) f.name = sv; } }
   return `<div class="center-screen"><div class="card-box">
   <div class="logo">SHIP <b>IT!</b></div><p class="mute" style="margin:6px 0 16px">12 rounds · 4 phases · ${D.version}</p>
-  <div class="row"><label class="mute">Bot skill</label><select data-botskill>${(root.ShipItBot ? root.ShipItBot.profileNames : [["", "Standard"]]).map(o => `<option value="${o[0]}" ${(U.botSkill || "") === o[0] ? "selected" : ""}>${o[1]}</option>`).join("")}</select> <label class="mute" style="margin-left:10px">Players</label><select data-seatn>${[2,3,4,5].map(k => `<option ${k === n ? "selected" : ""}>${k}</option>`).join("")}</select></div>
+  <div class="row wrap menurow"><label class="mute" for="botskill">Bot skill <span class="dim">(all bots)</span></label>${skillSelect('id="botskill" data-botskill', U.botSkill || "")} <label class="mute" for="seatn" style="margin-left:10px">Players</label><select id="seatn" data-seatn>${[2,3,4,5].map(k => `<option ${k === n ? "selected" : ""}>${k}</option>`).join("")}</select></div>
+  <div class="skilldesc" id="skilldesc">${esc(skillInfo(U.botSkill || ""))}</div>
   ${gatePanel()}
   <div class="mute" style="margin-top:10px;font-size:12px">Who is playing? Type your name, and set each seat to Human or Bot.</div>
   <div style="margin:10px 0">${U.seats.map((s, i) => `<div class="seat"><span class="dot" style="background:${["#e74c3c","#3498db","#27ae60","#f39c12","#9b59b6","#16a085"][i]}"></span><input data-seatname="${i}" value="${esc(s.name)}" placeholder="${s.bot ? "Bot name" : "Your name"}" maxlength="20"><select data-seatbot="${i}"><option value="0" ${!s.bot ? "selected" : ""}>Human</option><option value="1" ${s.bot ? "selected" : ""}>Bot</option></select></div>`).join("")}</div>
-  <div class="row wrap"><button class="btn primary" data-act="tutorial">Learn to play</button><button class="btn" data-act="start">Start new game</button>${hasSave() ? '<button class="btn" data-act="resume">Resume saved game</button>' : ""}${U.owner ? '<button class="btn" data-act="studio">Data Studio</button><button class="btn" data-act="master">Master</button>' : ""}</div>
+  <div class="row wrap menubtns"><button class="btn primary" data-act="tutorial">Learn to play <span class="rsub">guided game, about 15 min</span></button><button class="btn" data-act="start">Start new game</button>${hasAuto() ? '<button class="btn" data-act="continue">Continue where you left off</button>' : ""}${hasSave() ? '<button class="btn" data-act="resume">Resume saved game</button>' : ""}${U.owner ? '<button class="btn" data-act="studio">Data Studio</button><button class="btn" data-act="master">Master</button>' : ""}</div>
   ${U.hosted ? `<div style="margin:16px 0 0;padding:12px;border:1px solid var(--line,#2b3350);border-radius:10px"><div class="mute" style="margin-bottom:8px">Play online with friends on their own devices</div>
   <div class="row wrap"><input data-pname value="${esc(myName() === "Player" ? "" : myName())}" placeholder="Your name" maxlength="20" style="width:140px"><button class="btn primary" data-act="online-create">Create online game</button><input data-jcode placeholder="CODE" maxlength="4" style="width:80px;text-transform:uppercase;letter-spacing:.2em"><button class="btn" data-act="online-join">Join</button></div>
   ${U.joinErr ? `<p style="color:var(--bad);margin:8px 0 0">${esc(U.joinErr)}</p>` : ""}</div>` : ""}
@@ -218,14 +236,20 @@ function stepTracker(S) { // Phase start: Crisis, Reveal. Each round: Upkeep (no
   return `<div class="stepgroup sg-phase" data-tut="steps"><span class="lab">Phase start</span>${pg.map((s, i) => `<span data-step="${s}" class="step ${inP ? (i === 0 ? "on" : "") : "done"}">${s}</span>`).join("")}</div>
   <div class="stepgroup sg-round" data-tut="steps"><span class="lab">Round</span>${rg.map((s, i) => `<span data-step="${s}" class="step ${i === 0 && S.round === 1 ? "" : !inP ? (i === idxR ? "on" : i < idxR ? "done" : "") : ""}" ${i === 0 && S.round === 1 ? 'title="No Upkeep in round 1" style="opacity:.35;text-decoration:line-through"' : ""}>${s}</span>`).join("")}</div>`;
 }
+// a 12-segment rail: which round it is and where the phases change
+function railHtml(S) {
+  const pe = S.cfg.phaseEnds || [3, 8, 11, 12], phOf = r => { const k = pe.findIndex(e => r <= e); return PH[k < 0 ? PH.length - 1 : k]; };
+  return `<span class="rail" role="img" aria-label="Round ${S.round} of 12, ${esc(PH[S.phase].name)}">${Array.from({ length: 12 }, (_, i) => { const r = i + 1, ph = phOf(r); return `<i class="${r < S.round ? "d" : r === S.round ? "n" : ""}" style="--c:${ph.color}" title="Round ${r} · ${esc(ph.name)}"></i>`; }).join("")}</span>`;
+}
+const STEP_NAME = { setup: "Phase start", crisis: "Crisis", place: "Place", rest: "Manage" };
 function topbar(S) {
   const ph = PH[S.phase];
   return `<div class="top"><div class="logo" style="font-size:22px">SHIP <b>IT!</b></div>
-  <span class="phasepill" style="background:${ph.color}">${ph.name.toUpperCase()}</span><b>Round ${S.round}/12</b>${stepTracker(S)}
+  <span class="phasepill" style="background:${ph.color}">${ph.name.toUpperCase()}</span><b class="rn">Round ${S.round}/12</b>${railHtml(S)}${stepTracker(S)}
   <div class="grow"></div>
-  ${U.net ? `<span class="mute" title="Game code">${U.net.up ? "●" : "○ reconnecting"} Game ${esc(U.net.code)}</span>` : U.tut ? "" : `<button class="btn sm" data-act="undo" ${U.undo.length ? "" : "disabled"}>↶ Undo</button>`}
-  <button class="btn sm" data-act="rules">Rules</button><button class="btn sm" data-act="milesref">Milestones</button><button class="btn sm" data-act="scoreref">Score</button><button class="btn sm" data-act="log">Log</button>${U.net ? "" : '<button class="btn sm" data-act="save">Save</button>'}
-  ${U.owner ? '<button class="btn sm" data-act="studio">Data Studio</button><button class="btn sm" data-act="master">Master</button>' : ""}${U.tut || (S && S.over) || (U.net && !U.net.host) ? "" : '<button class="btn sm danger" data-act="endgame">End game</button>'}<button class="btn sm" data-act="${U.net ? "menu" : "gamemenu"}">${U.net ? "Leave" : "Menu"}</button></div>`;
+  ${U.net ? `<span class="mute" title="Game code">${U.net.up ? "●" : "○ reconnecting"} Game ${esc(U.net.code)}</span>` : U.tut ? "" : `<button class="btn sm" data-act="undo" ${U.undo.length ? "" : "disabled"} title="${U.undo.length ? "Take back your last action" : "Nothing to undo yet"}">↶ Undo</button>`}
+  <button class="btn sm" data-act="rules">Rules</button><button class="btn sm sec" data-act="milesref">Milestones</button><button class="btn sm" data-act="scoreref">Score</button><button class="btn sm sec" data-act="log">Log</button>${U.net ? "" : '<button class="btn sm sec" data-act="save">Save</button>'}
+  ${U.owner ? '<button class="btn sm sec" data-act="studio">Data Studio</button><button class="btn sm sec" data-act="master">Master</button>' : ""}${U.tut || (S && S.over) || (U.net && !U.net.host) ? "" : '<button class="btn sm danger sec" data-act="endgame">End game</button>'}<button class="btn sm" data-act="${U.net ? "menu" : "gamemenu"}">${U.net ? "Leave" : "Menu"}</button></div>`;
 }
 function prompt(S) {
   const d = S.dq[0]; const a = actorName(S);
@@ -233,13 +257,34 @@ function prompt(S) {
   if (d) return { keepObj: "choose your objectives", bid: "secret auction bid", choose: "make a crisis choice", pickWorker: "choose a worker to lose", raidHire: "Studio Raid: hire at half cost?", pivot: "pivot your Platform", dropObj: "remove an objective", keepMile: "choose milestone(s) to keep", swapObjPick: "choose objective", patch: "Day-One Patch: spend Momentum" }[d.t] || "decide";
   return { place: "select a worker, then a highlighted tile (or Pass)", rest: "manage: build systems, cash in milestones, train or promote, then Done" }[S.step] || "";
 }
+// what the person whose turn it is should do right now, in one sentence
+function hintFor(S, a) {
+  if (S.dq.length) return prompt(S);
+  if (S.step === "rest") return "Manage: build systems, cash in Milestones, train or promote, then press Done.";
+  if (S.step !== "place") return prompt(S);
+  const free = a.workers.filter(w => !w.placed && !w.build && !w.benched), tot = a.ws == null ? Math.min(S.cfg.wsMax, S.cfg.wsFree) : a.ws, left = Math.max(0, tot - (a.wsUsed || 0));
+  const sw = U.sel != null ? a.workers.find(w => w.id === U.sel) : null;
+  if (sw) return "Now tap a green tile for your " + dname(sw.disc) + ". Tap the worker again to cancel.";
+  if (!free.length) return "All your workers are placed. Press Pass to finish.";
+  if (left <= 0) { const bw = S.cfg.wsMax ? E.canBuyWs(S, a.id) : { ok: false }; return "No free workstation. " + (bw.ok ? "Buy one for " + E.wsCost(S, a.id) + "G, or press Pass." : (bw.reason ? bw.reason + ". " : "") + "Press Pass to finish."); }
+  return "Pick a worker, then a green tile. " + free.length + " worker" + (free.length === 1 ? "" : "s") + " left · " + left + " workstation" + (left === 1 ? "" : "s") + " free.";
+}
 function banner(S) {
-  const a = actorName(S);
+  const a = actorName(S), ai = E.currentActor(S);
   if (S.over) return `<div class="turnbanner"><div class="who">Game over</div><button class="btn primary" data-act="results">View results</button></div>`;
-  const col = a ? a.color : "#556";
-  return `<div class="turnbanner" style="border-left:6px solid ${col}"><div><div class="mute kick">${a && a.bot ? "Bot thinking" : "Your turn"}</div><div class="who" style="color:${col}">${a ? esc(a.name) : "…"}</div></div><div class="grow prompt">${esc(prompt(S))}</div>
-  ${S.step === "place" && a && !a.bot ? '<button class="btn" data-tut="pass" data-act="pass">Pass (done placing)</button>' : ""}
-  ${S.step === "rest" && a && !a.bot && !S.dq.length ? `<button class="btn primary" data-act="done">Done</button>` : ""}</div>`;
+  const col = a ? a.color : "#556", mineTurn = !!a && !a.bot && (!U.net || U.net.mine.includes(ai));
+  const where = `${esc(PH[S.phase].name)} · Round ${S.round}/12 · ${esc(STEP_NAME[S.step] || "")}`;
+  // the last few things that happened this round (a short event feed, so a bot's move is never invisible)
+  const evs = (S.log || []).filter(l => l.r === S.round && !/^(---|TURN ORDER|INCOME|RECRUITMENT|UPKEEP|MANAGE|PLACE|===)/.test(l.m)).slice(-3);
+  const evHtml = evs.length ? `<div class="ev">${evs.map(l => `<div>${esc(l.m)}</div>`).join("")}</div>` : "";
+  const humans = S.players.filter(p => !p.bot).length;
+  let kick, prm, cls;
+  if (mineTurn) { kick = humans > 1 ? "Your turn" : "Your turn"; prm = hintFor(S, a); cls = "mine"; }
+  else if (a && a.bot) { kick = "Waiting for"; prm = S.step === "place" || S.step === "rest" ? "A bot is choosing. You play when it finishes." : "A bot is deciding."; cls = "wait"; }
+  else { kick = "Waiting for"; prm = U.net ? "It will be your turn after theirs." : "Waiting."; cls = "wait"; }
+  return `<div class="turnbanner ${cls}" style="border-left:6px solid ${col}" role="status" aria-live="polite"><div><div class="kick">${kick}</div><div class="who"><span class="dot" style="background:${col};display:inline-block;margin-right:6px;vertical-align:-1px"></span>${a ? esc(a.name) : "…"}${cls === "wait" ? '<span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>' : ""}</div></div><div class="grow prompt">${esc(prm)}<div class="where">${where}</div>${evHtml}</div>
+  ${S.step === "place" && mineTurn && !S.dq.length ? '<button class="btn" data-tut="pass" data-act="pass" title="End your placing for this round. Workers you did not place rest and recover.">Pass: done placing</button>' : ""}
+  ${S.step === "rest" && mineTurn && !S.dq.length ? `<button class="btn primary" data-tut="done" data-act="done" title="End your Manage step">Done</button>` : ""}</div>`;
 }
 // which skill an earn spot pays: the worker's own role decides, so a spot whose roles share one category pays that skill; mixed spots show each possible icon
 function earnHtml(spot) {
@@ -265,10 +310,12 @@ function spotTile(S, spot, view) {
     ${S.phase !== 3 && ["EARN", "PROGRESS", "HYPE", "CREW"].includes(spot.row) ? (mode ? `<div class="kind">${mode}</div>` : "") : `<div class="kind">${esc(spot.row)} ${mode ? "· " + mode : ""}</div>`}
     <div class="dc">${spot.crew ? crewChips(spot) : spot.discs.map(d => d === "ANY" ? '<span class="chip" style="background:#667">ANY</span>' : chip(d)).join("")}${spot.srOnly ? '<span class="chip" style="background:#a33">Sr</span>' : ""}</div>
     <div class="fx">${fxh}</div>${spot.cost ? `<div class="note">${(spot.cost.res ? "Pay " + spot.cost.res + " skills" : "Pay " + spot.cost.gold + "G") + (JSON.stringify(spot.crew || []).includes("Any") ? " · 2 workers, different roles" : "")}</div>` : ""}
-    ${cls.includes(" no") && reason ? `<div class="why">${esc(reason)}</div>` : ""}<div class="occ">${occ.map(i => `<i style="${fill(P(i).color)}" title="${esc(P(i).name)}">${i + 1}</i>`).join("")}</div>${S.closed && S.closed[spot.id] ? `<div class="why" style="display:block">Closed this round (Industry News)</div>` : ""}</button>`;
+    ${cls.includes(" no") && reason ? `<div class="why">${esc(reason)}</div>` : cls.includes(" taken") && !S.closed[spot.id] && occ.length ? `<div class="why taken">Taken by ${occ.map(i => esc(P(i).name)).join(", ")}</div>` : ""}<div class="occ">${occ.map(i => `<i style="${fill(P(i).color)}" title="${esc(P(i).name)}">${i + 1}</i>`).join("")}</div>${S.closed && S.closed[spot.id] ? `<div class="why" style="display:block">Closed this round (Industry News)</div>` : ""}</button>`;
 }
 function recruitPanel(S) {
   if (!S.recruit || S.step !== "place" || S.phase === 3) return "";
+  const minR = S.cfg.recruitMinRound || 2;
+  if (S.round < minR) return `<div class="panel compact" data-tut="recruit"><h3>Recruitment</h3><p class="hint">Opens in round ${minR}: a shared pool of new Juniors you can pay to join your studio.</p></div>`;
   const a = E.currentActor(S), me = a >= 0 && !S.players[a].bot && S.step === "place" && !S.dq.length;
   const tiles = S.recruit.map((o, i) => {
     const ck = me ? E.canRecruit(S, a, i) : { ok: false, reason: "" };
@@ -287,15 +334,15 @@ function boardView(S) {
   const SIDE = ["team", "insight", "outsource", "workshop", "mentor", "crunch", "fundraise"]; const isSide = s => s.mode === "shared" || SIDE.includes(s.id) || (s.id === "talent1" || s.id === "rd"); const main = spots.filter(s => !isSide(s)); const shared = spots.filter(isSide);
   const rows = []; main.forEach(s => { let r = rows.find(x => x.name === s.row && !(S.phase === 3)); if (!r) { r = { name: s.row, items: [] }; rows.push(r); } r.items.push(s); }); { const ORD = ["EARN", "PROGRESS", "HYPE", "CREW"]; rows.sort((a, b) => (ORD.indexOf(a.name) < 0 ? 9 : ORD.indexOf(a.name)) - (ORD.indexOf(b.name) < 0 ? 9 : ORD.indexOf(b.name))); }
   const launch = S.phase === 3;
-  return `<div class="panel"><h3><span style="color:${ph.color}">Main board: ${ph.name}</span><span class="mute" style="text-transform:none;letter-spacing:0"></span></h3>
-  <div class="board" data-tut="board"><div class="rows">${launch ? `<div class="spots">${main.map(s => spotTile(S, s)).join("")}</div>` : rows.map(r => `<div class="brow" data-row="${esc(r.name)}"><div class="lab" style="color:${ph.color}">${esc(rowTitle(S, r.name))}</div><div class="spots">${r.items.map(s => spotTile(S, s)).join("")}</div></div>`).join("")}
+  return `<div class="panel"><h3><span style="color:${lite(ph.color)}">Main board: ${ph.name}</span><span class="mute" style="text-transform:none;letter-spacing:0"></span></h3>
+  <div class="board" data-tut="board"><div class="rows">${launch ? `<div class="spots">${main.map(s => spotTile(S, s)).join("")}</div>` : rows.map(r => `<div class="brow" data-row="${esc(r.name)}"><div class="lab" style="color:${lite(ph.color)}">${esc(rowTitle(S, r.name))}</div><div class="spots">${r.items.map(s => spotTile(S, s)).join("")}</div></div>`).join("")}
   ${launch ? launchThresholds(S) : ""}</div>
   <div class="shared col"><div class="mute" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase">${esc(rowTitle(S, "UTILITY"))}</div>${shared.map(s => spotTile(S, s)).join("")}</div></div><div class="boardrefs"><div class="boardref wcost"><div class="wt">Worker cost</div><div><b>Junior</b> recruited for ${ic("gold")}<b>${S.cfg.recruitCost}+</b> · salary ${ic("gold")}<b>${S.cfg.salaryJr}</b> per round · earns <b>+${S.cfg.resJr}</b> of the tile’s skill</div><div><b>Senior</b> promoted free · salary ${ic("gold")}<b>${S.cfg.salarySr}</b> per round · earns <b>+${S.cfg.resSr}</b> of the tile’s skill</div></div><div class="boardref r"><div class="key">${iconKey()}</div></div></div></div>`;
 }
 function raceRules(S) {
   const c = S.cfg, N = S.players.length, tab = E.rankTable(c, N), ord = ["1st", "2nd", "3rd", "4th", "5th", "6th"];
   const lossT = mx => { const t = []; for (let k = 0; k < N; k++) t.push(N > 1 ? Math.round(mx * (N - 1 - k) / (N - 1)) : 0); return t; };
-  const box = (title, body, col) => `<div class="pt" style="border-color:${col};flex:1;min-width:150px"><b style="color:${col}">${title}</b><div class="mute">${body}</div></div>`;
+  const box = (title, body, col) => `<div class="pt" style="border-color:${col};flex:1;min-width:150px"><b style="color:${lite(col)}">${title}</b><div class="mute">${body}</div></div>`;
   return `<div class="row wrap" style="margin-top:8px;gap:6px">${box("PROGRESS RACE", "1 VP for every " + c.raceDen + " Progress", "#3498db")}${box("HYPE RACE (Hype + Wishlists)", "1 VP for every " + c.raceDen + " Hype", "#e67e22")}${box("DEBT (most loses most)", lossT(c.debtLossByN && c.debtLossByN[N] != null ? c.debtLossByN[N] : c.debtLossMax).map((v, i) => (i === N - 1 ? "least" : ord[i] + " most") + " −" + v).join(" · ").replace(/−0/g, "0"), "#c0392b")}${box("BURNOUT (high costs VP)", Object.keys(c.burnVP || {}).filter(k => (c.burnVP[k] || 0) < 0).map(k => k + ": −" + Math.abs(c.burnVP[k])).join(" · ") || "no cost", "#27ae60")}</div><div class="mute" style="font-size:12px;margin-top:4px">At the end of the game, ${c.mktgToHype === 1 ? "your Wishlists are added to your Hype" : "Wishlists add to Hype"} for the Hype race.</div>`;
 }
 const launchThresholds = S => raceRules(S);
@@ -312,7 +359,7 @@ function workerCard(S, w, vi, selectable) {
   const pick = !!selectable && S.step === "place" && !S.dq.length && !w.placed && !w.build && !w.benched;
   return `<div class="wk ${sel ? "sel" : ""} ${w.placed || w.build ? "placed" : ""} ${pick ? "pick" : ""}" ${pick ? `data-act="sel-worker" data-id="${w.id}" title="Click to ${sel ? "deselect" : "select"} for placing"` : `data-act="detail" data-k="worker" data-id="${w.id}" data-p="${vi}"`}>
    <div class="whd" style="${fill(dcol(w.disc))}">${esc(dcat(w.disc))}</div>
-   <div class="wbd"><div class="d">${esc(D.disciplines[w.disc].name)}</div>${w.as ? `<div class="as">acts as ${nameOf(w.as)}</div>` : ""}<div class="l ${w.lvl === "Sr" ? "sr" : ""}">${lvl}</div><div class="fat f${w.fat}" title="${FAT[w.fat]}"><i></i></div><div class="fl" title="${esc(w.benched ? "Away this round: " + w.benched : "")}">${w.build ? "Building" : w.benched ? "Away: " + w.benched : w.training ? "Training next round" : w.placed ? "Placed" : FAT[w.fat]}</div></div>${pick ? `<button class="wi" data-act="detail" data-k="worker" data-id="${w.id}" data-p="${vi}" aria-label="Worker details">Details</button>` : ""}${(() => { if (!selectable || w.lvl !== "Jr" || S.dq.length || (S.step !== "place" && S.step !== "rest")) return ""; const t = E.canTrain(S, vi, w); return t.ok ? `<button class="wi" data-act="train" data-w="${w.id}" style="right:auto;left:4px" title="Pay ${S.cfg.trainCost}G: this Junior sits out and moves toward promotion">Train \u00b7 ${S.cfg.trainCost}G</button>` : ""; })()}</div>`;
+   <div class="wbd"><div class="d">${esc(D.disciplines[w.disc].name)}</div>${w.as ? `<div class="as">acts as ${nameOf(w.as)}</div>` : ""}<div class="l ${w.lvl === "Sr" ? "sr" : ""}">${lvl}</div><div class="fat f${w.fat}" title="${FAT_TIP[w.fat]}"><i></i></div><div class="fl" title="${esc(w.benched ? "Away this round: " + w.benched : FAT_TIP[w.fat])}">${w.build ? "Building" : w.benched ? "Away: " + w.benched : w.training ? "Training next round" : w.placed ? "Placed" : FAT[w.fat]}</div></div>${pick ? `<button class="wi" data-act="detail" data-k="worker" data-id="${w.id}" data-p="${vi}" aria-label="Worker details">Details</button>` : ""}${(() => { if (!selectable || w.lvl !== "Jr" || S.dq.length || (S.step !== "place" && S.step !== "rest") || (U.tut && SI.tutHideTrain && SI.tutHideTrain())) return ""; const t = E.canTrain(S, vi, w); return t.ok ? `<button class="wi" data-act="train" data-w="${w.id}" style="right:auto;left:4px" title="Pay ${S.cfg.trainCost}G: this Junior sits out and moves toward promotion">Train \u00b7 ${S.cfg.trainCost}G</button>` : ""; })()}</div>`;
 }
 // the studio's workers sit above the main board so the worker you place is next to the tile you place it on
 function fatigueLine(S, p) {
@@ -330,20 +377,25 @@ function fatigueLine(S, p) {
 function workersPanel(S) {
   const vi = viewIndex(S); const p = P(vi); const a = E.currentActor(S); const mine = a === vi && !p.bot;
   const sel = mine && S.step === "place" && !S.dq.length;
-  return `<div class="panel"><h3><span style="color:${p.color}">${esc(p.name)}'s studio workers</span><span class="mute" style="text-transform:none;letter-spacing:0">${p.workers.length} workers</span></h3><div class="workers" data-tut="workers">${p.workers.length ? p.workers.map(w => workerCard(S, w, vi, sel && !w.placed)).join("") : '<span class="mute">No workers yet. Recruit from the shared pool.</span>'}</div>${sel || (S.step === "place" && mine) ? fatigueLine(S, p) : ""}</div>`;
+  return `<div class="panel"><h3><span style="color:${lite(p.color)}">${esc(p.name)}'s studio workers</span><span class="mute" style="text-transform:none;letter-spacing:0">${p.workers.length} workers</span></h3><div class="workers" data-tut="workers">${p.workers.length ? p.workers.map(w => workerCard(S, w, vi, sel && !w.placed)).join("") : '<span class="mute">No workers yet. Recruit from the shared pool.</span>'}</div>${sel || (S.step === "place" && mine) ? fatigueLine(S, p) : ""}${fatLegend(p)}</div>`;
+}
+// what the Tired / Exhausted badges mean, shown only while a worker actually has one
+function fatLegend(p) {
+  const tir = p.workers.some(w => w.fat === 1), exh = p.workers.some(w => w.fat >= 2); if (!tir && !exh) return "";
+  return `<div class="fatlegend">${tir ? '<span><b class="fatchip f1">Tired</b> worked recently: can work again, but then becomes Exhausted.</span>' : ""}${exh ? '<span><b class="fatchip f2">Exhausted</b> placing earns no skill and adds Burnout. Skip placing them to rest.</span>' : ""}</div>`;
 }
 // Workstations: each board tile (perks included) needs one; triggering your own systems does not
 function wsLine(S, p) {
   const a = E.currentActor(S), mine = a === p.id && !p.bot && S.step === "place" && !S.dq.length;
   const bw = mine ? E.canBuyWs(S, p.id) : { ok: false };
   const tot = p.ws == null ? Math.min(S.cfg.wsMax, S.cfg.wsFree) : p.ws, left = Math.max(0, tot - (p.wsUsed || 0));
-  const btn = mine && tot < S.cfg.wsMax ? ` <button class="btn sm" data-act="buyws" ${bw.ok ? "" : "disabled"} title="${esc(bw.ok ? "" : bw.reason || "")}">Buy workstation · ${E.wsCost(S, p.id)}G</button>` : "";
+  const btn = mine && tot < S.cfg.wsMax ? ` <button class="btn sm" data-act="buyws" ${bw.ok ? "" : "disabled"} title="${esc(bw.ok ? "" : bw.reason || "")}">Buy workstation · ${E.wsCost(S, p.id)}G</button>${bw.ok ? "" : `<span class="why">${esc(bw.reason || "")}</span>`}` : mine && tot >= S.cfg.wsMax ? ' <span class="mute">(the maximum)</span>' : "";
   return `<div class="row" data-tut="ws" style="font-size:12px;margin-top:6px;gap:6px;align-items:center" title="A worker needs a free workstation to take any board tile or Studio Perk. Triggering your own systems does not need one. You start with ${S.cfg.wsFree}; buy more (max ${S.cfg.wsMax}). Bought workstations come back every round of the phase; a new phase resets you to ${S.cfg.wsFree}."><b>Workstations</b> <span>${left} free of ${tot}</span>${btn}</div>`;
 }
 function playerPanel(S) {
   const vi = viewIndex(S); const p = P(vi); const a = E.currentActor(S); const mine = a === vi && !p.bot;
   const sel = mine && S.step === "place" && !S.dq.length;
-  let h = `<div class="panel" data-tut="mine"><h3><span style="color:${p.color}">${esc(p.name)}'s systems and goals</span><span class="mute" style="text-transform:none;letter-spacing:0">${p.systems.length} systems</span></h3>`;
+  let h = `<div class="panel" data-tut="mine"><h3><span style="color:${lite(p.color)}">${esc(p.name)}'s systems and goals</span><span class="mute" style="text-transform:none;letter-spacing:0">${p.systems.length} systems</span></h3>`;
   // systems
   h += `<div class="sub">Systems <span class="dim">(slots ${S.cfg.slotsPerCategory}/category)</span></div><div class="row wrap">`;
   if (!p.systems.length) h += '<span class="mute">None built.</span>';
@@ -460,20 +512,52 @@ function liveVpPanel(S) {
   const top = rows[0] ? rows[0].shown : 0;
   const G = "display:grid;grid-template-columns:minmax(0,1fr) repeat(5,42px);gap:4px;align-items:center;font-size:12px;padding:3px 0";
   const head = `<div style="${G};opacity:.7;font-size:11px"><span></span><span title="Progress and Hype race">Races</span><span>Sys</span><span title="Debt and Burnout VP">Costs</span><span title="Gold, gates and crisis cards">Other</span><span>VP</span></div>`;
-  return `<div class="panel pnl-vp" data-tut="livevp"><h3>Live VP <span class="mute" style="font-size:11px;font-weight:400">if the game ended now</span></h3>${head}${rows.map(x => `<div style="${G};${x.own ? "background:var(--panel2);border-radius:6px;" : ""}"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span class="dot" style="background:${P(x.r.id).color};display:inline-block;margin-right:4px"></span>${esc(x.r.name)}</span><span>${f(x.races)}</span><span>${f(x.sys)}</span><span>${f(x.neg)}</span><span>${f(x.other)}</span><b>${f(x.shown)}${x.shown === top ? " \u2605" : ""}</b></div>`).join("")}<div class="mute" style="font-size:11px;margin-top:4px">Objectives and synergy are secret and only score at the end of the game, so they are not counted here.${(() => { const m = rows.find(x => x.own); return m ? " Yours so far: " + f((m.r.parts.objectives || 0) + (m.r.parts.synergy || 0)) + " VP." : ""; })()}</div></div>`;
+  return `<div class="panel pnl-vp" data-tut="livevp"><h3>Live VP <span class="mute" style="font-size:11px;font-weight:400">if the game ended now</span></h3>${head}${rows.map(x => `<div style="${G};${x.own ? "background:var(--panel2);border-radius:6px;" : ""}"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span class="dot" style="background:${P(x.r.id).color};display:inline-block;margin-right:4px"></span>${esc(x.r.name)}</span><span>${f(x.races)}</span><span>${f(x.sys)}</span><span>${f(x.neg)}</span><span>${f(x.other)}</span><b>${f(x.shown)}${x.shown === top ? " \u2605" : ""}</b></div>`).join("")}<div class="mute" style="font-size:11px;margin-top:4px">Objectives are secret and only score at the end of the game, so they are not counted here.${(() => { const m = rows.find(x => x.own); return m ? " Yours so far: " + f((m.r.parts.objectives || 0) + (m.r.parts.synergy || 0)) + " VP." : ""; })()}</div></div>`;
 }
 
 /* ---------- step and phase transition screens ---------- */
 const PHASE_GOAL = ["Earn skills, recruit your first workers and start your first system.", "The race begins: take Progress and Hype tiles, build systems, keep Debt and Burnout in check.", "Finish systems (check build time), push Hype late because it fades, fix Debt.", "Spend everything. There is no Upkeep after this round, so Burnout and quitting no longer apply."];
+/* One layout for every between-step screen (round start, phase start, round 12): a header with the round rail, what just happened (signed deltas),
+   what changed for you, what is next, and ONE primary button in the same place. Only the sections differ. */
 function stepShell(S, step, title, body, btn) {
-  const tags = ["Phase end", "Reveal", "Upkeep", "Income", "Order", "Place", "Manage"];
-  return modalShell(`${step ? `<div class="row wrap" style="gap:6px;margin-bottom:6px">${tags.map(t => `<span class="tag" style="${t === step ? "background:var(--accent,#3b9ae1);color:#06121f;font-weight:700" : "opacity:.45"}">${t}</span>`).join("")}</div>` : ""}<h2>${title}</h2>${body}<div style="margin-top:14px;text-align:right"><button class="btn primary" data-act="stepnext">${btn || "Continue"}</button></div>`, { noClose: true });
+  return modalShell(`<div class="rs"><div class="rs-top"><span class="rs-kick">Round ${S.round} of ${S.cfg.rounds || 12}</span>${railHtml(S)}<span class="phasepill" style="background:${PH[S.phase].color}">${esc(PH[S.phase].name.toUpperCase())}</span></div><h2>${title}</h2>${body}<div class="rs-foot"><button class="btn primary big" data-act="stepnext" data-tut="stepnext">${btn || "Continue"}</button></div></div>`, { noClose: true, cls: "rsm" });
 }
+const sgn = n => n > 0 ? "+" + n : n < 0 ? "−" + Math.abs(n) : "0";
+// a signed change: the sign carries the meaning, colour only reinforces it (good = green, bad = red)
+const dl = (n, risingIsGood, unit) => `<b class="dl ${n === 0 ? "z" : (n > 0) === (risingIsGood !== false) ? "g" : "b"}">${sgn(n)}${unit || ""}</b>`;
+const rsSec = (title, html, cls) => `<section class="rs-sec ${cls || ""}"><h4>${title}</h4>${html}</section>`;
 function gatePass(S, g) { const e = E.gateEff(S, g); return [g.fund ? "+" + g.fund + " Gold" : "", e.vp ? "+" + e.vp + " VP" : ""].filter(Boolean).join(", ") || "no reward"; }
+const humanIds = S => S.players.filter(p => !p.bot).map(p => p.id);
+const youTag = (S, p) => humanIds(S).length === 1 && !p.bot ? ' <span class="tag you">you</span>' : p.bot ? ' <span class="tag">bot</span>' : "";
+// who goes first, in turn order, with each studio's Gold and (from round 2) what the new round did to it
+function rsTable(S) {
+  const rn = S.rnote && S.rnote.r === S.round ? S.rnote : null, hs = humanIds(S), ord = S.order.length === S.players.length ? S.order : S.players.map(p => p.id);
+  const rows = ord.map((i, k) => {
+    const p = S.players[i], n = rn && rn.p[i] || null;
+    const goldCell = n ? `<b class="mono">${n.goldNow != null ? n.goldNow : p.gold}G</b><div class="rsub">${[`${sgn(n.income || 0)} income`, n.salary ? `${sgn(-n.salary)} salaries` : "", n.bonus ? `${sgn(n.bonus)} bonus` : ""].filter(Boolean).join(" · ")}</div>${n.short ? `<div class="rsub bad">short by ${n.short}G: Burnout rises</div>` : ""}` : `<b class="mono">${p.gold}G</b>`;
+    return `<tr class="${hs.length === 1 && i === hs[0] ? "me" : ""}"><td><span class="ordn">${k + 1}</span></td><td><b style="color:${lite(p.color)}">${esc(p.name)}</b>${youTag(S, p)}</td><td>${goldCell}</td>${rn ? `<td>${n && n.hype ? dl(n.hype, true) : '<span class="mute">–</span>'}</td><td>${n ? (n.burn ? dl(n.burn, false) : '<span class="mute">–</span>') + `<div class="rsub">${esc(n.band || "")}</div>` : ""}</td>` : `<td class="mute">${p.workers.length} workers</td>`}</tr>`;
+  }).join("");
+  const first = S.players[ord[0]];
+  const cue = hs.length === 1 ? (ord[0] === hs[0] ? `<b>You go first.</b>` : `<b>${esc(first.name)} goes first</b>, then you.`) : `<b>${esc(first.name)} goes first.</b>`;
+  return `<table class="tbl rs-tbl"><thead><tr><th>Turn</th><th>Studio</th><th>Gold</th>${rn ? "<th>Hype</th><th>Burnout</th>" : "<th></th>"}</tr></thead><tbody>${rows}</tbody></table><div class="rs-first">${cue} <span class="mute">${S.round === 1 ? "Round 1 follows seat order." : "Fewest VP goes first, so a studio that is behind gets first pick."}</span></div>`;
+}
+// the few things that changed for the human player(s) and could change a decision
+function rsNotes(S) {
+  const hs = humanIds(S); if (hs.length !== 1) return "";
+  const p = S.players[hs[0]], out = [], rn = S.rnote && S.rnote.r === S.round ? S.rnote.p[p.id] : null;
+  const fin = (S.log || []).filter(l => l.r === S.round && l.m.indexOf(p.name + "'s ") === 0 && / is finished \(/.test(l.m)).map(l => l.m.replace(p.name + "'s ", "").replace(/ is finished.*/, ""));
+  if (fin.length) out.push(`<b>${fin.map(esc).join(", ")}</b> ${fin.length === 1 ? "is" : "are"} finished: ${fin.length === 1 ? "its" : "their"} workers are free again and a Senior can trigger ${fin.length === 1 ? "it" : "them"}.`);
+  const exh = p.workers.filter(w => w.fat >= 2 && !w.build && !w.benched).length, tir = p.workers.filter(w => w.fat === 1 && !w.build && !w.benched).length;
+  if (exh) out.push(`<b>${exh} Exhausted worker${exh > 1 ? "s" : ""}.</b> Placing ${exh > 1 ? "them" : "one"} earns no skill and adds Burnout, so let ${exh > 1 ? "them" : "it"} rest.`);
+  else if (tir) out.push(`${tir} Tired worker${tir > 1 ? "s" : ""}: they can work, but placing them again makes them Exhausted.`);
+  if (rn && rn.band && rn.band !== "Steady" && rn.band !== "Energized") out.push(`Burnout is <b>${esc(rn.band)}</b> (${p.burnout}).`);
+  if (rn && rn.lost) out.push(`<b>${rn.lost} worker${rn.lost > 1 ? "s" : ""} quit</b> from Burnout.`);
+  return out.length ? rsSec("What changed for you", `<ul class="rs-ul">${out.slice(0, 4).map(x => `<li>${x}</li>`).join("")}</ul>`) : "";
+}
 function startScreen(S) {
-  const ph = S.data.phases[S.phase], g = (E.gateList(S) || []).find(x => x.phase === S.phase);
-  const rows = S.players.map(p => `<tr><td><b style="color:${p.color}">${esc(p.name)}</b></td><td style="text-align:right">${p.gold}G</td><td style="text-align:right">${p.workers.length} workers: ${p.workers.map(w => esc(dname(w.disc))).join(", ")}</td></tr>`).join("");
-  return [{ key: "start", step: null, title: `${esc(ph.name)} · Round 1 of ${S.cfg.rounds || 12}`, body: `<table class="tbl" style="width:100%"><thead><tr><th></th><th style="text-align:right">Starting Gold</th><th style="text-align:right">Starting workers</th></tr></thead><tbody>${rows}</tbody></table>${g ? `<div class="dsec"><h4>Publisher Gate at the end of ${esc(ph.name)}</h4><div><b>${esc(g.name)}</b> [${esc(g.lvlName || "Medium")}]: needs ${esc((g.reqs || []).join(", "))}<br>Pass: ${gatePass(S, g)} · Miss: ${E.gateEff(S, g).miss.replace("-", "−")}</div></div>` : ""}` }];
+  const ph = S.data.phases[S.phase], g = (E.gateList(S) || []).find(x => x.phase === S.phase), hs = humanIds(S);
+  const rows = S.players.map(p => `<tr><td><b style="color:${lite(p.color)}">${esc(p.name)}</b>${youTag(S, p)}</td><td><b class="mono">${p.gold}G</b></td><td>${p.workers.length} Juniors: ${p.workers.map(w => esc(dname(w.disc))).join(", ")}</td></tr>`).join("");
+  return [{ key: "start", step: null, title: `${esc(ph.name)} begins`, body: rsSec("Where you start", `<table class="tbl rs-tbl"><thead><tr><th>Studio</th><th>Gold</th><th>Team</th></tr></thead><tbody>${rows}</tbody></table>`) + rsSec("What is next", `<div class="rs-first">${hs.length === 1 && S.order[0] === hs[0] ? "<b>You go first.</b>" : `<b>${esc(S.players[S.order[0]].name)} goes first.</b>`} <span class="mute">Select a worker, then a green tile. You start with ${S.cfg.wsFree} workstation, so you place one worker a round until you buy more.</span></div>${g ? `<div class="rs-gate"><b>${esc(g.name)}</b> <span class="tag">${esc(g.lvlName || "Medium")}</span> is due at the end of ${esc(ph.name)}: needs ${wordIcons((g.reqs || []).join(", "))}. Pass <b>${gatePass(S, g)}</b> · miss <b>${esc(E.gateEff(S, g).miss.replace("-", "−"))}</b></div>` : ""}`) }];
 }
 function stepScreens(S) {
   if (S.round === 1) return startScreen(S);
@@ -481,22 +565,24 @@ function stepScreens(S) {
   const f1 = v => { const n = Math.round(+v * 10) / 10; return Number.isInteger(n) ? String(n) : n.toFixed(1); };
   const sc = E.score(S), vp = {}; sc.forEach(x => { vp[x.id] = x.total - (x.parts.objectives || 0) - (x.parts.synergy || 0); });
   const closed = Object.keys(S.closed || {}).map(id => { const sp = S.data.spots.find(x => x.id === id); return sp ? sp.row : id; });
-  const closedHtml = closed.length ? `<div class="dsec"><h4>Industry News: closed this round</h4><div class="mute">${closed.map(esc).join(" · ")}</div></div>` : "";
-  const total = S.cfg.rounds || 12;
-  // Ordinary round: just say which round it is, who goes first and what each studio has
-  if (!starts.includes(r)) {
-    const rows = S.order.map((i, k) => { const p = S.players[i]; return `<tr><td>${k + 1}</td><td><b style="color:${p.color}">${esc(p.name)}</b></td><td style="text-align:right">${p.gold}G</td><td style="text-align:right">${p.workers.length}</td></tr>`; }).join("");
-    return [{ key: "round", step: null, title: `Round ${r} of ${total} <span class="mute" style="font-size:14px;font-weight:400">· ${esc(ph.name)}</span>`, body: `<table class="tbl" style="width:100%"><thead><tr><th>Turn</th><th>Studio</th><th style="text-align:right">Gold</th><th style="text-align:right">Workers</th></tr></thead><tbody>${rows}</tbody></table><div class="mute" style="font-size:12px;margin-top:6px">Fewest VP goes first. The studio that went first last round is never first twice in a row.</div>${closedHtml}` }];
-  }
-  // First round of a phase: recap the phase that just closed with a snapshot of every studio, then preview the new phase
-  const prev = S.data.phases[S.phase - 1], g = (S.gates || []).slice(-1)[0], gs = E.gateList(S) || [], ng = gs.find(x => x.phase === S.phase);
+  const closedHtml = closed.length ? rsSec("Industry News", `<div>Closed this round: <b>${closed.map(esc).join(" · ")}</b></div>`) : "";
+  // Ordinary round: what the new round did, then turn order
+  if (!starts.includes(r)) return [{ key: "round", step: null, title: `Round ${r} begins`, body: rsSec("What just happened", rsTable(S)) + rsNotes(S) + closedHtml + rsSec("Your first move", `<div>Select a worker, then a green tile${S.recruit && S.phase !== 3 ? ". The Recruitment pool has refreshed" : ""}.</div>`) }];
+  // First round of a phase: gate result, standings, what is new, next gate
+  const prev = S.data.phases[S.phase - 1], g = (S.gates || []).slice(-1)[0], gl = E.gateList(S) || [], ng = gl.find(x => x.phase === S.phase), pg = g ? gl.find(x => x.phase === g.phase) : null;
   const nm = i => esc(S.players[i].name);
-  const snap = S.order.map(i => { const p = S.players[i]; return `<tr><td><b style="color:${p.color}">${esc(p.name)}</b></td><td style="text-align:right">${p.gold}</td><td style="text-align:right">${p.workers.length}</td><td style="text-align:right">${p.systems.length}</td><td style="text-align:right">${p.prod}</td><td style="text-align:right">${p.hype}${p.mktg ? " +" + p.mktg : ""}</td><td style="text-align:right">${Math.round(E.debtPct(S, p))}%</td><td style="text-align:right">${p.burnout}</td><td style="text-align:right"><b>${f1(vp[i])}</b></td></tr>`; }).join("");
+  let gateHtml = "";
+  if (g) {
+    const eff = pg ? E.gateEff(S, pg) : { miss: "", vp: 0 };
+    gateHtml = rsSec(`Publisher Gate: ${esc(g.name)}`, `<ul class="rs-ul gate">${S.players.map(p => { const ok = g.passed.includes(p.id); return `<li class="${ok ? "ok" : "no"}"><b style="color:${lite(p.color)}">${esc(p.name)}</b>${youTag(S, p)}: <b>${ok ? "✓ Passed" : "✗ Missed"}</b> ${ok ? `<span class="dl g">${esc(pg ? gatePass(S, pg) : "")}</span>` : `<span class="dl b">${esc((eff.miss || "").replace("-", "−"))}</span>`}</li>`; }).join("")}</ul>`, "gate");
+  }
+  const snap = S.order.map(i => { const p = S.players[i]; return `<tr class="${humanIds(S).length === 1 && i === humanIds(S)[0] ? "me" : ""}"><td><b style="color:${lite(p.color)}">${esc(p.name)}</b></td><td><b>${f1(vp[i])}</b></td><td class="mono">${p.gold}G</td><td class="mono">${p.systems.length}</td><td class="mono">${p.prod}</td><td class="mono">${p.hype}${p.mktg ? " +" + p.mktg : ""}</td></tr>`; }).join("");
   const newSp = E.activeSpots(S).filter(sp => !(sp.phases || []).includes(S.phase - 1) && (sp.phases || []).includes(S.phase)).map(sp => (sp.row === "CREW" ? (sp.note || sp.id).replace(/^Strike Team( of \d)?: /, "Strike Team: ") : sp.row.charAt(0) + sp.row.slice(1).toLowerCase()) + (sp.fx ? " (" + sp.fx + ")" : "")).slice(0, 10);
-  const gateLine = g ? `<div class="dsec"><h4>Publisher Gate: ${esc(g.name)}</h4><div>Passed: <b>${g.passed.length ? g.passed.map(nm).join(", ") : "nobody"}</b>${g.failed.length ? `<br>Missed: <b>${g.failed.map(nm).join(", ")}</b>` : ""}</div></div>` : "";
-  const nextGate = ng ? `<div class="dsec"><h4>Publisher Gate due at the end of ${esc(ph.name)}</h4><div><b>${esc(ng.name)}</b> [${esc(ng.lvlName || "Medium")}]: needs ${esc((ng.reqs || []).join(", "))}<br>Pass: ${gatePass(S, ng)} · Miss: ${E.gateEff(S, ng).miss.replace("-", "\u2212")}</div></div>` : "";
-  return [{ key: "phase", step: null, title: `${esc(prev.name)} complete · ${esc(ph.name)} begins <span class="mute" style="font-size:14px;font-weight:400">· Round ${r} of ${total}</span>`, body: `${gateLine}<div class="dsec"><h4>Studio snapshot</h4><table class="tbl" style="width:100%"><thead><tr><th>Studio</th><th style="text-align:right">Gold</th><th style="text-align:right">Workers</th><th style="text-align:right">Systems</th><th style="text-align:right">Progress</th><th style="text-align:right">Hype</th><th style="text-align:right">Debt</th><th style="text-align:right">Burnout</th><th style="text-align:right">VP</th></tr></thead><tbody>${snap}</tbody></table><div class="mute" style="font-size:11px;margin-top:4px">VP is public VP only (objectives stay secret). Hype shows banked Wishlists as +N.</div></div><p>${esc(PHASE_GOAL[S.phase] || "")}</p>${nextGate}${newSp.length ? `<div class="dsec"><h4>New on the board this phase</h4><div class="mute" style="font-size:13px">${newSp.map(esc).join(" · ")}</div></div>` : ""}${closedHtml}` }];
+  const nextGate = ng ? rsSec(`Next gate: ${esc(ng.name)}`, `<div><span class="tag">${esc(ng.lvlName || "Medium")}</span> due at the end of ${esc(ph.name)}: needs ${wordIcons((ng.reqs || []).join(", "))}<br>Pass <b>${gatePass(S, ng)}</b> · miss <b>${esc(E.gateEff(S, ng).miss.replace("-", "−"))}</b></div>`, "gate") : "";
+  const launch = S.phase === 3 ? rsSec("Final round checklist", `<ul class="rs-ul"><li><b>Convert</b> unspent skills into Progress or Hype: skills score nothing on their own.</li><li>Leftover Gold is worth <b>1 VP per ${S.cfg.goldPerVP || 3}</b>, so spend only what earns more.</li><li>There is no Upkeep after this round, but an Exhausted worker you place still adds Burnout.</li></ul>`, "gate") : "";
+  return [{ key: "phase", step: null, title: `${esc(prev.name)} complete: ${esc(ph.name)} begins`, body: gateHtml + rsSec("What just happened", rsTable(S)) + rsNotes(S) + launch + nextGate + rsSec("Standings", `<details class="rs-det"><summary>Show public VP, Gold, systems, Progress and Hype</summary><table class="tbl rs-tbl"><thead><tr><th>Studio</th><th>VP</th><th>Gold</th><th>Systems</th><th>Progress</th><th>Hype</th></tr></thead><tbody>${snap}</tbody></table><div class="rsub">Objectives stay secret. Hype shows banked Wishlists as +N.</div></details>`) + `<p class="rs-goal">${esc(PHASE_GOAL[S.phase] || "")}</p>` + (newSp.length ? `<details class="rs-det"><summary>New on the board this phase (${newSp.length})</summary><div class="mute">${newSp.map(esc).join(" · ")}</div></details>` : "") + closedHtml }];
 }
+function rsFirst(S) { const hs = humanIds(S), ord = S.order; return hs.length === 1 ? (ord[0] === hs[0] ? "<b>You go first.</b>" : `<b>${esc(S.players[ord[0]].name)} goes first</b>, then you.`) : `<b>${esc(S.players[ord[0]].name)} goes first.</b>`; }
 function manageScreen(S) {
   const p = S.players[viewIndex(S)], names = [].concat.apply([], Object.values(S.market || {})), can = names.filter(n => E.canBuild(S, p.id, n, false, null).ok).length;
   return { key: "manage", step: "Manage", title: "Manage", body: `<p>Placement is over. Now build systems, cash in milestones, and train or promote workers. Then press Done.</p><div class="dsec"><h4>You have</h4><div>${p.gold} Gold · ${can} system${can === 1 ? "" : "s"} you can build now · ${p.miles.length} milestone${p.miles.length === 1 ? "" : "s"} in hand</div><div class="mute" style="font-size:12px">Promotion is free for a Junior who trained once, or who worked earlier and sat out this round.</div></div>` };
@@ -567,7 +653,7 @@ function clearDataModal() {
 }
 function decisionModal(S) {
   const d = S.dq[0]; const p = P(d.p); const crisis = d.card ? S.data.crisis.find(c => c.id === d.card) : (S.crisisCard && ["choose","pickWorker","raidHire","pivot","dropObj","patch"].includes(d.t) ? S.data.crisis.find(c => c.id === S.crisisCard) : null);
-  let h = `<h2 style="color:${p.color}">${esc(p.name)}</h2>`;
+  let h = `<h2 style="color:${lite(p.color)}">${esc(p.name)}</h2>`;
   if (crisis) h += crisisCardHtml(crisis) + '<div style="height:10px"></div>';
   switch (d.t) {
     case "keepObj":
@@ -716,12 +802,12 @@ function marketStrip(S) {
   const vi = viewIndex(S), p = S.players[vi]; const cr = U.crunch;
   const rows = E.CATS.map(cat => {
     const tiles = (S.market[cat] || []).map(n => { const d = E.sysDef(S, n); const ck = E.canBuild(S, vi, n, false, cr); return sysTile(d, ck.ok); }).join("") || '<span class="mute">Sold out</span>';
-    return `<div class="mcol"><div class="lab" style="color:${catColor[cat]}">${cat}</div><div class="spots">${tiles}</div></div>`;
+    return `<div class="mcol"><div class="lab" style="color:${lite(catColor[cat])}">${cat}</div><div class="spots">${tiles}</div></div>`;
   }).join("");
   return `<div class="panel" data-tut="mstrip"><h3>Systems to Build <span class="mute" style="font-weight:400;font-size:12px">${p ? esc(p.name) + " · " : ""}greyed = cannot build yet · tap a card for details</span></h3><div class="mgrid">${rows}</div></div>`;
 }
 function gameMenuModal() {
-  return modalShell(`<h2>Menu</h2><div class="col" style="gap:8px;min-width:260px"><button class="btn primary" data-act="close">Resume game</button><button class="btn" data-act="rules">Rules and guides</button><button class="btn" data-act="save">Save game</button>${U.owner ? '<button class="btn" data-act="studio">Data Studio</button><button class="btn" data-act="master">Master and analytics</button>' : ""}<button class="btn" data-act="menu">Quit to main menu</button></div><p class="dim" style="margin:12px 0 0;font-size:12px">Quitting leaves this game. Save first if you want to continue later.${U.owner ? "" : " Data Studio and analytics need the owner login."}</p>`).replace('<div class="overlay"', '<div class="overlay rulesov" style="z-index:300"');
+  return modalShell(`<h2>Menu</h2><div class="col" style="gap:8px;min-width:260px"><button class="btn primary" data-act="close">Resume game</button><button class="btn" data-act="rules">Rules and guides</button><button class="btn" data-act="milesref">Milestones</button><button class="btn" data-act="log">${U.logOpen ? "Hide full log" : "Show full log"}</button>${U.net ? "" : '<button class="btn" data-act="save">Save game</button>'}${U.tut || (U.S && U.S.over) || (U.net && !U.net.host) ? "" : '<button class="btn danger" data-act="endgame">End game now</button>'}${U.owner ? '<button class="btn" data-act="studio">Data Studio</button><button class="btn" data-act="master">Master and analytics</button>' : ""}<button class="btn" data-act="menu">Quit to main menu</button></div><p class="dim" style="margin:12px 0 0;font-size:12px">Quitting leaves this game. Save first if you want to continue later.${U.owner ? "" : " Data Studio and analytics need the owner login."}</p>`).replace('<div class="overlay"', '<div class="overlay rulesov" style="z-index:300"');
 }
 function rulesModal() {
   const R = root.SHIPIT_RULES || []; const id = U.rulesTab || "start"; const cur = R.find(r => r.id === id) || R[0];
@@ -736,7 +822,7 @@ function marketModal() {
   const cards = list.map(d => {
     const ck = E.canBuild(S, a.id, d.name, free, cr); const ckPaid = free ? E.canBuild(S, a.id, d.name, false, cr) : ck;
     const hint = a.objectives.some(id => S.data.objectives[id].res === E.sysMainRes(d));
-    return { ok: ck.ok || ckPaid.ok, html: sysTile(d, ck.ok || ckPaid.ok, `<div class="row" style="margin-top:6px;gap:4px"><button class="btn sm primary" data-act="build" data-name="${esc(d.name)}" data-free="0" ${ckPaid.ok ? "" : "disabled"} title="${esc(ckPaid.ok ? "" : ckPaid.reason)}">Build</button>${S.cfg.marketSize ? `<button class="btn sm" data-act="refresh-sys" data-name="${esc(d.name)}" ${canRefresh ? "" : "disabled"} title="Replace this tile with a new one for ${S.cfg.marketRefreshGold}G (once per round)">Replace ${S.cfg.marketRefreshGold}G</button>` : ""}${free ? `<button class="btn sm good" data-act="build" data-name="${esc(d.name)}" data-free="1" ${ck.ok ? "" : "disabled"} title="${esc(ck.ok ? "" : ck.reason)}">Free</button>` : ""}</div>${!ckPaid.ok && !(U.tut && free) ? `<div class="dim" style="font-size:10px">${esc(ckPaid.reason)}</div>` : ""}`) }; // the tutorial's free build makes the "You have 1 of 3 Ideas" note confusing, so it is hidden there
+    return { ok: ck.ok || ckPaid.ok, html: sysTile(d, ck.ok || ckPaid.ok, `<div class="row" style="margin-top:6px;gap:4px"><button class="btn sm primary" data-act="build" data-name="${esc(d.name)}" data-free="0" ${ckPaid.ok ? "" : "disabled"} title="${esc(ckPaid.ok ? "" : ckPaid.reason)}">Build</button>${S.cfg.marketSize ? `<button class="btn sm" data-act="refresh-sys" data-name="${esc(d.name)}" ${canRefresh ? "" : "disabled"} title="Replace this tile with a new one for ${S.cfg.marketRefreshGold}G (once per round)">Replace ${S.cfg.marketRefreshGold}G</button>` : ""}${free ? `<button class="btn sm good" data-act="build" data-name="${esc(d.name)}" data-free="1" ${ck.ok ? "" : "disabled"} title="${esc(ck.ok ? "" : ck.reason)}">Free</button>` : ""}</div>${!ckPaid.ok && !(U.tut && free) ? `<div class="why" style="margin-top:4px">${esc(ckPaid.reason)}</div>` : ""}`) }; // the tutorial's free build makes the "You have 1 of 3 Ideas" note confusing, so it is hidden there
   });
   const can = cards.filter(c => c.ok), cant = cards.filter(c => !c.ok);
   h += `<div class="scroll-y"><div class="mute" style="margin:0 0 6px;font-weight:700">You can build now (${can.length})</div>${can.length ? `<div class="row wrap" style="align-items:stretch">${can.map(c => c.html).join("")}</div>` : '<p class="mute">Nothing available right now. See below for what each system needs.</p>'}
@@ -763,9 +849,11 @@ function scoreModal(S) {
 function resultsModal() {
   const S = U.S; const rows = S.scores.slice().sort((a, b) => b.total - a.total);
   const cols = [["prodShare", "Progress race"], ["hypeStrength", "Hype race"], ["debtPenalty", "Debt"], ["burnout", "Burnout"], ["objectives", "Obj."], ["systems", "Sys"], ["gold", "Gold"], ["crisis", "Crisis/Gates"]];
-  let h = `<h2>${esc(P(S.winner).name)} ships the best game!</h2><div class="scroll-y"><table class="scoretbl"><thead><tr><th>Studio</th>${cols.map(c => `<th>${c[1]}</th>`).join("")}<th>TOTAL</th></tr></thead><tbody>`;
+  const wr = S.scores.find(x => x.id === S.winner), top = wr ? cols.map(c => [c[1], +wr.parts[c[0]]]).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, 2) : [], runner = rows[1];
+  const why = wr ? `<p class="mute" style="margin:4px 0 10px">${esc(wr.name)} won with <b>${wr.total.toFixed(0)} VP</b>${runner ? ", " + (wr.total - runner.total).toFixed(0) + " ahead of " + esc(runner.name) : ""}. Biggest sources: ${top.map(x => esc(x[0]) + " (+" + x[1].toFixed(0) + ")").join(" and ") || "none"}.</p>` : "";
+  let h = `<h2>${esc(P(S.winner).name)} ships the best game!</h2>${why}<div class="swipehint">Swipe the table sideways to see where each VP came from.</div><div class="scroll-y"><table class="scoretbl"><thead><tr><th>Studio</th>${cols.map(c => `<th>${c[1]}</th>`).join("")}<th>TOTAL</th></tr></thead><tbody>`;
   rows.forEach(r => { h += `<tr class="${r.id === S.winner ? "win" : ""}"><td><span class="dot" style="background:${P(r.id).color};display:inline-block;margin-right:6px"></span>${esc(r.name)}${r.id === S.winner ? ' <span class="wintag">Winner</span>' : ""} <span class="dim">Debt ${P(r.id).debt} · Wishlists ${P(r.id).mktg}</span></td>${cols.map(c => `<td>${(+r.parts[c[0]]).toFixed(0)}</td>`).join("")}<td><b>${r.total.toFixed(0)}</b></td></tr>`; });
-  h += `</tbody></table>${U.tut || U.tutDone ? SI.tutScoreExplainer(S) : ""}</div><div class="row" style="margin-top:14px"><button class="btn primary" data-act="${U.net ? "online-again" : "start"}">${U.tut || U.tutDone ? "Start a real game" : "Play again"}</button><button class="btn" data-act="menu">Menu</button><button class="btn" data-act="close">Close</button></div>`;
+  h += `</tbody></table>${U.tut || U.tutDone ? SI.tutScoreExplainer(S) : ""}</div>${U.tutDone && !U.net ? `<div class="whatnext"><b>What next?</b><span class="mute">You have seen every rule once. Pick one:</span></div><div class="row wrap" style="margin-top:8px"><button class="btn primary" data-act="tut-play">Play a game against a bot</button><button class="btn" data-act="rules">Read the rules</button><button class="btn" data-act="tutorial">Replay the guide</button><button class="btn" data-act="menu">Menu</button><button class="btn" data-act="close">Close</button></div>` : `<div class="row" style="margin-top:14px"><button class="btn primary" data-act="${U.net ? "online-again" : "start"}">Play again</button><button class="btn" data-act="menu">Menu</button><button class="btn" data-act="close">Close</button></div>`}`;
   return modalShell(h, { wide: true });
 }
 function masterCtx() { return { U, render, toast, SI, E, D, closeModal: () => { U.modal = null; render(); } }; }
@@ -774,7 +862,7 @@ function studioModal() {
   const h = `<h2>Data Studio <span class="mute" style="font-size:13px;font-weight:400">· ${D.version} · edits apply to new games</span></h2>` + SI.renderStudio(U.studio, U.tab, U.sim) + (U.S && U.screen === "game" ? `<div class="row" style="margin-top:12px"><button class="btn primary" data-act="restart">Restart game with these values</button></div>` : "");
   return modalShell(h, { wide: true });
 }
-function crisisIntroModal(c) { return modalShell(`<div style="display:flex;justify-content:center">${crisisCardHtml(c)}</div><div class="row" style="margin-top:14px;justify-content:center"><button class="btn primary" data-act="close">Continue</button></div>`, { cls: "crisisov" }); }
+function crisisIntroModal(c) { return modalShell(`<div class="rs-kick" style="text-align:center;margin-bottom:8px">Phase start · a Crisis hits every studio</div><div style="display:flex;justify-content:center">${crisisCardHtml(c)}</div><div class="rs-foot"><button class="btn primary big" data-act="close">Continue</button></div>`, { cls: "crisisov" }); }
 
 /* ---------- copy overrides (Data Studio > Text): swap edited default wording in rendered HTML ---------- */
 SI.copyFix = function (html) {
@@ -828,7 +916,7 @@ function render() {
   }
   if (U.S && U.screen === "game" && !U.tut) SI.an.track(U.S);
   autosave();
-  if (U.toast) $root.insertAdjacentHTML("beforeend", `<div class="toast">${SI.copyFix(esc(U.toast))}</div>`);
+  if (U.toast) $root.insertAdjacentHTML("beforeend", `<div class="toast ${U.toastKind || ""}" role="status" aria-live="polite">${SI.copyFix(esc(U.toast))}${U.toastKind === "undo" && U.undo.length && !(U.S && U.S.over) ? ' <button class="btn sm" data-act="undo">Undo</button>' : ""}</div>`);
   if (keepFocus) { const el = document.getElementById(keepFocus); if (el && val != null) { try { el.value = val; el.focus(); } catch (e) {} } }
 }
 SI.render = render; SI.stepScreens = stepScreens;
@@ -921,10 +1009,10 @@ function lobbyView() {
     else who = `<span class="mute">Waiting for a player</span>`;
     const nameEdit = (host && (s.kind === "bot" || !s.cid)) || mine ? `<input data-lname="${i}" value="${esc(s.name)}" placeholder="Name" maxlength="20" style="width:130px">` : `<b>${esc(s.name || "Player " + (i + 1))}</b>`;
     const kind = host ? `<select data-lkind="${i}" ${mine && i === 0 ? "disabled" : ""}><option value="human" ${s.kind !== "bot" ? "selected" : ""}>Human</option><option value="bot" ${s.kind === "bot" ? "selected" : ""}>Bot</option></select>` : "";
-    const skill = host && s.kind === "bot" ? `<select data-lskill="${i}" title="Bot skill">${(root.ShipItBot ? root.ShipItBot.profileNames : [["", "Standard"]]).map(o => `<option value="${o[0]}" ${(s.skill || "") === o[0] ? "selected" : ""}>${o[1]}</option>`).join("")}</select>` : "";
-    const pers = host && s.kind === "bot" ? `<select data-lpers="${i}">${PERSONAS.map(p => `<option value="${p[0]}" ${s.persona === p[0] ? "selected" : ""}>${p[1]}</option>`).join("")}</select>` : "";
+    const skill = host && s.kind === "bot" ? `<label class="lbl"><span class="mute">Skill</span>${skillSelect(`data-lskill="${i}"`, s.skill, "Bot skill: " + skillInfo(s.skill))}</label>` : "";
+    const pers = host && s.kind === "bot" ? `<label class="lbl"><span class="mute">Style</span><select data-lpers="${i}" title="Play style of this bot">${PERSONAS.map(p => `<option value="${p[0]}" ${s.persona === p[0] ? "selected" : ""}>${p[1]}</option>`).join("")}</select></label>` : "";
     const btn = free ? `<button class="btn sm primary" data-act="lobby-claim" data-v="${i}">Take this seat</button>${n.mine.length ? `<button class="btn sm" data-act="lobby-claim" data-v="${i}" data-x="1" title="Play this seat on this device too (pass-and-play)">Also on this device</button>` : ""}` : mine ? `<button class="btn sm" data-act="lobby-free" data-v="${i}">Give up seat</button>` : "";
-    return `<div class="seat"><span class="dot" style="background:${COLORS[i]}"></span>${nameEdit}${kind}${skill}${pers}<span class="grow"></span>${who}${btn}</div>`;
+    return `<div class="seat lseat"><span class="dot" style="background:${COLORS[i]}"></span>${nameEdit}${kind}${skill}${pers}<span class="grow"></span>${who}${btn}</div>`;
   }).join("");
   const ready = !seats.some(s => s.kind !== "bot" && !s.cid);
   return `<div class="center-screen"><div class="card-box" style="max-width:640px">
@@ -936,7 +1024,7 @@ function lobbyView() {
   ${host ? gatePanel() : ""}
   <div style="margin:10px 0">${rows}</div>
   ${U.lobbyErr ? `<p style="color:var(--bad)">${esc(U.lobbyErr)}</p>` : ""}
-  <div class="row wrap">${host ? `<button class="btn primary" data-act="lobby-start" ${ready ? "" : "disabled"}>Start game</button>` : ""}<button class="btn" data-act="lobby-exit">Leave</button>${U.owner ? '<button class="btn" data-act="studio">Data Studio</button>' : ""}</div>
+  <div class="row wrap">${host ? `<button class="btn primary" data-act="lobby-start" ${ready ? "" : "disabled"} title="${ready ? "" : "Every human seat must be taken first"}">Start game</button>` : ""}<button class="btn" data-act="lobby-exit">Leave</button>${U.owner ? '<button class="btn" data-act="studio">Data Studio</button>' : ""}</div>${host && !ready ? `<p class="why" style="margin-top:6px">Start unlocks when every human seat is taken (${seats.filter(s => s.kind !== "bot" && !s.cid).length} still open). Set a seat to Bot to fill it.</p>` : ""}
   <p class="dim" style="margin:12px 0 0;font-size:12px">Bots run on the host's device. If you lose connection, reopen the page and join the same code: your seat is kept.${host && U.tuned && U.tuned !== "default" ? ` Using tuning: ${esc(U.tuned)}.` : ""}</p></div></div>`;
 }
 function lobbySend() { // host pushes the seat layout
@@ -973,6 +1061,7 @@ $root.addEventListener("click", e => {
     case "lobby-exit": leaveRoom(); return;
     case "master": U.modal = "master"; if (SI.adminOpen) SI.adminOpen(masterCtx()); render(); return;
     case "tutorial": U.modal = null; startTutorial(); return;
+    case "tut-play": { const nm = myName(); U.seats = [{ name: nm && nm !== "Player" ? nm : "You", bot: false }, { name: "Bot", bot: true }]; U.modal = null; newGame(); return; }
     case "tut-next": SI.tutAck(); if (SI.tutFinished()) { U.tut = null; U.tutDone = true; render(); scheduleBots(); return; } render(); return;
     case "tut-back": SI.tutBack(); render(); return;
     case "tut-fwd": SI.tutFwd(); render(); return;
@@ -980,6 +1069,7 @@ $root.addEventListener("click", e => {
     case "tut-free": U.tut = null; U.tutDone = true; render(); scheduleBots(); return;
     case "tut-exit": clearAuto(); if (U.S && !U.S.over) { U.tut = null; U.tutDone = true; U.modal = null; render(); scheduleBots(); return; } U.tut = null; U.screen = "menu"; U.modal = null; clearTimeout(U.botT); render(); return;
     case "resume": if (loadSave()) { render(); scheduleBots(); } return;
+    case "continue": if (loadAuto()) { render(); scheduleBots(); } return;
     case "studio": U.modal = "studio"; render(); if (SI.stu2) SI.stu2.loadPub(); return;
     case "endgame": U.modal = "endgame"; render(); return;
     case "endgame-yes": {
@@ -1095,7 +1185,7 @@ $root.addEventListener("change", e => {
   if (t.dataset.lname != null && U.net) { const i = +t.dataset.lname, M = U.net.meta, s = M.seats[i]; s.name = t.value.slice(0, 20); if (s.cid === N.cid()) { setName(s.name); N.send({ t: "claim", seat: i, name: s.name, extra: true }); } else if (U.net.host) lobbySend(); return; }
   if (t.dataset.pname != null) { setName(t.value); return; }
   if (t.dataset.seatname != null) { const si = +t.dataset.seatname; U.seats[si].name = t.value; if (!U.seats[si].bot && U.seats.findIndex(s => !s.bot) === si && t.value.trim()) setName(t.value.trim()); return; }
-  if (t.dataset.botskill != null) { U.botSkill = t.value; return; }
+  if (t.dataset.botskill != null) { U.botSkill = t.value; render(); return; }
   if (gsChange(t)) return;
   if (t.dataset.seatbot != null) { U.seats[+t.dataset.seatbot].bot = t.value === "1"; return; }
   if (t.dataset.cfg || t.dataset.cfgjson || t.dataset.path || t.dataset.mpath) { if (SI.stu2) SI.stu2.snap(U.studio); const r = SI.studioChange(U.studio, t); if (r !== true) { toast(r || "Invalid value"); } SI.saveDraft(U.studio); (t.dataset.mpath ? t.closest(".mchk") || t : t.type === "checkbox" ? t.closest("label") || t : t).classList.add("dirty"); if (t.type === "checkbox" && t.dataset.cfg) { const lb = t.closest("label"); if (lb) lb.lastChild.textContent = t.checked ? " On" : " Off"; } if (SI.stu2) SI.stu2.refresh(); return; }

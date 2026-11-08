@@ -74,7 +74,7 @@ T("burnout", /falls (\d+) after a calm round/, c.burnRelief, "calm relief"); T("
 T("burnout", /At (\d+)\+ you lose extra Hype/, c.burnStrainAt, "Strained at"); T("burnout", /at (\d+)\+ a worker is benched/, c.burnBenchAt, "benched at"); T("burnout", /at (\d+) one quits/, c.burnQuitAt, "meltdown at"); T("burnout", /Culture is (\d+) minus/, c.cultureFoldBase, "culture base");
 T("board_perks", /pay (\d+)G/, teamCost, "Team Event cost"); T("board_perks", /lower Burnout by (\d+)/, teamRelief, "Team Event relief (perks step)");
 T("r2recruit", /costs (\d+)G, plus/, c.recruitCost, "recruit cost"); T("r2recruit", /plus (\d+)G for each/, c.recruitLadder, "recruit ladder"); T("r2crunch", /costs (\d+)G/, c.crunchGold, "crunch gold");
-T("races", /every (\d+) points of Progress/, c.raceDen, "race divisor"); T("hype_bank", /fades by (\d+)/, c.hypeDecay, "hype decay"); T("hype_bank", /banks up to (\d+)/, c.hypeBank, "hype bank"); T("upkeep", /From round (\d+)/, c.decayFromRound, "decay starts");
+T("races", /every (\d+) points of Progress/, c.raceDen, "race divisor"); T("hype_bank", /fades by (\d+)/, c.hypeDecay, "hype decay"); T("hype_bank", /banks up to (\d+)/, c.hypeBank, "hype bank"); T("hype_bank", /From round (\d+)/, c.decayFromRound, "decay starts");
 T("convert", /turn (\d+) skills/, c.convertRate, "convert rate"); T("convert", /1 VP per (\d+)\./, c.goldPerVP, "gold per VP"); T("promote", /earns (\d+) skills/, c.resSr, "Senior skills") ;
 // rulebook vs the same truths
 T("setup", /Team Event|X/, 0, "", "") ; F.pop();

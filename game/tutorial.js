@@ -56,7 +56,10 @@ function tokens(S) {
     nPlayers: S.players.length, gateLossCap: c.gateLossCap || 4, goldPerVP: c.goldPerVP || 3, raceFirst: (E.rankTable(c, S.players.length) || [])[0], raceLast: (E.rankTable(c, S.players.length) || []).slice(-1)[0],
     burnVP: (function () { var ks = Object.keys(c.burnVP || {}).filter(function (k) { return (c.burnVP[k] || 0) < 0 }).map(Number).sort(function (a, b) { return a - b }), o = []; ks.forEach(function (k) { var v = c.burnVP[k], l = o[o.length - 1]; if (l && l.v === v && l.to === k - 1) l.to = k; else o.push({ from: k, to: k, v: v }) }); return o.map(function (x) { return (x.from === x.to ? x.from : x.from + "-" + x.to) + ": " + x.v + " VP" }).join(", ") })(), cultureBase: c.cultureFoldBase,
     hypeBank: c.hypeBank || 0, trainCost: c.trainCost, trainCulture: c.trainCulture, trainNeeded: c.trainNeeded,
-    freeBuild: p.freeBuilds ? "<br><br><b>A free build is on the house this round.</b>" : "",
+    freeBuild: p.freeBuilds ? " <b>A free build is on the house this round.</b>" : "",
+    recruitMinRound: c.recruitMinRound || 2, decayFromRound: c.decayFromRound || 4,
+    incomeNow: (S.rnote && S.rnote.p && S.rnote.p[0] ? S.rnote.p[0].income : c.income), salaryNow: (S.rnote && S.rnote.p && S.rnote.p[0] ? S.rnote.p[0].salary : p.workers.reduce((a, w) => a + (w.lvl === "Sr" ? c.salarySr : c.salaryJr), 0)),
+    goldNow: (S.rnote && S.rnote.p && S.rnote.p[0] && S.rnote.p[0].goldNow != null ? S.rnote.p[0].goldNow : p.gold),
     burnMax: c.burnMax, burnOverStep: c.burnOverStep, burnOverMax: c.burnOverMax, burnUnpaidMin: c.burnUnpaidMin, burnRelief: c.burnRelief, burnTeamRelief: c.burnTeamRelief,
     energizedCulture: c.energizedCulture, energizedGold: c.energizedGold, burnStrainAt: c.burnStrainAt, burnStrainHype: c.burnStrainHype, burnBenchAt: c.burnBenchAt, burnQuitAt: c.burnQuitAt, burnQuitReset: c.burnQuitReset
   };
@@ -84,7 +87,14 @@ function mk(id, o) {
   const rowId = () => st.rv ? st.rv() : st.rid;
   Object.defineProperty(st, "title", { get: () => rw(rowId()).title, enumerable: true });
   Object.defineProperty(st, "btn", { get: () => rw(rowId()).btn || "Next", enumerable: true });
-  st.text = (S, T) => fmt(rw(st.vid ? st.vid(S) : rowId()).text, tokens(S));
+  // a line that starts with ">> " is the "do this now" call to action: the coach shows it in its own gold box, above the explanation
+  st.parts = (S) => {
+    const raw = String(rw(st.vid ? st.vid(S) : rowId()).text || ""), lines = raw.split("\n"), rest = []; let cta = "";
+    lines.forEach(l => { if (!cta && /^>>\s/.test(l)) cta = l.replace(/^>>\s*/, ""); else rest.push(l); });
+    const tk = tokens(S);
+    return { cta: cta ? fmt(cta, tk) : "", body: fmt(rest.join("\n").replace(/^\n+/, ""), tk) };
+  };
+  st.text = (S, T) => { const p = st.parts(S); return p.cta ? p.cta + (p.body ? "<br><br>" + p.body : "") : p.body; };
   return st;
 }
 const info = (id, o) => mk(id, Object.assign({ kind: "info", allow: () => MSG("msg_next") }, o));
@@ -97,41 +107,37 @@ const builtInManage = (S, r, crunch) => S.round > r || (S.round === r && S.step 
 const reachedRound = (S, r, stage) => S.round > r || (S.round === r && RANK[S.step] >= RANK[stage]);
 
 let STEPS = [
+  /* ---- cards 1-5: the goal, your pick, your team, the board. First action: objectives (card 3). First placement: lesson 6. ---- */
   info("welcome", { center: true, hold: true, hl: () => null, allow: () => MSG("msg_start") }),
-  /* ---- how you win, before phases and rounds ---- */
   info("win_vp", { center: true, hl: () => null }),
-  doing("objectives", { hl: () => ".modal", done: S => !S.dq.some(d => d.t === "keepObj" && d.p === 0), allow: a => a.type === "keepObj" ? null : MSG("msg_obj") }),
-  info("phasestart", { hl: () => ".sg-phase" }),
-  info("order", { hl: () => ".step[data-step=Order]" }),
+  doing("objectives", { hl: () => ".modal", done: S => !S.dq.some(d => d.t === "keepObj" && d.p === 0), allow: a => a.type === "keepObj" ? null : MSG("msg_obj"), noSkip: true }),
   info("team", { hl: () => "[data-tut=workers]" }),
-  info("boardintro", { hl: () => "[data-tut=board]" }),
   info("board_backlog", { hl: () => "[data-row=EARN]" }),
-  info("board_prototype", { hl: () => "[data-row=PROGRESS],[data-row=HYPE]" }),
-  info("income", { hl: () => ".pt[data-pid='0'] .st.rs.g" }),
-  info("placeintro", { hl: () => "[data-tut=board]" }),
-  doing("place1", { hl: () => (U().sel == null ? "[data-tut=workers] .wk:not(.placed), [data-tut=board]" : "[data-tut=board]"),
+  /* ---- round 1: place, the one-desk lesson, build ---- */
+  doing("place1", { hl: () => (U().sel == null ? "[data-tut=workers] .wk:not(.placed)" : "[data-tut=board]"),
     vid: S => !actorIsMe(S) ? "place1w" : U().detail && U().detail.k === "spot" ? "place1c" : U().detail && U().detail.k === "worker" ? "place1d" : U().sel == null ? "place1" : "place1b",
     done: S => after(S, "place", 1) || (S.round === 1 && S.step === "place" && me(S).rs.placed >= 1),
     allow: a => a.type === "place" ? null : a.type === "pass" ? MSG("msg_place_first") : MSG("msg_place") }),
   info("stats", { hl: () => ".pt[data-pid='0'] .stats.res" }),
   info("ws1", { hl: () => ".pt[data-pid='0'] [data-tut=ws]" }),
-  doing("place2", { hl: () => ".pt[data-pid='0'] [data-tut=ws]", done: S => after(S, "place", 1) || S.round > 1, allow: a => (a.type === "buyws" || a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
+  doing("place2", { hl: () => ".pt[data-pid='0'] [data-tut=ws] [data-act=buyws]", done: S => after(S, "place", 1) || S.round > 1, allow: a => (a.type === "buyws" || a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
   doing("build", { hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"), done: S => builtInManage(S, 1),
     allow: (a, S) => a.type === "build" ? null : a.type === "done" ? ((me(S).builds >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : MSG("msg_build_first")) : MSG("msg_build") }),
   info("tired", { hl: () => "[data-tut=workers]" }),
-  info("burnout", { hl: () => ".pt[data-pid='0'] .st.bo" }),
-  info("board_perks", { hl: () => ".shared" }),
-  doing("rest1", { hl: () => "[data-tut=miles]", done: S => after(S, "rest", 1), allow: a => a.type === "train" ? MSG("msg_train_later") : (a.type === "done" || a.type === "claim") ? null : MSG("msg_rest") }),
-  info("upkeep", { hl: () => ".step[data-step=Upkeep]" }),
-  info("gates", { hl: () => "[data-tut=gates]" }),
-  /* ---- round 2: recruit, rest, crunch ---- */
+  doing("rest1", { hl: () => "[data-tut=miles],[data-tut=done]", done: S => after(S, "rest", 1), allow: a => a.type === "train" ? MSG("msg_train_later") : (a.type === "done" || a.type === "claim") ? null : MSG("msg_rest") }),
+  /* ---- round 2: what the new round did, recruit, perks, crunch, burnout ---- */
+  info("income", { hl: () => ".pt[data-pid='0'] .st.rs.g" }),
+  info("upkeep", { hl: () => ".pt[data-pid='0'] .ordbadge" }),
   doing("r2recruit", { hl: () => "[data-tut=recruit]", done: S => me(S).recruited >= 1 || S.round > 2,
     allow: (a, S) => (a.type === "buyws" || a.type === "place" || a.type === "recruit") ? null : a.type === "pass" ? MSG("msg_recruit") : MSG("msg_recruit") }),
+  info("board_perks", { hl: () => ".shared" }),
   doing("r2place", { hl: () => "[data-tut=workers]", done: S => reachedRound(S, 2, "rest"), allow: a => (a.type === "buyws" || a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
   doing("r2crunch", { hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"), done: S => builtInManage(S, 2, true),
-    allow: (a, S) => a.type === "build" ? (a.crunch || (S.cfg.rdCrunch && me(S).rd) ? null : MSG("msg_crunch")) : a.type === "done" ? (((me(S).rs.crunched || 0) >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : MSG("msg_crunch")) : null }),
-  info("board_jam", { hl: () => "[data-row=CREW]" }),
-  play("r3", { hl: () => null, done: S => S.round >= 4 }),
+    allow: (a, S) => a.type === "build" ? (a.crunch || (S.cfg.rdCrunch && me(S).rd) ? null : MSG("msg_crunch")) : a.type === "done" ? (((me(S).rs.crunched || 0) >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : MSG("msg_crunch")) : (a.type === "train" || a.type === "promote") ? MSG("msg_train_later") : null }),
+  info("burnout", { hl: () => ".pt[data-pid='0'] .st.bo" }),
+  /* ---- round 3: strike teams, the first gate ---- */
+  info("gates", { hl: () => "[data-tut=gates]" }),
+  play("r3", { hl: () => null, done: S => S.round >= 4, allow: a => (a.type === "train" || a.type === "promote") ? MSG("msg_train_later") : null }),
   /* ---- production ---- */
   softInfo("gateresult", { hl: () => "[data-tut=gates]" }),
   softInfo("races", { hl: () => "[data-tut=tracks]" }),
@@ -158,7 +164,8 @@ SI.tutNew = function () {
   const S = E.newGame([{ name: "You", bot: false }, { name: "Rival", bot: true }], { seed: SI.TUT_SEED, config: cfg, data: E.clone(E.defaultData(cfg)) });
   return S;
 };
-SI.tutInit = () => ({ idx: 0, ack: {}, auto: false, gaveFree: false, rev: null });
+SI.TUT_VER = 3;   // bump when STEPS change, so an old autosaved tutorial is never resumed against a different script
+SI.tutInit = () => ({ idx: 0, ack: {}, auto: false, gaveFree: false, rev: null, vis: {}, ver: SI.TUT_VER });
 const cur = () => { const u = U(); return u.tut ? STEPS[Math.min(u.tut.idx, STEPS.length - 1)] : null; };
 
 SI.tutTick = function () {
@@ -171,7 +178,7 @@ SI.tutTick = function () {
     T.idx++; u.sel = null;
   }
   // rigs: make sure the player can do what the current step teaches
-  const st = STEPS[T.idx]; T.gave = T.gave || {};
+  const st = STEPS[T.idx]; T.gave = T.gave || {}; (T.vis = T.vis || {})[st.id] = 1;
   const key = st.id + ":" + S.round;
   if (st.id === "build" || st.id === "r2crunch") {
     if (!T.gaveFree && st.id === "build" || (st.id === "r2crunch" && !T.gave[key])) {
@@ -209,6 +216,11 @@ SI.tutAllowsDetail = function () {
   if (T.rev != null) return false;
   const i = SI.tutSteps.findIndex(s => s.id === "place1"); return i < 0 || T.idx >= i;
 };
+/* The Train button on a worker card is hidden until the lesson that teaches it (it only tempts a first-time player to spend Gold early). */
+SI.tutHideTrain = function () {
+  const u = U(), T = u.tut; if (!T || T.auto || !u.S) return false;
+  const i = STEPS.findIndex(s => s.id === "promote"); return i >= 0 && T.idx < i;
+};
 SI.tutBack = function () { const T = U().tut; if (!T) return; if (T.rev == null) T.rev = Math.max(0, T.idx - 1); else T.rev = Math.max(0, T.rev - 1); };
 SI.tutFwd = function () { const T = U().tut; if (!T || T.rev == null) return; T.rev++; if (T.rev >= T.idx) T.rev = null; };
 SI.tutAck = function () { const T = U().tut, st = cur(); if (T && st) T.ack[st.id] = true; };
@@ -223,20 +235,23 @@ SI.tutCoach = function () {
     if (S.over) return "";
     return `<div class="coach"><button class="x" data-act="tut-exit" aria-label="Exit tutorial">×</button><div class="cp">Fast-forward</div><div class="ct">Round ${S.round} of 12 · ${esc(D.phases[S.phase].name)}…</div></div>`;
   }
-  let body = SI.L(typeof st.text === "function" ? st.text(S, T) : st.text);
+  const P = typeof st.parts === "function" ? st.parts(S) : { cta: "", body: SI.L(st.text) };
+  // honest progress: lessons seen so far, plus the lessons still ahead (a lesson that was skipped because you already did it is not counted)
+  let seen = 0; for (let i = 0; i <= at; i++) if ((T.vis || {})[STEPS[i].id] || i === at) seen++;
+  const ahead = n - 1 - T.idx, total = (T.vis ? Object.keys(T.vis).length : seen) + ahead, left = Math.max(0, total - seen);
   const waiting = !rv && st.kind === "do" && S.dq.length === 0 && E.currentActor(S) > 0;
   const back = at > 0 ? `<button class="btn" data-act="tut-back">${L("ui_back")}</button>` : "";
-  const stop = !rv && !st.final && !st.center ? `<button class="btn" data-act="tut-free">${L("ui_stop")}</button>` : "";
+  const stop = !rv && !st.final && !st.center ? `<button class="btn ghost" data-act="tut-free" title="Leave the guide and keep playing this game">${L("ui_stop")}</button>` : "";
   let btns = "";
   if (rv) btns = back + `<button class="btn primary" data-act="tut-fwd">${T.rev + 1 >= T.idx ? L("ui_fwd_end") : L("ui_fwd")}</button>`;
-  else if (st.wrap) btns = `<button class="btn primary" data-act="tut-next">Play the full game with the coach</button><button class="btn" data-act="tut-auto">Fast-forward &amp; explain the score</button><button class="btn" data-act="tut-free">Keep playing without the coach</button>${back}<button class="btn" data-act="tut-exit">Back to menu</button>`;
   else if (st.kind === "info") btns = back + `<button class="btn primary" data-act="tut-next">${esc(st.btn || "Next")}</button>` + stop;
   else btns = back + stop;
-  const stepTxt = fmt(rw("ui_step").text, { n: Math.min(at + 1, n), total: n });
-  return `<div class="coach ${st.center ? "center" : ""}">${st.center ? "" : '<button class="x" data-act="tut-exit" aria-label="Exit tutorial">×</button>'}
-    <div class="cp">${stepTxt}${rv ? " · " + L("ui_review") : ""}</div><div class="ctt">${esc(st.title)}</div><div class="ct">${body}</div>
-    ${waiting ? `<div class="cw">${L("ui_wait")}</div>` : ""}${btns ? `<div class="cb">${btns}</div>` : ""}
-    <div class="prog"><i style="width:${Math.round((at + 1) / n * 100)}%"></i></div></div>${st.center ? '<div class="coach-dim"></div>' : ""}`;
+  const stepTxt = fmt(rw("ui_step").text, { n: Math.min(seen, total), total, left }) + (rv ? " · " + L("ui_review") : "");
+  const cta = P.cta ? `<div class="cta${waiting ? " wait" : ""}"><span class="ctl">${waiting ? "Next up" : "Your move"}</span>${P.cta}</div>` : "";
+  const status = waiting ? `<div class="cw" role="status">${L("ui_wait")}</div>` : "";
+  return `<div class="coach ${st.center ? "center" : ""} k-${st.kind}" role="dialog" aria-label="Guided tutorial">${st.center ? "" : '<button class="x" data-act="tut-exit" aria-label="Exit tutorial">×</button>'}
+    <div class="cp">${stepTxt}</div><div class="prog" aria-hidden="true"><i style="width:${Math.round(Math.min(seen, total) / total * 100)}%"></i></div>
+    <div class="ctt">${esc(st.title)}</div>${cta}${P.body ? `<div class="ct">${P.body}</div>` : ""}${status}${btns ? `<div class="cb">${btns}</div>` : ""}</div>${st.center ? '<div class="coach-dim"></div>' : ""}`;
 };
 /* ---------- spotlight: dim everything except the highlighted area (the coach box sits above it) ---------- */
 let spotEl = null, spotSel = null;

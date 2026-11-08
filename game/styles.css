@@ -225,7 +225,7 @@ table.dt input.n{width:62px}
 .detail .dl li{padding:3px 0 3px 12px;position:relative;line-height:1.4}
 .detail .dl li::before{content:"";position:absolute;left:0;top:.85em;width:5px;height:5px;border-radius:50%;background:var(--line)}
 
-.stepgroup>span.lab{font-size:11px;font-weight:900;letter-spacing:.14em;color:#fff;padding:4px 10px;border-radius:6px;margin-right:6px}
+.stepgroup>span.lab{font-size:12px;font-weight:900;letter-spacing:.14em;color:#fff;padding:4px 10px;border-radius:6px;margin-right:6px}
 .sg-phase>span.lab{background:#8e44ad}
 .sg-round>span.lab{background:#2471a3}
 .sg-phase{padding-right:10px;margin-right:6px;border-right:1px solid var(--line)}
@@ -530,3 +530,137 @@ table.dt input.n{width:62px}
 .tbl{border-collapse:collapse}
 .tbl th,.tbl td{padding:7px 10px;border-bottom:1px solid var(--line,rgba(255,255,255,.1));vertical-align:top}
 .tbl th{font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+
+/* ============ UX pass: status, round transitions, coach, phone ============ */
+/* round rail: where in the 12 rounds you are, phases coloured */
+.rail{display:inline-flex;gap:3px;align-items:center}
+.rail i{width:14px;height:8px;border-radius:2px;background:var(--c);opacity:.28}
+.rail i.d{opacity:.7}
+.rail i.n{opacity:1;height:12px;outline:2px solid #fff;outline-offset:1px}
+.top .rn{font-size:16px}
+/* whose turn: unmistakable, with a colour-independent label ("Your turn" / "Waiting for") */
+.turnbanner{background:var(--panel2)}
+@media (min-width:981px){.turnbanner{position:sticky;top:0;z-index:20}}
+.turnbanner .kick{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.turnbanner.mine{background:linear-gradient(90deg,rgba(245,197,66,.16),var(--panel2) 60%);border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.turnbanner.mine .kick{color:var(--gold)}
+.turnbanner.mine .kick::before{content:"\25B6\00a0"}
+.turnbanner.wait{opacity:.92}
+.turnbanner .where{margin-top:3px;font-size:12px;font-weight:600;color:var(--mute);letter-spacing:.02em}
+.turnbanner .dots{display:inline-flex;gap:3px;margin-left:8px;vertical-align:middle}
+.turnbanner .dots i{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.3;animation:bn-dot 1.1s infinite}
+.turnbanner .dots i:nth-child(2){animation-delay:.18s}.turnbanner .dots i:nth-child(3){animation-delay:.36s}
+@keyframes bn-dot{0%,100%{opacity:.25}40%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.turnbanner .dots i{animation:none;opacity:.7}}
+/* notices are blue, refusals stay red */
+.toast.info,.toast.undo{background:#1f4f7a;color:#fff;border:1px solid #5aa9e6;display:flex;align-items:center;gap:10px;max-width:min(92vw,560px)}
+.toast .btn{background:#fff;color:#0d2236;border-color:#fff}
+/* between-step screens: one layout everywhere */
+.modal.rsm{width:min(640px,100%)}
+.rs-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.rs-kick{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--gold)}
+.rs h2{font-size:24px;margin:2px 0 10px}
+.rs-sec{margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.02)}
+.rs-sec.gate{border-color:var(--gold);background:rgba(245,197,66,.06)}
+.rs-sec h4{margin:0 0 6px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.rs-tbl{width:100%}
+.rs-tbl th{font-size:12px}
+.rs-tbl td,.rs-tbl th{padding:6px 8px}
+.rs-tbl tr.me td{background:rgba(245,197,66,.08)}
+.rs-tbl .rsub,.rs .rsub{font-size:13px;color:var(--mute);font-weight:500;margin-top:2px}
+.rs .rsub.bad,.rs .bad{color:var(--bad)}
+.ordn{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--gold);color:#06121c;font-weight:800}
+.dl{font-family:var(--mono);font-size:15px}
+.dl.g{color:var(--good)}.dl.b{color:var(--bad)}.dl.z{color:var(--mute)}
+.tag.you{border-color:var(--gold);color:var(--gold)}
+.rs-first{font-size:15px;margin-top:8px}
+.rs-ul{margin:0;padding-left:20px;line-height:1.5}
+.rs-ul.gate{list-style:none;padding-left:0}
+.rs-ul.gate li{padding:3px 0}
+.rs-goal{margin:0 0 10px;color:var(--mute)}
+.rs-det{margin:0 0 12px}.rs-det summary{cursor:pointer;padding:6px 0;font-weight:700}
+.rs-gate{margin-top:8px}
+.rs-foot{margin-top:14px;display:flex;justify-content:flex-end;position:sticky;bottom:-16px;padding:10px 0 2px;background:linear-gradient(transparent,var(--panel) 35%)}
+.btn.big{min-height:46px;padding:0 26px;font-size:16px}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--mute);text-decoration:underline;text-underline-offset:3px;padding-left:6px;padding-right:6px}
+.btn.ghost:hover:not(:disabled){color:var(--ink);background:transparent;border-color:transparent}
+/* coach card: lesson progress on top, a gold "your move" box, explanation underneath */
+.coach .cp{font-size:11.5px}
+.coach .prog{margin:6px 0 8px}
+.coach .cta{margin:2px 0 8px;padding:8px 10px;border-radius:9px;background:rgba(245,197,66,.14);border:1px solid var(--gold);font-size:15px;font-weight:600;line-height:1.35}
+.coach .cta .ctl{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);font-weight:800;margin-bottom:2px}
+.coach .cta.wait{background:rgba(255,255,255,.05);border-color:var(--line);opacity:.9}
+.coach .cta.wait .ctl{color:var(--mute)}
+.coach .ct{font-size:14px}
+.coach .cw{font-size:13px}
+.coach.k-do .cb,.coach.k-free .cb{margin-top:8px}
+/* hints and empty states */
+.fatlegend{margin-top:8px;display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;color:var(--mute);line-height:1.4}
+.fatchip{display:inline-block;padding:0 7px;border-radius:5px;font-size:12px;border:1px solid currentColor}
+.fatchip.f1{color:#f5c542}.fatchip.f2{color:#ff8d82}
+.fatchip.f2::before{content:"\26A0\00a0"}
+.why{font-size:13px}
+.why.taken{color:var(--mute)}
+.spot .why.taken{color:var(--mute)}
+.panel.compact .hint{margin:0}
+.skilldesc{margin:4px 0 6px;font-size:13px;color:var(--mute);line-height:1.4;min-height:2.8em}
+.menurow select{min-height:36px}
+.menubtns .btn .rsub{display:block;font-size:12px;font-weight:500;opacity:.85}
+.lbl{display:inline-flex;align-items:center;gap:4px;font-size:12px}
+.whatnext{margin-top:12px;display:flex;flex-direction:column;gap:2px}
+.hl-note{color:var(--gold)}
+
+@media (max-width:700px){
+  /* header: the round, the rail and the phase are enough; secondary buttons live in the Menu */
+  .top{padding:6px 10px;gap:6px 8px}
+  .top .logo{font-size:18px!important}
+  .top .sec{display:none}
+  .top .stepgroup .step:not(.on){display:none}
+  .top .stepgroup>span.lab{display:none}
+  .top .stepgroup.sg-phase:not(:has(.on)){display:none}
+  .top .rail i{width:9px}
+  .btn,.btn.sm,.tab,select,input:not([type=checkbox]):not([type=radio]){min-height:44px}
+  .turnbanner{padding:8px 10px;gap:8px}
+  .turnbanner .who{font-size:17px}
+  .turnbanner .prompt{font-size:14px}
+  .turnbanner>.btn{flex:1 1 100%;order:4}
+  .toast{left:8px;right:8px;transform:none;top:8px;bottom:auto;max-width:none;z-index:400}
+  .rs h2{font-size:20px}
+  .modal.rsm{padding:14px 12px}
+  .rs-tbl td,.rs-tbl th{padding:5px 4px}
+  .rs-tbl{font-size:13px}
+  .scroll-x-rs{overflow-x:auto}
+  .rs-foot .btn{flex:1}
+  /* coach becomes a compact bottom sheet that the page scrolls clear of */
+  .coach{left:8px;right:8px;bottom:8px;width:auto;max-height:46vh;max-height:46dvh;overflow:auto;padding:10px 12px 12px;border-radius:12px}
+  .coach.center{left:50%;right:auto;width:min(94vw,520px);max-height:86dvh}
+  .coach .ctt{font-size:16px;margin:0 28px 4px 0}
+  .coach .cta{font-size:14px;padding:6px 8px}
+  .coach .ct{font-size:14px;line-height:1.4}
+  .coach .cb{gap:6px;margin-top:8px}
+  .coach .cb .btn{min-height:44px;padding:0 12px}
+  .coach .x{width:44px;height:44px;top:0;right:0;font-size:26px}
+  .fatlegend{font-size:13px}
+}
+.swipehint{display:none;font-size:13px;color:var(--mute);margin:0 0 6px}
+@media (max-width:700px){.swipehint{display:block}}
+/* type floor 12px for labels (body stays 14px); phone menu no longer scrolls sideways */
+.chip,.tag,.spot .chip,.spot .kind,.sys2 .sr .k,.wk .whd,.dcard .foot .more,.crisis .k,.sys2 .pas b,.detail .dsec h4,.detail .drow .dk,.stats .st small,.occ i{font-size:12px}
+.wk .wi{font-size:12px}
+select{max-width:100%}
+@media (max-width:700px){
+  .center-screen{padding:12px}
+  .card-box{padding:18px 16px;min-width:0}
+  .card-box select{max-width:100%}
+  .seat{grid-template-columns:18px minmax(0,1fr) 96px}
+  .wk .wi{min-height:34px;padding:6px 0}
+}
+.step,.wk .l,.spot .corner,.wcost .wt,.mcol .lab,.sys2 .pas,.ordbadge,.stats.big .st.rs .sv small,.stats.big .st.rs b .dim,.stats .st small,.log,[style*="font-size:11px"],[style*="font-size:10px"]{font-size:12px!important}
+.seat.lseat{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:8px 0}
+.seat.lseat .grow{flex:1 1 20px}
+.wk .fl{padding:0 16px}
+.turnbanner .ev{margin-top:4px;font-size:13px;color:var(--mute);line-height:1.35;font-weight:500}
+.turnbanner .ev div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:700px){.turnbanner .ev div:nth-child(n+3){display:none}}
+.turnbanner .grow{min-width:0;max-width:100%}
+.turnbanner .ev{max-width:100%}
