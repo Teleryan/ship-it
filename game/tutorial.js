@@ -201,6 +201,7 @@ SI.tutGate = function (a) {
   const u = U(), T = u.tut; if (!T || T.auto) return null;
   const st = cur(); if (!st) return null;
   if (a && a.type === "place" && a.target === "spot:train" && st.id !== "promote") return MSG("msg_train_later"); // the Training tile is taught in round 4
+  if (a && a.type === "place" && u.S.round < 3 && /^spot:/.test(a.target || "")) { const sp = u.S.data.spots.find(x => "spot:" + x.id === a.target); if (sp && sp.crew) return MSG("msg_strike_later"); } // strike teams are taught in round 3
   if (!st.allow) return null;
   return st.allow(a, u.S);
 };
