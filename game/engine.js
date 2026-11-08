@@ -561,7 +561,7 @@ function removeWorker(S, pi, wid, toPool) {
 /* ============================================================
    PLACEMENT
    ============================================================ */
-function activeSpots(S) { const dr = S.cfg.smallDrop, small = dr && dr.length && S.players.length <= (S.cfg.smallMax || 3); const bd = (S.cfg.dropByN && S.cfg.dropByN[S.players.length]) || []; return S.data.spots.filter(s => s.phases.includes(S.phase) && !(small && dr.includes(s.id)) && !bd.includes(S.phase + ":" + s.id)); }
+function activeSpots(S) { const dr = S.cfg.smallDrop, small = dr && dr.length && S.players.length <= (S.cfg.smallMax || 3); const bd = (S.cfg.dropByN && S.cfg.dropByN[S.players.length]) || []; return S.data.spots.filter(s => (s.id !== "train" || S.cfg.trainTile) && s.phases.includes(S.phase) && !(small && dr.includes(s.id)) && !bd.includes(S.phase + ":" + s.id)); }
 E.activeSpots = activeSpots; E.RES = RES; E.RES_OF = RES_OF; E.RES_NAME = RES_NAME; E.CAT_OF = CAT_OF;
 function catsOf(w) { const d = D0.disciplines[w.disc]; const out = [d.cat]; (d.wild || []).forEach(x => { const c = CAT_OF(x); if (!out.includes(c)) out.push(c); }); return out; }
 /* Strike Team spots: every way to fill the other slots from rested, unplaced workers. A plan = { ids (sorted), wcat (the category the placing worker fills), cats {id: category} }. */
@@ -612,6 +612,13 @@ function spotUsableBase(S, pi, w, spot) {
   if (S.closed && S.closed[spot.id]) return { ok: false, reason: "Closed by Industry News this round" };
   if (mode === "single" && occ.length) return { ok: false, reason: "Occupied" };
   if (mode !== "single" && mode !== "open" && occ.includes(pi)) return { ok: false, reason: "You already used this tile" };
+  if (spot.special === "train") { // Training tile: a Junior becomes a Senior; pay 1 Gold or 1 skill of their role
+    if (w.lvl !== "Jr") return { ok: false, reason: "Only Juniors train" };
+    if (!srAllowed(S)) return { ok: false, reason: "No Senior workers in Concept" };
+    const rk = RES_OF[CAT_OF(w.disc)], cost = S.cfg.trainCost == null ? 1 : S.cfg.trainCost;
+    if (P(S, pi).gold < cost && !(S.cfg.trainSkillPay && (P(S, pi)[rk] || 0) >= 1)) return { ok: false, reason: "Needs " + cost + "G" + (S.cfg.trainSkillPay ? " or 1 " + RES_NAME[rk] : "") };
+    return { ok: true, as: [w.disc] };
+  }
   let as = [];
   if (spot.discs.includes("ANY")) as = [w.disc];
   else as = actsAs(w).filter(d => spot.discs.includes(d));
@@ -703,6 +710,18 @@ function doPlace(S, pi, wid, target, o) {
     plan = opt.plans.find(pl => pl.ids.join(",") === want);
     if (!plan && Array.isArray(o.crew)) return err("That strike team is not allowed. Partners are chosen from: " + opt.plans.map(pl => "[" + pl.ids.join(",") + "]").join(" "));
     if (!plan) return err("Choose which of your workers joins the strike team (partners: " + opt.plans.map(pl => "[" + pl.ids.join(",") + "]").join(" ") + ")");
+  }
+  if (opt.kind === "spot" && opt.spot.special === "train") { // promote on the spot: no skill, no fatigue, no Burnout; the worker does not recover either
+    const c = S.cfg, rk = RES_OF[CAT_OF(as)], cost = c.trainCost == null ? 1 : c.trainCost;
+    const useSkill = o.pay === "skill" ? true : o.pay === "gold" ? false : p.gold < cost;
+    if (useSkill) { if (!c.trainSkillPay || (p[rk] || 0) < 1) return err("Needs 1 " + RES_NAME[rk]); p[rk] -= 1; p.rs.spentRes = (p.rs.spentRes || 0) + 1; }
+    else { if (p.gold < cost) return err("Needs " + cost + "G"); gain(S, pi, "gold", -cost); }
+    w.placed = true; w.lvl = "Sr"; w.trained = 0; S.occ[opt.spot.id] = (S.occ[opt.spot.id] || []).concat([pi]);
+    if (c.wsMax) p.wsUsed++;
+    p.rs.placed++; p.rs.trains = (p.rs.trains || 0) + 1; p.cs.trainings = (p.cs.trainings || 0) + 1; p.cs.promotions++; p.promos++;
+    gain(S, pi, "culture", c.trainCulture || 0);
+    log(S, p.name + " trains a Junior " + dn(w.disc) + " into a Senior (-" + (useSkill ? "1 " + RES_NAME[rk] : cost + "G") + ", Culture +" + (c.trainCulture || 0) + ")");
+    return { ok: true };
   }
   if (DISCS.includes(w.disc) && D0.disciplines[w.disc].wild) w.as = as;
   const over = w.fat >= (S.cfg.fatMax||2);
@@ -944,6 +963,7 @@ function claimMile(S, p, a) {
 // Training is a free action any time it is your turn (Place or Manage). Done in Place, the Junior sits out the rest of this round; done in Manage, the next round.
 E.canTrain = function (S, pi, w) {
   const p = P(S, pi), c = S.cfg;
+  if (c.trainTile) return { ok: false, reason: "Train on the Training tile" };
   if (!w || w.lvl !== "Jr") return { ok: false, reason: "Only Juniors train" };
   if (S.round >= PHASE_ENDS[3]) return { ok: false, reason: "The game ends this round: no time to train" };
   if (w.placed || w.build) return { ok: false, reason: "Worked or building this round" };
@@ -977,6 +997,7 @@ function restAction(S, a, p) {
       log(S, p.name + " refreshes the " + def.cat + " market (" + a.name + " is replaced)"); return { ok: true };
     }
     case "promote": {
+      if (c.trainTile) return err("Promote on the Training tile");
       const w = p.workers.find(x => x.id === a.worker); if (!w || w.lvl !== "Jr") return err("Pick a Junior worker");
       if (!srAllowed(S)) return err("No Senior workers in Concept");
       if (p.promos >= c.promotionsPerRest) return err("Promotion limit reached");

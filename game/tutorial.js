@@ -84,7 +84,8 @@ const sysOpt = S => me(S).workers.some(w => w.lvl === "Sr" && !w.placed && E.pla
 const srIds = S => me(S).workers.filter(w => w.lvl === "Sr" && !w.placed && E.placementOptions(S, 0, w).some(o => o.kind === "sys" && o.ok)).map(w => w.id);
 const convOpt = S => me(S).workers.some(w => !w.placed && E.placementOptions(S, 0, w).some(o => o.ok && o.spot && o.spot.special === "convert"));
 const trigOk = (S, w) => { const lv = w.lvl, pl = w.placed; w.lvl = "Sr"; w.placed = false; let ok = false; try { ok = E.placementOptions(S, 0, w).some(o => o.kind === "sys" && o.ok); } finally { w.lvl = lv; w.placed = pl; } return ok; };
-const eligibleJr = S => me(S).workers.filter(w => w.lvl === "Jr" && !w.placed && (S.cfg.train ? !w.build && !w.training : w.worked));
+const eligibleJr = S => me(S).workers.filter(w => w.lvl === "Jr" && !w.placed && !w.build);
+const S0 = () => U().S, placedTrain = S => !!(S && S.occ && S.occ.train && S.occ.train.includes(0));
 // make a step whose title, button and text come from the editable rows
 function mk(id, o) {
   const st = Object.assign({ id, rid: id }, o);
@@ -147,9 +148,9 @@ let STEPS = [
   softInfo("races", { hl: () => "[data-tut=tracks]" }),
   softInfo("hype_bank", { hl: () => "[data-tut=tracks]" }),
   softInfo("crisis", { hl: () => "[data-tut=crisis]" }),
+  doing("promote", { rv: () => "promote_train", hl: () => placedTrain(S0()) ? "[data-act=pass]" : U().sel != null ? ".spot[data-id=train]" : "[data-tut=workers] .wk.pick", done: S => me(S).workers.some(w => w.lvl === "Sr") || S.round > 4,
+    allow: (a, S) => a.type === "place" ? (a.target === "spot:train" ? ((!trigOk(S, me(S).workers.find(w => w.id === a.worker) || {}) && eligibleJr(S).some(w => trigOk(S, w))) ? MSG("msg_promote_fit") : null) : MSG("msg_promote_train")) : a.type === "pass" || a.type === "recruit" ? MSG("msg_promote_train") : null }),
   play("r4play", { hl: () => null, done: S => reachedRound(S, 4, "rest") }),
-  doing("promote", { rv: () => "promote_train", hl: () => "[data-tut=rest]", done: S => me(S).workers.some(w => w.lvl === "Sr") || S.round > 4,
-    allow: (a, S) => a.type === "claim" ? null : a.type === "train" ? (S.cfg.train && !trigOk(S, me(S).workers.find(w => w.id === a.worker) || {}) && eligibleJr(S).some(w => trigOk(S, w)) ? MSG("msg_promote_fit") : null) : a.type === "promote" ? (eligibleJr(S).some(w => trigOk(S, w)) && !trigOk(S, me(S).workers.find(w => w.id === a.worker) || {}) ? MSG("msg_promote_fit") : null) : a.type === "done" ? (eligibleJr(S).length ? MSG(S.cfg.train ? "msg_promote_train" : "msg_promote") : null) : MSG(S.cfg.train ? "msg_promote_train" : "msg_promote") }),
   doing("trigger", { hl: () => "[data-tut=workers]", done: S => me(S).rs.triggers >= 1 || reachedRound(S, 5, "rest") || (S.round >= 5 && !sysOpt(S)),
     allow: (a, S) => a.type === "place" ? (srIds(S).includes(a.worker) && !String(a.target).startsWith("sys:") ? MSG("msg_trigger") : null) : a.type === "pass" ? MSG("msg_trigger") : null }),
   play("prod", { hl: () => null, done: S => S.round >= 9 }),
@@ -193,12 +194,7 @@ SI.tutTick = function () {
     }
   }
   if (st.id === "r2recruit" && !T.gave[key] && S.step === "place" && actorIsMe(S)) { T.gave[key] = true; const cost = E.recruitCost(S, 0); if (me(S).gold < cost) me(S).gold = cost; }
-  if (st.id === "promote" && !T.gave[key] && S.step === "rest" && actorIsMe(S) && !S.dq.length) {
-    T.gave[key] = true;
-    // make sure a Junior who fits one of the player's systems can be promoted, so the next lesson (a Senior triggers a system) can be played
-    if (S.cfg.train) { const w = me(S).workers.find(x => x.lvl === "Jr" && !x.placed && !x.build && trigOk(S, x)) || me(S).workers.find(x => x.lvl === "Jr" && !x.placed && !x.build); if (w) { w.trained = Math.max(w.trained || 0, S.cfg.trainNeeded - 1); } if (me(S).gold < S.cfg.trainCost) me(S).gold = S.cfg.trainCost; }
-    else if (!eligibleJr(S).some(w => trigOk(S, w))) { const w = me(S).workers.find(x => x.lvl === "Jr" && trigOk(S, x)) || (eligibleJr(S).length ? null : me(S).workers.find(x => x.lvl === "Jr")); if (w) { w.worked = true; w.placed = false; } }
-  }
+  if (st.id === "promote" && !T.gave[key] && S.step === "place" && actorIsMe(S) && !S.dq.length) { T.gave[key] = true; if (me(S).gold < (S.cfg.trainCost || 1)) me(S).gold = S.cfg.trainCost || 1; }
 };
 SI.tutHold = () => SI.tutLockMode() === "hard";
 SI.tutGate = function (a) {

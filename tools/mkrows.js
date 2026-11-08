@@ -45,11 +45,11 @@ r("msg_rest","Blocked-action message","","",
 r("msg_recruit","Blocked-action message","","",
 "Recruit one worker from the shared pool first");
 r("msg_promote","Blocked-action message","","",
-"Promote a Junior who has worked and rested");
+"Place a Junior on the Training tile");
 r("msg_promote_train","Blocked-action message","","",
-"Train a Junior, then promote them");
+"Place a Junior on the Training tile");
 r("msg_train_later","Blocked-action message","","",
-"Training comes later: you will train and promote a Junior in Production");
+"Training comes later: you will train a Junior on the Training tile in Production");
 r("msg_promote_fit","Blocked-action message","","",
 "Promote a worker whose role matches one of your systems");
 r("msg_trigger","Blocked-action message","","",
@@ -91,7 +91,7 @@ r("explain_gold","Results explainer · row","Gold","",
 r("explain_crisis","Results explainer · row","Crisis & Gates","",
 "VP gained or lost from Crisis cards and Publisher Gates (passed gates can pay VP, missed ones cost VP).");
 r("hint_manage","Hint · manage step","","",
-"**Manage.** Build a system, train or promote a Junior, and cash in any Milestone you have met. Then press **Done**.");
+"**Manage.** Build a system and cash in any Milestone you have met. Then press **Done**.");
 
 /* ===== UX pass: restructured guided tutorial (lines starting with ">> " are the "do this now" call to action shown in the coach card's gold box) ===== */
 r("welcome","Card 1 · opening","Welcome to Ship It!","Let's go",
@@ -150,12 +150,10 @@ r("hype_bank","Round 4 · banking Hype","Banking Hype","Got it",
 "From round {decayFromRound}, Hype fades by {hypeDecay} every round. To keep some, each studio **banks up to {hypeBank} Hype as Wishlists** at the end of every phase (this just happened for the first time).\n\nWishlists never fade and are added to your Hype at the end. Publisher Gates count Hype only, not Wishlists.");
 r("crisis","Round 4 · crisis","Production begins: a Crisis","Got it",
 "Every phase opens with a **Phase start**: a **Crisis card** (an event that hits every studio) and the **Reveal** of the new board. This one is {crisisName}.\n\nRead the card in the pop-up and make your choice. If it asks for a bid, a bid of **0** is safe.");
-r("r4play","Round 4 · place and manage","Round 4: play your round","",
-">> Place your workers, and leave a Junior who has worked to rest. You will promote one in Manage.\n\n{hint}");
-r("promote_train","Round 4 · train and promote","Train a Junior, then promote","",
-">> Click a Junior in the Manage panel, press **Train** ({trainCost}G), then press **Promote**.\n\nA Junior who has **trained** {trainTimes} can be **promoted to Senior for free**. A Senior earns **{resSr} skills** instead of {resJr} and is the only worker who can **trigger your systems**. Training {trainEffect}, and the Junior will {trainAway}. Pick one whose role matches a system you built.{promoLesson}");
-r("promote","Round 4 · promote","Promote a Junior to Senior","",
-">> Click a Junior who has worked and is now resting, then press **Promote**.\n\nIt is free. A Senior earns **{resSr} skills** instead of {resJr} and is the only worker who can **trigger your systems**. Pick one whose role matches a system you built.");
+r("promote_train","Round 4 · train a Senior","Train a Junior into a Senior","",
+">> Select a Junior, then click the **Training** tile (orange border) and confirm.\n\nTraining **promotes a Junior to Senior**. A Senior earns **{resSr} skills** instead of {resJr} and is the only worker who can **trigger your systems**. It uses a workstation and costs **{trainCost}G** (or 1 skill of their role). The Junior earns no skill, and training {trainEffect}. Pick one whose role matches a system you built.");
+r("r4play","Round 4 · finish placing","Round 4: finish your round","",
+">> Place your other workers, then press **Pass: done placing**. Your new Senior is ready: next round you will use it to trigger a system.\n\n{hint}");
 r("trigger","Round 5 · trigger a system","A Senior triggers a system","",
 ">> Select your Senior, click your **system tile** below the board, and confirm.\n\nA finished system pays its bonus when a Senior triggers it, instead of the Senior using a board tile. Each system can be triggered once per round.");
 r("convert","Round 12 · convert","Launch: convert your leftovers","",

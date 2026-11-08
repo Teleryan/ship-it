@@ -261,12 +261,12 @@ function prompt(S) {
   const d = S.dq[0]; const a = actorName(S);
   if (S.over) return "Game over";
   if (d) return { keepObj: "choose your objectives", bid: "secret auction bid", choose: "make a crisis choice", pickWorker: "choose a worker to lose", raidHire: "Studio Raid: hire at half cost?", pivot: "pivot your Platform", dropObj: "remove an objective", keepMile: "choose milestone(s) to keep", swapObjPick: "choose objective", patch: "Day-One Patch: spend Momentum" }[d.t] || "decide";
-  return { place: "select a worker, then a highlighted tile (or Pass)", rest: "manage: build systems, cash in milestones, train or promote, then Done" }[S.step] || "";
+  return { place: "select a worker, then a highlighted tile (or Pass)", rest: (U.S && U.S.cfg && U.S.cfg.trainTile ? "manage: build systems, cash in milestones, then Done" : "manage: build systems, cash in milestones, train or promote, then Done") }[S.step] || "";
 }
 // what the person whose turn it is should do right now, in one sentence
 function hintFor(S, a) {
   if (S.dq.length) return prompt(S);
-  if (S.step === "rest") return "Manage: build systems, cash in Milestones, train or promote, then press Done.";
+  if (S.step === "rest") return S.cfg.trainTile ? "Manage: build systems, cash in Milestones, then press Done." : "Manage: build systems, cash in Milestones, train or promote, then press Done.";
   if (S.step !== "place") return prompt(S);
   const free = a.workers.filter(w => !w.placed && !w.build && !w.benched), tot = a.ws == null ? Math.min(S.cfg.wsMax, S.cfg.wsFree) : a.ws, left = Math.max(0, tot - (a.wsUsed || 0));
   const sw = U.sel != null ? a.workers.find(w => w.id === U.sel) : null;
@@ -451,7 +451,7 @@ function cleanMiles(S, a) {
   return `<div class="panel" data-tut="miles"><h3>Your milestones (${a.miles.length}): cash in when met</h3><div class="row wrap" style="align-items:flex-start">${cards || '<span class="mute">No milestones in hand.</span>'}</div></div>`;
 }
 function restView(S, a) {
-  return `<div class="panel" data-tut="rest"><h3>Manage: build, train, promote, cash in</h3><div class="mute" style="margin:2px 0 6px">Cash in any met Milestone above, click a worker to train or promote them, then press Done.</div><div class="workers">${a.workers.map(w => workerCard(S, w, a.id, false)).join("") || '<span class="mute">No workers.</span>'}</div></div>`;
+  return `<div class="panel" data-tut="rest"><h3>${S.cfg.trainTile ? "Manage: build, cash in" : "Manage: build, train, promote, cash in"}</h3><div class="mute" style="margin:2px 0 6px">${S.cfg.trainTile ? "Build systems, cash in any met Milestone above, then press Done. Train Juniors on the Training tile." : "Cash in any met Milestone above, click a worker to train or promote them, then press Done."}</div><div class="workers">${a.workers.map(w => workerCard(S, w, a.id, false)).join("") || '<span class="mute">No workers.</span>'}</div></div>`;
 }
 function gatesPanel(S) {
   if (!S.cfg.gatesEnabled || !(S.data.publisherGates || []).length || S.step === "setup") return "";
@@ -716,6 +716,7 @@ function placeForm(S, pi, w, target) {
   if (fx && (fx.stats.prod || 0) > 0 && o.kind === "spot" && (o.as || []).some(x => x === "ENG" || x === "ART")) h += `${(() => { const eff = o.as && o.as.length === 1 ? o.as[0] : w.disc, noDebt = (P(pi).debt || 0) <= 0, noEng = eff === "ART" || noDebt, noArt = eff === "ENG", opt = (v, txt, off, why) => `<label style="margin-right:10px;${off ? "opacity:.4" : ""}" ${off ? `title="${why}"` : ""}><input type="radio" name="alt" value="${v}" ${off ? "disabled" : ""}> ${txt}</label>`; return `<div><div class="mute">Alternate action (Engineer / Artist)</div><label style="margin-right:10px"><input type="radio" name="alt" value="" checked> Normal</label>${opt("fixdebt", "Engineer: fix Tech Debt instead", noEng, eff === "ART" ? "Only an Engineer can do this" : "You have no Tech Debt to fix")}${opt("hype", "Artist: Hype instead", noArt, "Only an Artist can do this")}</div>`; })()}`;
   if (o.spot && o.spot.special === "convert") { const rk = E.RES_OF[E.CAT_OF(o.as[0])], n = Math.floor((P(pi)[rk] || 0) / (S.cfg.convertRate || 3)); h += `<div><div class="mute">Convert ${n * (S.cfg.convertRate || 3)} ${E.RES_NAME[rk]} into ${n}:</div><label style="margin-right:10px"><input type="radio" name="conv" value="prod" checked> Progress</label><label><input type="radio" name="conv" value="hype"> Hype</label></div>`; }
   if (o.spot && o.spot.special === "rd" && S.cfg.instantBuild) { const ks = [["ideas", "Ideas"], ["code", "Code"], ["process", "Process"], ["buzz", "Buzz"]], n = S.cfg.rdSkills == null ? 2 : S.cfg.rdSkills; for (let i = 1; i <= n; i++) h += `<div><div class="mute">Skill ${i} of ${n}</div>${ks.map((k, j) => `<label style="margin-right:10px"><input type="radio" name="rd${i}" value="${k[0]}" ${j === i - 1 ? "checked" : ""}> ${k[1]}</label>`).join("")}</div>`; }
+  if (o.spot && o.spot.special === "train") { const rk = E.RES_OF[E.CAT_OF(w.disc)], cost = S.cfg.trainCost == null ? 1 : S.cfg.trainCost, okG = P(pi).gold >= cost, okS = !!S.cfg.trainSkillPay && (P(pi)[rk] || 0) >= 1; h += `<div><div class="mute">Pay for training (the Junior becomes a Senior, earns no skill, and is not tired)</div><label style="margin-right:10px;${okG ? "" : "opacity:.4"}"><input type="radio" name="pay" value="gold" ${okG ? "checked" : "disabled"}> ${cost}G</label>${S.cfg.trainSkillPay ? `<label style="${okS ? "" : "opacity:.4"}"><input type="radio" name="pay" value="skill" ${okS ? (okG ? "" : "checked") : "disabled"}> 1 ${E.RES_NAME[rk]}</label>` : ""}</div>`; }
   if (o.spot && o.spot.special === "mentor") h += `<div><div class="mute">Promote which Junior?</div>${P(pi).workers.filter(x => x.lvl === "Jr" && x.disc === w.disc).map((x, i) => `<label style="margin-right:10px"><input type="radio" name="jr" value="${x.id}" ${i === 0 ? "checked" : ""}> Junior ${esc(nameOf(x.disc))} #${x.id}</label>`).join("")}</div>`;
   return `<div class="col" style="margin:8px 0">${h}</div><div class="row">${actBtn("Place " + (w.lvl === "Sr" ? "Senior " : "Junior ") + dname(w.disc) + " here", 'data-act="confirm-place"')}</div>`;
 }
@@ -739,10 +740,10 @@ function detailModal() {
         + sec("What they do", utilLines(w.disc))
         + sec(w.lvl === "Sr" ? "As a Senior" : "As a Junior", w.lvl === "Sr" ? [`+${S.cfg.resSr} skills of their role when placed`, "Can trigger system tiles (Juniors cannot)", "Promoted from a Junior who trained " + S.cfg.trainNeeded + " times"] : [`+${S.cfg.resJr} skill of their role when placed`, "Can be promoted to Senior during Rest", abil ? "" : ""])
         + sec("Condition", [fatTxt, fatNext])
-        + sec("This round", [w.lvl === "Jr" ? "Training: " + (w.trained || 0) + " of " + S.cfg.trainNeeded + (w.trainNow ? " (in training this round)" : w.training ? " (away next round)" : "") : "", w.placed ? "Placed on the board" : "Not placed yet (resting if you leave them)", w.as ? "Declared as " + nameOf(w.as) : "", abil]);
+        + sec("This round", [w.lvl === "Jr" && !S.cfg.trainTile ? "Training: " + (w.trained || 0) + " of " + S.cfg.trainNeeded + (w.trainNow ? " (in training this round)" : w.training ? " (away next round)" : "") : "", w.placed ? "Placed on the board" : "Not placed yet (resting if you leave them)", w.as ? "Declared as " + nameOf(w.as) : "", abil]);
       if (a === pi && mineTurn && !S.dq.length) {
-        if (S.step === "place") { const tk = E.canTrain(S, pi, w); h += `<div class="row" style="margin-top:12px">${actBtn(U.sel === w.id ? "Deselect worker" : "Select this worker", 'data-act="sel-worker" data-id="' + w.id + '"', w.placed, w.placed ? "Already placed this round" : "")}${w.lvl === "Jr" ? actBtn("Train \u00b7 " + S.cfg.trainCost + "G, " + (S.cfg.trainCulture ? "-1 Burnout" : "") , `data-act="train" data-w="${w.id}"`, !tk.ok, tk.reason || "") : ""}</div>`; }
-        if (S.step === "rest") {
+        if (S.step === "place") { const tk = E.canTrain(S, pi, w); h += `<div class="row" style="margin-top:12px">${actBtn(U.sel === w.id ? "Deselect worker" : "Select this worker", 'data-act="sel-worker" data-id="' + w.id + '"', w.placed, w.placed ? "Already placed this round" : "")}${w.lvl === "Jr" && !S.cfg.trainTile ? actBtn("Train \u00b7 " + S.cfg.trainCost + "G, " + (S.cfg.trainCulture ? "-1 Burnout" : "") , `data-act="train" data-w="${w.id}"`, !tk.ok, tk.reason || "") : ""}</div>`; }
+        if (S.step === "rest" && !S.cfg.trainTile) {
           const cost = E.promoGold(S), needRest = !!E.trainPromoWhy(S, w);
           const pp = P(a), tr = pp.rs.trains || 0, why = w.lvl !== "Jr" ? "Only Juniors train" : S.round >= 12 ? "The game ends this round" : w.placed || w.build ? "Worked or building this round" : w.training ? "Already training" : tr >= S.cfg.trainsPerRest ? "Training limit reached" : pp.gold < S.cfg.trainCost ? "Not enough gold" : "";
           h += `<div class="row" style="margin-top:12px">${w.lvl === "Jr" ? actBtn("Train · " + S.cfg.trainCost + "G, +" + S.cfg.trainCulture + " Culture", `data-act="train" data-w="${w.id}"`, !!why, why) : ""}${w.lvl === "Jr" ? actBtn("Promote · " + (cost ? cost + "G" : "free"), `data-act="promote" data-w="${w.id}"`, pp.gold < cost || pp.promos >= S.cfg.promotionsPerRest || !E.srAllowed(S) || needRest, !E.srAllowed(S) ? "Seniors unlock in Production" : needRest ? E.trainPromoWhy(S, w) : "") : ""}</div>`;
@@ -1156,7 +1157,7 @@ $root.addEventListener("click", e => {
       const g = n => { const el = document.querySelector('input[name="' + n + '"]:checked'); return el ? el.value : undefined; };
       const d = U.detail; const target = d.k === "sys" ? "sys:" + d.id : "spot:" + d.id; const as = g("as"); const alt = g("alt");
       const o = E.placementOptions(S, pi, P(pi).workers.find(x => x.id === U.sel)).find(x => x.target === target);
-      act({ type: "place", p: pi, worker: U.sel, target, as: as || (o && o.as ? o.as[0] : undefined), bonus: g("bonus"), choice: +(g("choice") || 0), alt: alt || undefined, jr: g("jr") ? +g("jr") : undefined, conv: g("conv") || undefined, rd: [g("rd1"), g("rd2")].filter(Boolean), crew: g("crew") ? g("crew").split(",").map(Number) : undefined }); return; }
+      act({ type: "place", p: pi, worker: U.sel, target, as: as || (o && o.as ? o.as[0] : undefined), bonus: g("bonus"), choice: +(g("choice") || 0), alt: alt || undefined, jr: g("jr") ? +g("jr") : undefined, conv: g("conv") || undefined, pay: g("pay") || undefined, rd: [g("rd1"), g("rd2")].filter(Boolean), crew: g("crew") ? g("crew").split(",").map(Number) : undefined }); return; }
     case "buyws": act({ type: "buyws", p: pi }); return;
     case "recruit": act({ type: "recruit", p: pi, idx: +t.dataset.i }); return;
     case "crunch": U.crunch = t.dataset.v === "none" ? null : t.dataset.v; render(); return;

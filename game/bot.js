@@ -145,6 +145,7 @@ function fxScore(S, p, w, o) {
   if (fx.stats && fx.stats.debt < 0) { v += p.debt > 3 ? 2 + Math.min(-fx.stats.debt * 1.5, p.debt) : -4; }
   if (spot.special === "talent") v = 2.2; if (spot.special === "team") v = p.culture < 0 ? 4 : 0.5; if (spot.special === "outsource") v = (w.lvl === "Sr" ? 5 : 3) * 0.9 - (p.gold < 4 ? -2 : 0);
   if (spot.special === "rd") v = E.resTotal(p) >= 3 ? 2.4 + W.crewCost : 0.1 + W.crewCost; if (spot.special === "workshop") v = E.resTotal(p) >= 8 ? v + 1 : 0.2; if (spot.special === "mentor") v = 4; if (spot.id === "insight") v = 1.8;
+  if (spot.special === "train") { const srN = p.workers.filter(x => x.lvl === "Sr").length, cap = 1 + Math.floor(p.workers.length * W.srCap); v = (w.lvl === "Jr" && srN < cap && S.round < 11 && p.workers.length >= 4 && (!PF || PF.promoP == null || E.rnd(S) < PF.promoP)) ? 3.4 : -9; }
   if (spot.special === "convert") v = convGain(S, p, o) * 1.15 * W.convHold;
   if (spot.special === "rd") v = (p.rdBuild || E.resTotal(p) >= 6) ? 2.6 + W.crewCost : 0.2 + W.crewCost;
   if (o.plans) { const pl = bestPlan(S, p, o.plans); v += pl.ids.reduce((t, id) => t + (!spot.r ? 0 : Math.min(p.workers.find(x => x.id === id).lvl === "Sr" ? S.cfg.resSr : S.cfg.resJr, S.cfg.crewPartnerCap == null ? 9 : S.cfg.crewPartnerCap)) * resVal * W.res, 0) - pl.ids.length * W.crewCost; }
@@ -173,6 +174,7 @@ function recruitPick(S, p, bs) {
 // Train is a free action on your turn. A bot that has nothing worth placing uses a spare Junior (instead of passing) so the training does not cost a later round.
 function trainInPlace(S, p) {
   if (typeof process !== "undefined" && process.env && process.env.BOT_NO_TRAIN_PLACE) return null;
+  if (S.cfg.trainTile) return null;
   const c = S.cfg, srN = p.workers.filter(w => w.lvl === "Sr").length, cap = 1 + Math.floor(p.workers.length * W.srCap);
   const tr = p.workers.find(w => w.lvl === "Jr" && E.canTrain(S, p.id, w).ok && (w.trained || 0) < c.trainNeeded);
   if (tr && srN < cap && S.round < 11 && S.phase < 3 && p.gold >= (PF && PF.trainGold != null ? PF.trainGold : W.promoGold - 2) && p.workers.length >= 4 && (!PF || E.rnd(S) < PF.promoP)) return { type: "train", p: p.id, worker: tr.id };
@@ -239,9 +241,9 @@ function build(S, p) {
 function rest(S, p) {
   const c = S.cfg; const cost = E.promoGold(S);
   const srN = p.workers.filter(w => w.lvl === "Sr").length, cap = 1 + Math.floor(p.workers.length * W.srCap);
-  const rdy = p.workers.find(w => w.lvl === "Jr" && !E.trainPromoWhy(S, w));
+  const rdy = !c.trainTile && p.workers.find(w => w.lvl === "Jr" && !E.trainPromoWhy(S, w));
   if (rdy && p.gold >= cost && p.promos < c.promotionsPerRest && srN < cap && E.srAllowed(S) && S.phase < 3 && (!PF || E.rnd(S) < PF.promoP)) return { type: "promote", p: p.id, worker: rdy.id };
-  const tr = p.workers.find(w => w.lvl === "Jr" && !w.placed && !w.build && !w.training && (w.trained || 0) < c.trainNeeded);
+  const tr = !c.trainTile && p.workers.find(w => w.lvl === "Jr" && !w.placed && !w.build && !w.training && (w.trained || 0) < c.trainNeeded);
   if (tr && (p.rs.trains || 0) < Math.min(c.trainsPerRest, 1) && srN < cap && S.round < 11 && S.phase < 3 && p.gold >= W.promoGold - 2 && p.workers.length >= 4 && (!PF || E.rnd(S) < PF.promoP)) return { type: "train", p: p.id, worker: tr.id };
   return { type: "done", p: p.id };
 }

@@ -2,7 +2,7 @@
 global.window = undefined;
 const E = require('./engine.js'), B = require('./bot.js'), D = require('./data.js');
 let fails = 0; const ok = (c, m) => { if (!c) { fails++; console.log('FAIL', m) } else console.log('ok  ', m) };
-const mk = (seed, n) => E.newGame(Array.from({ length: n || 2 }, (_, i) => ({ name: 'P' + i, bot: true })), { seed });
+const mk = (seed, n) => { const T = E.newGame(Array.from({ length: n || 2 }, (_, i) => ({ name: 'P' + i, bot: true })), { seed }); T.cfg.trainTile = 0; return T; }; // legacy rules by default; the Training tile is tested below
 const RES = ['ideas', 'code', 'process', 'buzz'];
 const W = (id, disc, lvl) => ({ id, disc, lvl: lvl || 'Jr', fat: 0, placed: false, as: null, worked: false });
 // advance with the bot until the predicate holds (no pending decisions)
@@ -134,6 +134,19 @@ const mkBuild = (seed, round, inst) => { const T = mk(seed); T.cfg.instantBuild 
   const rd = E.activeSpots(T).find(s => s.special === 'rd'); if (rd) { const o = E.placementOptions(T, pi, q.workers.find(w => w.id === 960)).find(x => x.target === 'spot:rd');
     const r = o && o.ok ? E.act(T, { type: 'place', p: pi, worker: 960, target: 'spot:rd', as: o.as && o.as[0], crew: o.plans && o.plans[0] ? o.plans[0].ids : undefined, rd: ['code', 'code'] }) : { ok: false };
     ok(r.ok && q.code >= 2, 'instant: R&D gives the two chosen skills'); } else ok(true, 'R&D not on this board phase'); }
+
+// ---- Training tile: promote a Junior on a shared board tile ----
+const mkTrain = (seed, round, mut) => { const T = mk(seed, 3); T.cfg.trainTile = 1; toStep(T, 'place', round || 4); const pi = E.currentActor(T), q = T.players[pi]; q.workers = [W(970, 'ENG'), W(971, 'ART'), W(972, 'DES')]; q.workers.forEach(w => { w.placed = false; w.build = null; w.fat = 0; w.benched = false; w.lvl = 'Jr' }); q.ws = 9; q.wsUsed = 0; if (mut) mut(q); return { T, pi, q } };
+{ const { T, pi, q } = mkTrain(41, 4, p => { p.burnout = 2; }); const g0 = q.gold, bo0 = q.burnout, r = E.act(T, { type: 'place', p: pi, worker: 970, target: 'spot:train' }), w = q.workers.find(x => x.id === 970);
+  ok(r.ok && w.lvl === 'Sr' && q.gold === g0 - T.cfg.trainCost && q.burnout === bo0 - T.cfg.trainCulture, 'Training tile: Junior becomes Senior for 1G and +1 Culture (-1 Burnout)');
+  ok(w.fat === 0 && w.placed && q.wsUsed === 1, 'Training tile: no fatigue, uses a workstation, worker counts as placed (no recovery)'); }
+{ const { T, pi, q } = mkTrain(41, 4, p => { p.gold = 0; p.ideas = 0; p.code = 2; }); const r = E.act(T, { type: 'place', p: pi, worker: 970, target: 'spot:train' });
+  ok(r.ok && q.workers.find(x => x.id === 970).lvl === 'Sr' && q.code === 1 && q.gold === 0, 'Training tile: pays 1 skill of the worker\'s role when out of Gold'); }
+{ const { T, pi, q } = mkTrain(41, 4, p => { p.gold = 0; p.code = 0; p.ideas = 5; }); ok(!E.act(T, { type: 'place', p: pi, worker: 970, target: 'spot:train' }).ok, 'Training tile: refused with no Gold and none of their skill'); }
+{ const { T, pi, q } = mkTrain(41); E.act(T, { type: 'place', p: pi, worker: 970, target: 'spot:train' }); const o = E.placementOptions(T, pi, q.workers.find(x => x.id === 971)).find(x => x.target === 'spot:train'); ok(o && !o.ok, 'Training tile: only one worker per player per round'); }
+{ const { T, pi, q } = mkTrain(41); const o = E.placementOptions(T, pi, q.workers[0]); q.workers[0].lvl = 'Sr'; const o2 = E.placementOptions(T, pi, q.workers[0]).find(x => x.target === 'spot:train'); ok(o2 && !o2.ok, 'Training tile: Seniors cannot use it'); }
+{ const T = mk(42, 3); T.cfg.trainTile = 1; toStep(T, 'place', 12); ok(!E.activeSpots(T).some(s => s.id === 'train'), 'Training tile: not on the board in Launch'); const T2 = mk(42, 3); T2.cfg.trainTile = 1; toStep(T2, 'place', 2); ok(!E.activeSpots(T2).some(s => s.id === 'train'), 'Training tile: not on the board in Concept'); }
+{ const { T, pi, q } = mkTrain(43); ok(!E.canTrain(T, pi, q.workers[0]).ok, 'Training tile on: Manage-panel training is off'); }
 
 // ---- convert (Launch) ----
 S = toStep(mk(8), 'place', 12);
