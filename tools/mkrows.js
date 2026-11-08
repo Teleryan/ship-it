@@ -19,7 +19,7 @@ r("polishfree","Step 19 · polish, free play","Polish","",
 r("hint_place","Hint · place step","","",
 "**Place.** Select a worker, then a highlighted tile (orange border). Leave Tired workers unplaced to rest. You can Recruit from the shared pool if you like. Press **Pass** when you are finished.");
 r("hint_build","Hint · build step","","",
-"**Build.** Spend your skills on a system, then press **Done**. The **Systems to Build** panel under the board shows 2 cards per type; greyed cards cannot be built yet. Replacing the cards costs {refreshGold}G.");
+"**Build.** Spend your skills on a system, then press **Done**. The **Systems to Build** panel under the board shows 2 cards per type; greyed cards cannot be built yet.");
 r("hint_wait","Hint · other steps","","",
 "Resolve any pop-up (a Crisis card or a choice), then play your round.");
 r("msg_next","Blocked-action message","","",

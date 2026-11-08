@@ -960,7 +960,7 @@ function restAction(S, a, p) {
     case "build": return doBuild(S, pi, a.name, a.free, a.crunch, a.crew, a.crunchWorker);
     case "refresh": {
       const def = sysDef(S, a.name); if (!def || !S.cfg.marketSize || !(S.market[def.cat] || []).includes(a.name)) return err("Pick a market tile");
-      if ((p.refreshed || 0) >= (S.cfg.marketRefreshesPerRound || 1)) return err("Already refreshed this round");
+      if ((p.refreshed || 0) >= (S.cfg.marketRefreshesPerRound ?? 0)) return err("Already refreshed this round");
       if (p.gold < S.cfg.marketRefreshGold) return err("Needs " + S.cfg.marketRefreshGold + "G");
       const dk = S.decks.sys[def.cat]; if (!dk.length) return err("No more " + def.cat + " tiles");
       gain(S, pi, "gold", -S.cfg.marketRefreshGold); p.refreshed = (p.refreshed || 0) + 1;
