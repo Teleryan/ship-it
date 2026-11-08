@@ -141,7 +141,7 @@ function fxScore(S, p, w, o) {
   const mom = (w.fat >= 2 ? S.cfg.resOver : (w.lvl === "Sr" ? S.cfg.resSr : S.cfg.resJr)) * rmul; v += mom * W.res * resVal + (w.lvl === "Sr" ? W.srVal : 0);
   v -= (spot.debt || 0) * W.spotDebt; if (w.fat >= 1) v -= 0.8; if (w.fat >= 2) v -= 2.5 + (1.2 + (p.burnout || 0) * 0.9);
   if (fx.stats && fx.stats.debt < 0) { v += p.debt > 3 ? 2 + Math.min(-fx.stats.debt * 1.5, p.debt) : -4; }
-  if (spot.special === "talent") v = 2.2; if (spot.special === "team") v = p.culture < 0 ? 4 : 0.5; if (spot.special === "outsource") v = (w.lvl === "Sr" ? 5 : 3) * 0.9 - (p.gold < 4 ? -2 : 0);
+  if (spot.special === "talent") v = 2.2; if (spot.special === "team") v = (W.teamV != null && (p.burnout || 0) >= (W.teamAt == null ? 3 : W.teamAt)) ? W.teamV : (p.culture < 0 ? 4 : 0.5); /* d6: botTeamV is a sim-only knob, off by default */ if (spot.special === "outsource") v = (w.lvl === "Sr" ? 5 : 3) * 0.9 - (p.gold < 4 ? -2 : 0);
   if (spot.special === "rd") v = E.resTotal(p) >= 3 ? 2.4 + W.crewCost : 0.1 + W.crewCost; if (spot.special === "workshop") v = E.resTotal(p) >= 8 ? v + 1 : 0.2; if (spot.special === "mentor") v = 4; if (spot.id === "insight") v = 1.8;
   if (spot.special === "convert") v = convGain(S, p, o) * 1.15 * W.convHold;
   if (spot.special === "rd") v = (p.rdBuild || E.resTotal(p) >= 6) ? 2.6 + W.crewCost : 0.2 + W.crewCost;
@@ -202,7 +202,7 @@ function place(S, p) {
 }
 
 function buildScore(S, p, d) {
-  const b = E.parseBuild(d.build); const fx = E.parseEffect(d.fx || d.each || ""); let v = val(fx) + d.vp * 1.2 + d.syn * 0.8 - d.debt * 1.8 * W.debt - b.cost * (b.cur === "G" ? 0.35 : 0.25) - E.buildGold(S, d, p) * 0.3;
+  const b = E.parseBuild(d.build); const fx = E.parseEffect(d.fx || d.each || ""); let v = val(fx) + d.vp * 1.2 / (S.cfg.vpPrint || 1) + d.syn * 0.8 - d.debt * 1.8 * W.debt - b.cost * (b.cur === "G" ? 0.35 : 0.25) - E.buildGold(S, d, p) * 0.3;
   if (d.pas) v += 3.5; if (d.inc) v += d.inc * Math.max(0, 12 - S.round - E.buildDelay(S, p, null, d)) * 0.8; if (d.cat === "Stability") v += p.debt > 3 ? 2 : -1; if (d.cat === "Revenue") v += 0.5; v += W.buildBias + (W.cat[d.cat] || 0);
   // synergy with held objectives
   p.objectives.forEach(id => { const o = S.data.objectives[id]; if (o.res && E.sysMainRes(d) === o.res) v += 1.5; });

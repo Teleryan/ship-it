@@ -95,6 +95,7 @@ E.defaultConfig = function () { return clone(D0.config); };
 E.newGame = function (seats, opts) {
   opts = opts || {};
   const cfg = Object.assign(E.rawConfig(), opts.config || {});
+  if (cfg.cfgByN && seats.length && cfg.cfgByN[seats.length]) Object.assign(cfg, cfg.cfgByN[seats.length]); // d6: per-player-count overrides, e.g. {"2":{"income":8}}; absent by default
   const data = Object.assign(E.defaultData(cfg), opts.data || {});
   const N0 = seats.length;
   if (cfg.spotFxAdj) data.spots.forEach(sp => { if (cfg.spotFxAdj[sp.id] != null) sp.fx = cfg.spotFxAdj[sp.id]; });
