@@ -1,5 +1,5 @@
 // KPI sweep for the shipped game: winner VP, gap, blowouts, leftover Gold, Burnout, by player count.
-const LO = +(process.env.LO || 38), HI = +(process.env.HI || 68);
+const LO = +(process.env.LO || 33), HI = +(process.env.HI || 63);
 // usage: node tools/kpi.js [games=200] [skill=casual|novice|expert|""] [players csv=2,3,4,5,6] ['{"key":value}' config overrides]
 // Seats rotate through the four personas. Seeds are fixed so two runs are comparable.
 global.window = undefined;

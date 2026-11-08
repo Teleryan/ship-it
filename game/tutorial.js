@@ -1,3 +1,4 @@
+function wsPriceText(c){var ord=function(n){return n+(n==2?"nd":n==3?"rd":"th")},from=c.wsLadderFrom!=null?c.wsLadderFrom:c.wsFree,o=[];for(var k=c.wsFree+1;k<=c.wsMax;k++)o.push("the "+ord(k)+" costs **"+(c.wsCost+(c.wsStep||0)*Math.max(0,k-1-from))+"G**");return o.join(", ")}
 /* ============================================================
    SHIP IT!: GUIDED TUTORIAL
    A scripted first game (You vs. a Rival bot). Pure add-on: the engine is
@@ -59,7 +60,7 @@ function tokens(S) {
     energizedCulture: c.energizedCulture, energizedGold: c.energizedGold, burnStrainAt: c.burnStrainAt, burnStrainHype: c.burnStrainHype, burnBenchAt: c.burnBenchAt, burnQuitAt: c.burnQuitAt, burnQuitReset: c.burnQuitReset
   };
   { const pg = (c.promoGoldByN && c.promoGoldByN[2]) || 0; t.promoCostText = pg ? "it costs " + pg + "G" : "it is free"; }
-  t.startWorkers = c.startWorkers; t.recruitLadder = c.recruitLadder; t.trainTimes = c.trainNeeded + (c.trainNeeded === 1 ? " time" : " times"); t.wsFree = c.wsFree; t.wsCost = c.wsCost; t.wsP4 = c.wsCost; t.wsP5 = c.wsCost + (c.wsStep || 0); t.wsP6 = c.wsCost + 2 * (c.wsStep || 0); t.wsMax = c.wsMax;
+  t.startWorkers = c.startWorkers; t.recruitLadder = c.recruitLadder; t.trainTimes = c.trainNeeded + (c.trainNeeded === 1 ? " time" : " times"); t.wsFree = c.wsFree; t.wsCost = c.wsCost;  t.wsPrices = wsPriceText(c); t.wsMax = c.wsMax;
   t.foldNote = "\n\nThere is no separate Culture track: <b>Culture is " + c.cultureFoldBase + " minus Burnout</b>. Anything that gives Culture (Team Events, Training, some tiles) lowers Burnout, and anything that costs Culture raises it.";
   t.trainEffect = "lowers <b>Burnout</b> by " + c.trainCulture + " (that is +" + c.trainCulture + " Culture)";
   t.teamEventEffect = "to lower Burnout by " + (c.teamEventCulture + c.burnTeamRelief);
@@ -114,7 +115,7 @@ let STEPS = [
     allow: a => a.type === "place" ? null : a.type === "pass" ? MSG("msg_place_first") : MSG("msg_place") }),
   info("stats", { hl: () => ".pt[data-pid='0'] .stats.res" }),
   info("ws1", { hl: () => ".pt[data-pid='0'] [data-tut=ws]" }),
-  doing("place2", { hl: () => "[data-tut=workers]", done: S => after(S, "place", 1) || S.round > 1, allow: a => (a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
+  doing("place2", { hl: () => ".pt[data-pid='0'] [data-tut=ws], [data-tut=workers]", done: S => after(S, "place", 1) || S.round > 1, allow: a => (a.type === "buyws" || a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
   doing("build", { hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"), done: S => builtInManage(S, 1),
     allow: (a, S) => a.type === "build" ? null : a.type === "done" ? ((me(S).builds >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : MSG("msg_build_first")) : MSG("msg_build") }),
   info("build_rd", { hl: () => "[data-spot=rd]" }),
@@ -127,8 +128,8 @@ let STEPS = [
   info("gates", { hl: () => "[data-tut=gates]" }),
   /* ---- round 2: recruit, rest, crunch ---- */
   doing("r2recruit", { hl: () => "[data-tut=recruit]", done: S => me(S).recruited >= 1 || S.round > 2,
-    allow: (a, S) => (a.type === "place" || a.type === "recruit") ? null : a.type === "pass" ? MSG("msg_recruit") : MSG("msg_recruit") }),
-  doing("r2place", { hl: () => "[data-tut=workers]", done: S => reachedRound(S, 2, "rest"), allow: a => (a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
+    allow: (a, S) => (a.type === "buyws" || a.type === "place" || a.type === "recruit") ? null : a.type === "pass" ? MSG("msg_recruit") : MSG("msg_recruit") }),
+  doing("r2place", { hl: () => "[data-tut=workers]", done: S => reachedRound(S, 2, "rest"), allow: a => (a.type === "buyws" || a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
   doing("r2crunch", { hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"), done: S => builtInManage(S, 2, true),
     allow: (a, S) => a.type === "build" ? (a.crunch || (S.cfg.rdCrunch && me(S).rd) ? null : MSG("msg_crunch")) : a.type === "done" ? ((me(S).cs.crunched >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : MSG("msg_crunch")) : null }),
   info("board_jam", { hl: () => "[data-row=CREW]" }),

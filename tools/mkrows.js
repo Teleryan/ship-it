@@ -39,7 +39,7 @@ r("place1w","Step 14 · first worker (Rival's turn)","Place your first worker","
 r("stats","Step 16 · numbers","Your skills","Next",
 "The spot paid out right away. The four icons in your studio panel are your **skills**: Ideas, Code, Process and Buzz. They come from Backlog spots, you spend them on systems that need that discipline, and they carry over between rounds.");
 r("place2","Step 15 · keep placing","Keep placing, or pass","",
-"Each worker can work **once per round**.\n\nYou do not have to place everyone. **A worker you leave unplaced rests** and recovers from tiredness. If none of your remaining workers fits an open tile, your turn ends and they rest. When you are finished, press **Pass**.");
+"Each worker can work **once per round**, and each placement needs a free desk. **Out of desks?** Press **Buy workstation** in your studio panel ({wsCost}G for the next one) to place another worker, or save the Gold and pass.\n\nYou do not have to place everyone. **A worker you leave unplaced rests** and recovers from tiredness. If none of your remaining workers fits an open tile, your turn ends and they rest. When you are finished, press **Pass**.");
 r("build_rd","Step 18 · R&D (after the build)","R&D: build faster","Next",
 "**R&D** speeds up building. Send two workers from different disciplines (Creative + Development, or Operations + Marketing) and **system development is 1 round shorter** for whatever you start building that round. You also skip the Gold fee for crunch.");
 r("tired","Step 21 · tired workers","Tired workers","Next",
@@ -99,7 +99,7 @@ r("msg_place","Blocked-action message","","",
 r("msg_place_first","Blocked-action message","","",
 "Place at least one worker first");
 r("msg_place_pass","Blocked-action message","","",
-"Keep placing, or press Pass");
+"Buy a workstation, keep placing, or press Pass");
 r("msg_build_first","Blocked-action message","","",
 "Try building one system first");
 r("msg_build","Blocked-action message","","",
@@ -169,7 +169,7 @@ r("team","Step 8 · your team","Your starting team","Next",
 r("placeintro","Step 14 · income and place","Place: taking turns","Next",
 "Now you use the board. Players take turns placing **one worker at a time** on a tile that accepts them, going around until everyone has passed.\n\nMost tiles hold **only one worker**, so going early matters. Hover over a greyed tile to see why you cannot use it.");
 r("ws1","Step 17 · workstations","Workstations: your desks","Next",
-"Your workers need a desk to work at. You start with **{wsFree} workstations**, and they come back to you every round; the counter is in your studio panel.\n\nTaking **any board tile** uses **one workstation**, including Studio Perks. Triggering one of your **own systems** does not.\n\nIf you run out, you can **buy more**, up to **{wsMax}** in total: the 4th costs **{wsP4}G**, the 5th **{wsP5}G** and the 6th **{wsP6}G**. A workstation you buy stays with you for the rest of the phase and comes back to you every round. When a new phase begins, you are back to {wsFree} and must buy extra ones again.");
+"Every worker needs a desk to work at. You start with just **{wsFree} workstation**, so you can place **one worker per round** until you buy more. The counter is in your studio panel.\n\nTaking **any board tile** uses **one workstation**, including Studio Perks. Triggering one of your **own systems** does not.\n\nPress **Buy workstation** to add a desk, up to **{wsMax}** in total: {wsPrices}. Each one costs more than the last, so buy only as many as you can use well. A desk you buy stays with you for the rest of the phase and is free to use again every round. When a new phase begins, you are back to {wsFree} and buy again.");
 r("build","Step 20 · manage: build","Manage: build a system","",
 "The **Place** step is over, so the **Manage** step begins. In this single turn you **build** systems, **train or promote** workers, and **cash in Milestones**.\n\nYou have **{bank} skills** banked. Press **Open Systems to Build**. Each card shows its cost in skills and Gold, and which workers it needs. You can start **{buildsPerRound}** per round.\n\nA **system** is a permanent engine that scores its printed VP at the end of the game. Building one **commits one worker for each role it needs**, and those workers cannot be placed until it is finished (1 to 3 rounds).{freeBuild}\n\nBuild one now, then continue.");
 r("rest1","Step 21 · manage: rest","Manage: milestones and finishing","",

@@ -36,7 +36,7 @@ ok(S.players.every(p => p.workers.length === S.cfg.startWorkers), 'every studio 
   const T = toStep(mk(12, 2), 'place', 5), a = E.currentActor(T), q = T.players[a]; q.ws = T.cfg.wsFree; q.gold = 10;
   const g0 = q.gold, r = E.act(T, { type: 'buyws', p: a }); ok(r.ok && q.ws === T.cfg.wsFree + 1 && q.gold === g0 - T.cfg.wsCost, 'buying a workstation costs ' + T.cfg.wsCost + 'G and adds one');
   { const seq = []; q.ws = T.cfg.wsFree; q.gold = 40; for (let i = T.cfg.wsFree; i < T.cfg.wsMax; i++) { const g1 = q.gold; ok(E.act(T, { type: 'buyws', p: a }).ok, 'buy desk ' + (i + 1)); seq.push(g1 - q.gold); }
-  ok(JSON.stringify(seq) === '[2,3,4]', 'desks 4, 5 and 6 cost 2, 3 and 4 Gold (got ' + seq + ')'); }
+  ok(JSON.stringify(seq) === '[2,2,2,3,4]', 'desks 2 to 6 cost 2, 2, 2, 3 and 4 Gold (got ' + seq + ')'); }
   q.ws = T.cfg.wsMax; ok(!E.act(T, { type: 'buyws', p: a }).ok, 'cannot buy past the workstation cap (' + T.cfg.wsMax + ')');
   q.ws = T.cfg.wsFree; q.gold = T.cfg.wsCost - 1; ok(!E.act(T, { type: 'buyws', p: a }).ok, 'cannot buy a workstation without the Gold'); }
 { // training in the Place step: a free action on your own turn
