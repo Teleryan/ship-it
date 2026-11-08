@@ -48,7 +48,7 @@ function tokens(S) {
   const t = {
     income: c.income, salaryJr: c.salaryJr, salarySr: c.salarySr, resJr: c.resJr, resSr: c.resSr, hypeDecay: c.hypeDecay,
     recruitCost: c.recruitCost, recruitN: S.recruit ? S.recruit.length : E.recruitSize(S),
-    buildDelay: c.buildDelay, crunchGold: c.crunchGold, rdSkills: c.rdSkills == null ? 2 : c.rdSkills,
+    buildDelay: c.buildDelay, crunchGold: c.crunchGold, rdSkills: c.rdSkills == null ? 2 : c.rdSkills, trainSkillCost: c.trainSkillCost == null ? 1 : c.trainSkillCost, trainSkillWord: (c.trainSkillCost == null ? 1 : c.trainSkillCost) === 1 ? "skill" : "skills",
     sysWait: c.instantBuild ? "" : " and one worker per role it needs sits out until it is finished (1 to 3 rounds)",
     rdWhat: c.instantBuild ? "two workers from different disciplines give you <b>" + (c.rdSkills == null ? 2 : c.rdSkills) + " skills of your choice</b>." : "two workers from different disciplines make a system built this round <b>1 round shorter</b>, with no crunch fee.", buildsPerRound: c.buildsPerRound, bank: p.ideas + p.code + p.process + p.buzz,
     convertRate: c.convertRate || 3, refreshGold: c.marketRefreshGold, gateName: esc(g.name || ""), gate2Name: esc(g2.name || ""), gate3Name: esc(g3.name || ""), gateReqs: esc((g.reqs || []).join(", ")),
@@ -194,7 +194,7 @@ SI.tutTick = function () {
     }
   }
   if (st.id === "r2recruit" && !T.gave[key] && S.step === "place" && actorIsMe(S)) { T.gave[key] = true; const cost = E.recruitCost(S, 0); if (me(S).gold < cost) me(S).gold = cost; }
-  if (st.id === "promote" && !T.gave[key] && S.step === "place" && actorIsMe(S) && !S.dq.length) { T.gave[key] = true; if (me(S).gold < (S.cfg.trainCost || 1)) me(S).gold = S.cfg.trainCost || 1; }
+  if (st.id === "promote" && !T.gave[key] && S.step === "place" && actorIsMe(S) && !S.dq.length) { T.gave[key] = true; { const n = S.cfg.trainSkillCost || 1, m = me(S); ["ideas", "code", "process", "buzz"].forEach(k => { if ((m[k] || 0) < n) m[k] = n; }); } }
 };
 SI.tutHold = () => SI.tutLockMode() === "hard";
 SI.tutGate = function (a) {

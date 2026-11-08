@@ -612,12 +612,13 @@ function spotUsableBase(S, pi, w, spot) {
   if (S.closed && S.closed[spot.id]) return { ok: false, reason: "Closed by Industry News this round" };
   if (mode === "single" && occ.length) return { ok: false, reason: "Occupied" };
   if (mode !== "single" && mode !== "open" && occ.includes(pi)) return { ok: false, reason: "You already used this tile" };
-  if (spot.special === "train") { // Training tile: a Junior becomes a Senior; pay 1 Gold or 1 skill of their role
+  if (spot.special === "train") { // Training tile: a Junior becomes a Senior; paid in skills of their role (1 or 2, config trainSkillCost)
     if (w.lvl !== "Jr") return { ok: false, reason: "Only Juniors train" };
     if (!srAllowed(S)) return { ok: false, reason: "No Senior workers in Concept" };
-    const rk = RES_OF[CAT_OF(w.disc)], cost = S.cfg.trainCost == null ? 1 : S.cfg.trainCost;
-    if (P(S, pi).gold < cost && !(S.cfg.trainSkillPay && (P(S, pi)[rk] || 0) >= 1)) return { ok: false, reason: "Needs " + cost + "G" + (S.cfg.trainSkillPay ? " or 1 " + RES_NAME[rk] : "") };
-    return { ok: true, as: [w.disc] };
+    const cost = S.cfg.trainSkillCost == null ? 1 : S.cfg.trainSkillCost, ds = D0.disciplines[w.disc].wild || [w.disc];
+    const cands = ds.filter(d => (P(S, pi)[RES_OF[CAT_OF(d)]] || 0) >= cost);
+    if (!cands.length) return { ok: false, reason: "Needs " + cost + " " + RES_NAME[RES_OF[CAT_OF(ds[0])]] + (ds.length > 1 ? " (or another skill of their role)" : "") };
+    return { ok: true, as: cands };
   }
   let as = [];
   if (spot.discs.includes("ANY")) as = [w.disc];
@@ -712,15 +713,14 @@ function doPlace(S, pi, wid, target, o) {
     if (!plan) return err("Choose which of your workers joins the strike team (partners: " + opt.plans.map(pl => "[" + pl.ids.join(",") + "]").join(" ") + ")");
   }
   if (opt.kind === "spot" && opt.spot.special === "train") { // promote on the spot: no skill, no fatigue, no Burnout; the worker does not recover either
-    const c = S.cfg, rk = RES_OF[CAT_OF(as)], cost = c.trainCost == null ? 1 : c.trainCost;
-    const useSkill = o.pay === "skill" ? true : o.pay === "gold" ? false : p.gold < cost;
-    if (useSkill) { if (!c.trainSkillPay || (p[rk] || 0) < 1) return err("Needs 1 " + RES_NAME[rk]); p[rk] -= 1; p.rs.spentRes = (p.rs.spentRes || 0) + 1; }
-    else { if (p.gold < cost) return err("Needs " + cost + "G"); gain(S, pi, "gold", -cost); }
+    const c = S.cfg, rk = RES_OF[CAT_OF(as)], cost = c.trainSkillCost == null ? 1 : c.trainSkillCost;
+    if ((p[rk] || 0) < cost) return err("Needs " + cost + " " + RES_NAME[rk]);
+    p[rk] -= cost; p.rs.spentRes = (p.rs.spentRes || 0) + cost;
     w.placed = true; w.lvl = "Sr"; w.trained = 0; S.occ[opt.spot.id] = (S.occ[opt.spot.id] || []).concat([pi]);
     if (c.wsMax) p.wsUsed++;
     p.rs.placed++; p.rs.trains = (p.rs.trains || 0) + 1; p.cs.trainings = (p.cs.trainings || 0) + 1; p.cs.promotions++; p.promos++;
     gain(S, pi, "culture", c.trainCulture || 0);
-    log(S, p.name + " trains a Junior " + dn(w.disc) + " into a Senior (-" + (useSkill ? "1 " + RES_NAME[rk] : cost + "G") + ", Culture +" + (c.trainCulture || 0) + ")");
+    log(S, p.name + " trains a Junior " + dn(w.disc) + " into a Senior (-" + cost + " " + RES_NAME[rk] + ", Culture +" + (c.trainCulture || 0) + ")");
     return { ok: true };
   }
   if (DISCS.includes(w.disc) && D0.disciplines[w.disc].wild) w.as = as;

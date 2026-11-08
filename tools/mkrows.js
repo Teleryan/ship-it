@@ -153,7 +153,7 @@ r("hype_bank","Round 4 · banking Hype","Banking Hype","Got it",
 r("crisis","Round 4 · crisis","Production begins: a Crisis","Got it",
 "Every phase opens with a **Phase start**: a **Crisis card** (an event that hits every studio) and the **Reveal** of the new board. This one is {crisisName}.\n\nRead the card in the pop-up and make your choice. If it asks for a bid, a bid of **0** is safe.");
 r("promote_train","Round 4 · train a Senior","Train a Junior into a Senior","",
-">> Select a Junior, then click the **Training** tile (orange border) and confirm.\n\nTraining **promotes a Junior to Senior**. A Senior earns **{resSr} skills** instead of {resJr} and is the only worker who can **trigger your systems**. It uses a workstation and costs **{trainCost}G** (or 1 skill of their role). The Junior earns no skill, and training {trainEffect}. Pick one whose role matches a system you built.");
+">> Select a Junior, then click the **Training** tile (orange border) and confirm.\n\nTraining **promotes a Junior to Senior**. A Senior earns **{resSr} skills** instead of {resJr} and is the only worker who can **trigger your systems**. It uses a workstation and costs **{trainSkillCost} {trainSkillWord}** of their role. The Junior earns no skill, and training {trainEffect}. Pick one whose role matches a system you built.");
 r("r4play","Round 4 · finish placing","Round 4: finish your round","",
 ">> Place your other workers, then press **Pass: done placing**. Your new Senior is ready: next round you will use it to trigger a system.\n\n{hint}");
 r("trigger","Round 5 · trigger a system","A Senior triggers a system","",
