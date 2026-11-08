@@ -12,7 +12,7 @@ const NEUTRAL = { res: 1, crewCost: 3, prod: 1, mktg: 1, hype: 1, gold: 1, debt:
   gate: 1, gateSurplus: 1.1, gatePace: 4, resVal: 1.5, recBase: 3.4, recReserve: 2, recMax: 0, srCap: 0.5, promoGold: 7, crunchGold: 16, crunchRound: 8, buildScale: 1, srVal: 1.2, convHold: 1, thr: 0.3 };
 B.personas = {
   // Crunch Studio: Progress first, tolerates Tech Debt, big team
-  crunch:  { prod: 1.8, mktg: 0.6, hype: 0.6, spotDebt: 0.4, cat: { Innovation: 2 }, workers: 1 },
+  crunch:  { prod: 1.5, mktg: 0.8, hype: 0.8, spotDebt: 0.6, cat: { Innovation: 1.5, Stability: 1 }, workers: 0, buildBias: 2 },
   // Hype Machine: Marketing and Hype first, Reach systems
   hype:    { prod: 0.7, mktg: 1.8, hype: 1.6, cat: { Reach: 2.5 } },
   // Systems Studio: builds early and often, Revenue engine, smaller team
@@ -202,7 +202,7 @@ function place(S, p) {
 }
 
 function buildScore(S, p, d) {
-  const b = E.parseBuild(d.build); const fx = E.parseEffect(d.fx || d.each || ""); let v = val(fx) + d.vp * 1.2 + d.syn * 0.8 - d.debt * 1.8 * W.debt - b.cost * (b.cur === "G" ? 0.35 : 0.25) - E.buildGold(S, d, p) * 0.3;
+  const b = E.parseBuild(d.build); const fx = E.parseEffect(d.fx || d.each || ""); let v = val(fx) + d.vp * 0.4 + d.syn * 0.8 - d.debt * 1.8 * W.debt - b.cost * (b.cur === "G" ? 0.35 : 0.25) - E.buildGold(S, d, p) * 0.3;
   if (d.pas) v += 3.5; if (d.inc) v += d.inc * Math.max(0, 12 - S.round - E.buildDelay(S, p, null, d)) * 0.8; if (d.cat === "Stability") v += p.debt > 3 ? 2 : -1; if (d.cat === "Revenue") v += 0.5; v += W.buildBias + (W.cat[d.cat] || 0);
   // synergy with held objectives
   p.objectives.forEach(id => { const o = S.data.objectives[id]; if (o.res && E.sysMainRes(d) === o.res) v += 1.5; });

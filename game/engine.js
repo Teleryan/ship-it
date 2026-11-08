@@ -95,6 +95,7 @@ E.defaultConfig = function () { return clone(D0.config); };
 E.newGame = function (seats, opts) {
   opts = opts || {};
   const cfg = Object.assign(E.rawConfig(), opts.config || {});
+  if (cfg.cfgByN && seats.length && cfg.cfgByN[seats.length]) Object.assign(cfg, cfg.cfgByN[seats.length]); // per-player-count overrides, e.g. {"2":{"income":8}}
   const data = Object.assign(E.defaultData(cfg), opts.data || {});
   const N0 = seats.length;
   if (cfg.spotFxAdj) data.spots.forEach(sp => { if (cfg.spotFxAdj[sp.id] != null) sp.fx = cfg.spotFxAdj[sp.id]; });
@@ -381,7 +382,7 @@ function rollRecruit(S) {
   cats.slice(0, size).forEach(cat => { const ds = left[cat]; S.recruit.push({ cat, disc: ds[rint(S, ds.length)], by: null }); });
   log(S, "RECRUITMENT: " + S.recruit.map(o => dn(o.disc)).join(", ") + " available");
 }
-// recruitLadder (L2): each worker taken from the pool this round makes the next one dearer; the Talent spot's extra recruit is 1G cheaper
+// recruitLadder (L2): each worker taken from the pool this round makes the next one dearer; the Talent tile's extra recruit is 1G cheaper
 E.recruitCost = function (S, pi) { const p = P(S, pi), c = S.cfg; const taken = (S.recruit || []).filter(o => o.by != null).length; return Math.max(0, (c.recruitCost == null ? 3 : c.recruitCost) + (c.recruitLadder || 0) * taken + (S.mod && S.mod.hireAdd && !protectedFromCrisis(S, p) ? S.mod.hireAdd : 0) - Math.min(p.hireDiscount || 0, 1)); };
 E.canRecruit = function (S, pi, idx) {
   const p = P(S, pi); if (S.step !== "place") return { ok: false, reason: "Not available" };
@@ -609,7 +610,7 @@ function spotUsableBase(S, pi, w, spot) {
   const mode = spotModeOf(spot); const occ = S.occ[spot.id] || [];
   if (S.closed && S.closed[spot.id]) return { ok: false, reason: "Closed by Industry News this round" };
   if (mode === "single" && occ.length) return { ok: false, reason: "Occupied" };
-  if (mode !== "single" && mode !== "open" && occ.includes(pi)) return { ok: false, reason: "You already used this spot" };
+  if (mode !== "single" && mode !== "open" && occ.includes(pi)) return { ok: false, reason: "You already used this tile" };
   let as = [];
   if (spot.discs.includes("ANY")) as = [w.disc];
   else as = actsAs(w).filter(d => spot.discs.includes(d));

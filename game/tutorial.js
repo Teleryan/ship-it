@@ -290,11 +290,10 @@ SI.tutAuto = function () { const u = U(), T = u.tut; T.auto = true; u.S.players[
 const PARTS = [
   ["prodShare", "Progress race", "1 VP for every {raceDen} points of Progress."],
   ["hypeStrength", "Hype race", "1 VP for every {raceDen} points of Hype. Your Wishlists are added to your Hype at the end of the game."],
-  ["debtPenalty", "Tech Debt", "The studio with the most Debt loses the most VP; the studio with the least loses none. Debt comes from spots and systems with a red Debt mark; Quality workers, Engineers and Stability systems clear it."],
+  ["debtPenalty", "Tech Debt", "The studio with the most Debt loses the most VP; the studio with the least loses none. Debt comes from tiles and systems with a red Debt mark; Quality workers, Engineers and Stability systems clear it."],
   ["burnout", "Burnout", "High Burnout at the end of the game costs VP."],
   ["objectives", "Objectives", "Your secret goals: {objPer} VP for each requirement you met, plus {objBonus} if you met them all."],
-  ["synergy", "Synergy", "Bonus when a built system shares a symbol with a completed objective."],
-  ["systems", "Systems", "The printed VP on each system you built, times {sysMult}."],
+  ["systems", "Systems", "The VP printed on each system card you built."],
     ["gold", "Gold", "Every {goldPerVP} leftover Gold is 1 VP."],
   ["crisis", "Crisis & Gates", "VP gained or lost from Crisis cards and Publisher Gates (passed gates can pay VP, missed ones cost VP)."]
 ];

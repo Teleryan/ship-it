@@ -64,7 +64,7 @@ const sim = E.newGame([{ name: "a" }, { name: "b" }], { seed: 5, config: Object.
 const wsPrices = []; for (let n = c.wsFree; n < c.wsMax; n++) { sim.players[0].ws = n; wsPrices.push(E.wsCost(sim, 0)); }
 const teamRelief = (() => { const p = sim.players[0]; p.burnout = 4; const b0 = p.burnout; E.statChange(sim, 0, "culture", c.teamEventCulture); E.statChange(sim, 0, "burnout", -(c.burnTeamRelief || 1)); return b0 - p.burnout; })();
 const teamCost = (D.spots.find(x => x.id === "team").cost || {}).gold;
-T("win_vp", /every (\d+) Gold is 1 VP/, c.goldPerVP, "Gold per VP"); T("win_vp", /every (\d+) points is 1 VP/, c.raceDen, "race divisor"); T("win_vp", /VP ×\s*(\d+)/, c.sysVPMult, "system VP multiplier");
+T("win_vp", /every (\d+) Gold is 1 VP/, c.goldPerVP, "Gold per VP"); T("win_vp", /every (\d+) points is 1 VP/, c.raceDen, "race divisor"); 
 T("income", /gets (\d+)G of Income/, c.income, "income"); T("income", /(\d+)G per Junior/, c.salaryJr, "Junior salary"); T("income", /(\d+)G per Senior/, c.salarySr, "Senior salary");
 T("team", /(\d+) Juniors/, c.startWorkers, "starting Juniors"); T("team", /opens in round (\d+)/, c.recruitMinRound, "recruit opens");
 T("ws1", /just (\d+)/, c.wsFree, "free workstations"); T("place2", /\((\d+)G for the next one\)/, wsPrices[0], "next workstation price"); T("place2", /up to (\d+) in all/, c.wsMax, "max workstations");
@@ -81,7 +81,7 @@ T("setup", /Team Event|X/, 0, "", "") ; F.pop();
 const rb = rulesTxt.map(r => r.text).join("\n");
 const RB = (re, exp, label) => { const m = rb.match(re); if (!m) return find("WARN", "rules", "claim not found: " + label); if (+m[1] !== exp) find("MISMATCH", "rules", label + ": rulebook says " + m[1] + ", engine says " + exp); };
 RB(/Team Event \(2 workers with different roles \+ 3G: -(\d+) Burnout/, teamRelief, "Team Event relief"); RB(/-\d+ on a calm round, -(\d+) on a Team Event/, teamRelief, "Team Event relief (key rules)"); RB(/Every (\d+) leftover Gold is 1 VP/, c.goldPerVP, "gold per VP");
-RB(/Printed VP of each finished system, x (\d+)/, c.sysVPMult, "system multiplier"); RB(/Every studio gains (\d+)/, c.income, "income"); RB(/Hype fades 2|Hype fades by (\d+)/, c.hypeDecay, "hype decay");
+RB(/Every studio gains (\d+)/, (D.config || {}).income != null ? D.config.income : c.income, "income"); RB(/Hype fades 2|Hype fades by (\d+)/, c.hypeDecay, "hype decay");
 RB(/Recruit a Junior from the pool: (\d+)/, c.recruitCost, "recruit cost"); RB(/up to (\d+): workstations?/, c.wsMax, "max workstations");
 { const m = rb.match(/workstations 2 to 4 cost (\d+)G each, workstation 5 costs (\d+)G, workstation 6 costs (\d+)G/); if (!m || [+m[1], +m[2], +m[3]].join() !== [wsPrices[0], wsPrices[3], wsPrices[4]].join()) find("MISMATCH", "rules", "workstation ladder text vs engine " + wsPrices); }
 // board UI numbers (launch scoring chips) must come from the same table the engine scores with
