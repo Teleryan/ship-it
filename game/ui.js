@@ -752,10 +752,11 @@ function detailModal() {
       break; }
     case "spot": {
       const spot = S.data.spots.find(x => x.id === d.id); if (!spot) return closeOnly();
+      const tutHold = (U.tut && !U.tut.auto && SI.tutGate) ? SI.tutGate({ type: "place", p: viewIndex(S), worker: U.sel, target: "spot:" + spot.id }) : null; // guided tutorial: explain instead of offering a blocked placement
       const occ = S.occ[spot.id] || []; const mode = spot.crew ? "Strike Team tile: one strike team of " + spot.crew[0].length + " workers per round" : spot.mode === "shared" ? "Shared: several workers can use it" : spot.mode === "multi" ? "Multi: several workers can use it" : spot.excl ? "Exclusive" : "One worker only";
       h += `<div class="dtitle">${esc(spot.row)}</div><div style="margin:6px 0">${spot.crew ? "Strike Team of " + spot.crew[0].length + ": " + crewChips(spot) : spot.discs.map(x => x === "ANY" ? '<span class="chip" style="background:#667">ANY</span>' : chip(x)).join(" ")}${spot.srOnly ? ' <span class="chip" style="background:#a33">Senior only</span>' : ""}</div>
       <p><b>${esc(spot.fx || spot.note || "")}</b></p>${spot.fx && spot.note ? `<p class="mute">${esc(spot.note)}</p>` : ""}<p class="mute">${mode}.${spot.debt ? ` Adds ${spot.debt} Tech Debt.` : ""}${spot.cost ? (spot.cost.res ? ` Costs ${spot.cost.res} skills (any mix).` : ` Costs ${spot.cost.gold}G.`) : ""}</p>
-      ${occ.length ? `<p>Occupied by: ${occ.map(i => `<b style="color:${P(i).color}">${esc(P(i).name)}</b>`).join(", ")}</p>` : ""}` + placeSection(S, "spot:" + spot.id);
+      ${occ.length ? `<p>Occupied by: ${occ.map(i => `<b style="color:${P(i).color}">${esc(P(i).name)}</b>`).join(", ")}</p>` : ""}` + (tutHold ? `<p class="mute" style="margin-top:10px"><b>${esc(tutHold)}</b></p>` : placeSection(S, "spot:" + spot.id));
       break; }
     case "sys": case "market": {
       let def, idx = null;
