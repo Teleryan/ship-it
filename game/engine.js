@@ -102,6 +102,7 @@ E.newGame = function (seats, opts) {
   if (cfg.addSpots) cfg.addSpots.forEach(sp => { if (!data.spots.some(x => x.id === sp.id)) data.spots.push(Object.assign({}, sp)); });
   if (cfg.bigAdd && cfg.bigAdd[N0]) cfg.bigAdd[N0].forEach(id => { const sp = data.spots.find(x => x.id === id); if (sp) data.spots.push(Object.assign({}, sp, { id: id + "_b" })); });
   if (cfg.spotPatch) data.spots.forEach(sp => { const pt = cfg.spotPatch[sp.id]; if (pt) Object.assign(sp, pt); });
+  if (cfg.instantBuild) { const r = data.spots.find(x => x.id === "rd"); if (r) { const n = cfg.rdSkills == null ? 2 : cfg.rdSkills; r.tile = "Gain " + n + " skills of your choice."; r.note = "R&D team: Creative + Development, or Operations + Marketing. You pick " + n + " skills (any mix) and gain them at once."; } }
   { const o = data.spots.find(x => x.id === "outsource"); if (o) { const jr = cfg.outsourceJrByN && cfg.outsourceJrByN[N0] != null ? cfg.outsourceJrByN[N0] : (cfg.outsourceJr == null ? 3 : cfg.outsourceJr), sr = cfg.outsourceSrByN && cfg.outsourceSrByN[N0] != null ? cfg.outsourceSrByN[N0] : (cfg.outsourceSr == null ? 5 : cfg.outsourceSr); if (jr != null && sr != null) o.note = "Jr +" + jr + "G / Sr +" + sr + "G"; } }
   if (cfg.launchCap) ["party", "press", "platform"].forEach(id => { const sp = data.spots.find(x => x.id === id); if (!sp) return; sp.mode = "single"; for (let k = 1; k < Math.ceil(N0 / 2); k++) data.spots.push(Object.assign({}, sp, { id: id + "_c" + k })); });
   E.useCfg(cfg); E.applyLook(data);
@@ -768,7 +769,13 @@ function doPlace(S, pi, wid, target, o) {
     case "team": gain(S, pi, "gold", -spot.cost.gold); gain(S, pi, "culture", S.cfg.teamEventCulture); gain(S, pi, "burnout", -(S.cfg.burnTeamRelief || 1)); break;
     case "outsource": { const Nn = S.players.length, bn = (m, k) => S.cfg[m] && S.cfg[m][Nn] != null ? S.cfg[m][Nn] : S.cfg[k]; gain(S, pi, "gold", w.lvl === "Sr" ? (bn("outsourceSrByN", "outsourceSr") == null ? 5 : bn("outsourceSrByN", "outsourceSr")) : (bn("outsourceJrByN", "outsourceJr") == null ? 3 : bn("outsourceJrByN", "outsourceJr"))); break; }
     case "crunchbonus": gain(S, pi, "gold", -spot.cost.gold); break;
-    case "rd": p.rd = true; p.rdDisc = S.cfg.rdDiscount || 0; break;
+    case "rd": p.rd = true; p.rdDisc = S.cfg.rdDiscount || 0;
+      if (S.cfg.instantBuild) { // R&D: two skills of your choice
+        const ks = ["ideas", "code", "process", "buzz"], n = S.cfg.rdSkills == null ? 2 : S.cfg.rdSkills, pick = (Array.isArray(o.rd) ? o.rd : []).filter(k => ks.includes(k)).slice(0, n);
+        while (pick.length < n) pick.push(ks.slice().sort((x, y) => (p[x] + pick.filter(q => q === x).length) - (p[y] + pick.filter(q => q === y).length))[0]);
+        pick.forEach(k => gain(S, pi, k, 1)); log(S, p.name + "'s R&D team yields " + pick.map(k => RES_NAME[k]).join(" + "));
+      }
+      break;
     case "convert": {
       const rk = RES_OF[CAT_OF(as)], rate = S.cfg.convertRate || 3, n = Math.floor((p[rk] || 0) / rate), k = o.conv === "hype" ? "hype" : "prod";
       if (n > 0) { p[rk] -= n * rate; gain(S, pi, k, n); p.rs.converted = (p.rs.converted || 0) + n * rate; p.cs.converted = (p.cs.converted || 0) + n * rate; log(S, p.name + " converts " + n * rate + " " + RES_NAME[rk] + " into " + n + " " + (k === "hype" ? "Hype" : "Progress")); }
@@ -830,8 +837,9 @@ function spendRes(S, p, n) { for (let i = 0; i < n; i++) { let big = RES[0]; RES
 function maxBuilds(S, p) { return S.cfg.buildsPerRound; }
 /* rounds until a bought system is finished. Crunch (Gold or fatigue, or free after R&D) is the fast option. */
 /* Rounds until a system is ready. Team rounds (bt, 1-3 by system power) are the rounds its workers stay committed; ready = this round + 1 + team rounds. A rush removes one team round. */
-E.buildRounds = function (S, p, crunch, def) { const bt = def && def.bt != null ? def.bt : (S.cfg.buildDelay || 2) - 1; const rush = crunch || (p && p.rd && S.cfg.rdCrunch); return Math.max(0, bt - (rush ? (S.cfg.rushRounds == null ? 1 : S.cfg.rushRounds) : 0)); };
-E.buildDelay = function (S, p, crunch, def) { return 1 + E.buildRounds(S, p, crunch, def); };
+const rdFree = (S, p) => !S.cfg.instantBuild && !!(p && p.rd && S.cfg.rdCrunch); E.rdFree = rdFree;
+E.buildRounds = function (S, p, crunch, def) { if (S.cfg.instantBuild) return 0; const bt = def && def.bt != null ? def.bt : (S.cfg.buildDelay || 2) - 1; const rush = crunch || rdFree(S, p); return Math.max(0, bt - (rush ? (S.cfg.rushRounds == null ? 1 : S.cfg.rushRounds) : 0)); };
+E.buildDelay = function (S, p, crunch, def) { return S.cfg.instantBuild ? 0 : 1 + E.buildRounds(S, p, crunch, def); };
 let FATMAX = 2;
 E.crunchWorker = function (p) { const c = p.workers.filter(w => w.fat < FATMAX).sort((x, y) => x.fat - y.fat || x.id - y.id); return c[0] || null; };
 E.canBuild = function (S, pi, name, free, crunch) {
@@ -839,9 +847,9 @@ E.canBuild = function (S, pi, name, free, crunch) {
   const nb = p.building || [];
   {
     const d = E.buildDelay(S, p, crunch, def);
-    if (S.round + d > PHASE_ENDS[3]) return { ok: false, reason: (crunch || (p.rd && S.cfg.rdCrunch)) ? "Would not finish before the game ends" : "Too late for a normal build" + (S.round + (S.cfg.crunchDelay || 1) <= 12 ? " (rush it with crunch)" : " (nothing finishes in time)") };
-    if (crunch === "gold" && !(p.rd && S.cfg.rdCrunch) && p.gold < (S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold) + E.buildCost(S, p, def, free).gold) return { ok: false, reason: "Crunch costs " + (S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold) + "G more" };
-    if (crunch === "fat" && !(p.rd && S.cfg.rdCrunch) && !E.crunchWorker(p)) return { ok: false, reason: "Every worker is already worn out" };
+    if (S.round + d > PHASE_ENDS[3]) return { ok: false, reason: (crunch || rdFree(S, p)) ? "Would not finish before the game ends" : "Too late for a normal build" + (S.round + (S.cfg.crunchDelay || 1) <= 12 ? " (rush it with crunch)" : " (nothing finishes in time)") };
+    if (crunch === "gold" && !rdFree(S, p) && p.gold < (S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold) + E.buildCost(S, p, def, free).gold) return { ok: false, reason: "Crunch costs " + (S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold) + "G more" };
+    if (crunch === "fat" && !rdFree(S, p) && !E.crunchWorker(p)) return { ok: false, reason: "Every worker is already worn out" };
   }
   if (!S.sysAvail[name]) return { ok: false, reason: "Already taken" };
   if (S.cfg.marketSize && !(S.market[def.cat] || []).includes(name)) return { ok: false, reason: "Not in the market right now" };
@@ -870,12 +878,14 @@ function doBuild(S, pi, name, useFree, crunchIn, crewPick, crunchWho) {
   if (free) { p.freeBuilds--; } else { p.builds++; if (p.rdDisc) { log(S, p.name + " uses the R&D discount (-" + p.rdDisc + " skills)"); p.rdDisc = 0; } }
   S.sysAvail[name] = false; if (S.market && S.market[def.cat]) { S.market[def.cat] = S.market[def.cat].filter(x => x !== name); refillMarket(S); }
   {
-    const rush = !!crunch || (p.rd && S.cfg.rdCrunch), d = E.buildDelay(S, p, crunch, def), crewIds = E.buildRounds(S, p, crunch, def) > 0 ? (crewFor(p, b.reqs, pick) || crewFor(p, b.reqs) || []) : [];
+    const rush = !!crunch || rdFree(S, p), d = E.buildDelay(S, p, crunch, def), crewIds = E.buildRounds(S, p, crunch, def) > 0 ? (crewFor(p, b.reqs, pick) || crewFor(p, b.reqs) || []) : [];
     crewIds.forEach(id => { p.workers.find(q => q.id === id).build = name; });
-    if (crunch === "gold" && !(p.rd && S.cfg.rdCrunch)) { const cg = S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold; gain(S, pi, "gold", -cg); p.rs.spent += cg; }
-    else if (crunch === "fat" && !(p.rd && S.cfg.rdCrunch)) { const cw = (crunchWho != null && p.workers.find(q => q.id === +crunchWho && q.fat < (S.cfg.fatMax||2))) || E.crunchWorker(p); cw.fat = Math.min(S.cfg.fatMax||2, cw.fat + 1); log(S, p.name + " crunches: " + cw.lvl + " " + dn(cw.disc) + " is more tired"); }
+    if (crunch === "gold" && !rdFree(S, p)) { const cg = S.cfg.crunchGold == null ? 2 : S.cfg.crunchGold; gain(S, pi, "gold", -cg); p.rs.spent += cg; }
+    else if (crunch === "fat" && !rdFree(S, p)) { const cw = (crunchWho != null && p.workers.find(q => q.id === +crunchWho && q.fat < (S.cfg.fatMax||2))) || E.crunchWorker(p); cw.fat = Math.min(S.cfg.fatMax||2, cw.fat + 1); log(S, p.name + " crunches: " + cw.lvl + " " + dn(cw.disc) + " is more tired"); }
+    if (S.cfg.instantBuild && crunch) { const cp = S.cfg.crunchProgress == null ? 2 : S.cfg.crunchProgress; gain(S, pi, "prod", cp); log(S, p.name + " crunches " + name + ": +" + cp + " Progress"); }
     p.building.push({ name, cat: def.cat, rdy: S.round + d, rush, crew: crewIds }); p.rs.crunched = (p.rs.crunched || 0) + (rush ? 1 : 0); if (rush) p.cs.crunched = (p.cs.crunched || 0) + 1;
-    log(S, p.name + " starts building " + name + " (" + def.cat + "), ready in round " + (S.round + d) + (crewIds.length ? " (crew: " + crewIds.map(id => { const q = p.workers.find(z => z.id === id); return q.lvl + " " + q.disc; }).join(", ") + ")" : "") + (rush ? " (crunched)" : "") + (free ? " FREE" : ""));
+    log(S, p.name + (S.cfg.instantBuild ? " builds " : " starts building ") + name + " (" + def.cat + ")" + (S.cfg.instantBuild ? "" : ", ready in round " + (S.round + d)) + (crewIds.length ? " (crew: " + crewIds.map(id => { const q = p.workers.find(z => z.id === id); return q.lvl + " " + q.disc; }).join(", ") + ")" : "") + (rush ? " (crunched)" : "") + (free ? " FREE" : ""));
+    if (S.cfg.instantBuild) completeBuilds(S);
     return { ok: true };
   }
   p.systems.push({ name, cat: def.cat, t: false }); p.rs.builds++;

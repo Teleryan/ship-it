@@ -48,7 +48,11 @@ function tokens(S) {
   const t = {
     income: c.income, salaryJr: c.salaryJr, salarySr: c.salarySr, resJr: c.resJr, resSr: c.resSr, hypeDecay: c.hypeDecay,
     recruitCost: c.recruitCost, recruitN: S.recruit ? S.recruit.length : E.recruitSize(S),
-    buildDelay: c.buildDelay, crunchGold: c.crunchGold, buildsPerRound: c.buildsPerRound, bank: p.ideas + p.code + p.process + p.buzz,
+    buildDelay: c.buildDelay, crunchGold: c.crunchGold, crunchProgress: c.crunchProgress == null ? 2 : c.crunchProgress, rdSkills: c.rdSkills == null ? 2 : c.rdSkills,
+    sysWait: c.instantBuild ? "" : " and one worker per role it needs sits out until it is finished (1 to 3 rounds)",
+    crunchWhat: c.instantBuild ? "<b>Crunch</b> adds <b>+" + (c.crunchProgress == null ? 2 : c.crunchProgress) + " Progress</b> to a system as you build it. It costs <b>" + c.crunchGold + "G</b>, or it makes one worker more tired." : "A system keeps its team busy for 1 to 3 rounds. <b>Crunch</b> takes one round off. It costs <b>" + c.crunchGold + "G</b>, or it makes one worker more tired.",
+    crunchSet: c.instantBuild ? "turn on <b>Crunch</b> (Gold or tired worker)" : "set <b>Build speed</b> to Crunch",
+    rdWhat: c.instantBuild ? "two workers from different disciplines give you <b>" + (c.rdSkills == null ? 2 : c.rdSkills) + " skills of your choice</b>." : "two workers from different disciplines make a system built this round <b>1 round shorter</b>, with no crunch fee.", buildsPerRound: c.buildsPerRound, bank: p.ideas + p.code + p.process + p.buzz,
     convertRate: c.convertRate || 3, refreshGold: c.marketRefreshGold, gateName: esc(g.name || ""), gate2Name: esc(g2.name || ""), gate3Name: esc(g3.name || ""), gateReqs: esc((g.reqs || []).join(", ")),
     gateEnd: (c.phaseEnds || [])[g.phase || 0] || "", gateFund: g.fund || 0, gatePenalty: g.penalty || 0, gateMiss: E.gateEff(S, g).miss.replace("-", "lose "), gateVP: E.gateEff(S, g).vp, baseVP: c.baseVP || 0, raceDen: c.raceDen || 3, objPer: c.objGraded || 1, objBonus: c.objBonus || 0,
     crisisName: crisis ? "<b>" + esc(crisis.name) + "</b>" : "a <b>Crisis</b>",
@@ -137,7 +141,7 @@ let STEPS = [
   info("board_perks", { hl: () => ".shared" }),
   doing("r2place", { hl: () => "[data-tut=workers]", done: S => reachedRound(S, 2, "rest"), allow: a => (a.type === "buyws" || a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
   doing("r2crunch", { hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"), done: S => builtInManage(S, 2, true),
-    allow: (a, S) => a.type === "build" ? (a.crunch || (S.cfg.rdCrunch && me(S).rd) ? null : MSG("msg_crunch")) : a.type === "done" ? (((me(S).rs.crunched || 0) >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : MSG("msg_crunch")) : (a.type === "train" || a.type === "promote") ? MSG("msg_train_later") : null }),
+    allow: (a, S) => a.type === "build" ? (a.crunch || E.rdFree(S, me(S)) ? null : MSG("msg_crunch")) : a.type === "done" ? (((me(S).rs.crunched || 0) >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : MSG("msg_crunch")) : (a.type === "train" || a.type === "promote") ? MSG("msg_train_later") : null }),
   info("burnout", { hl: () => ".pt[data-pid='0'] .st.bo" }),
   /* ---- round 3: strike teams, the first gate ---- */
   info("gates", { hl: () => "[data-tut=gates]" }),

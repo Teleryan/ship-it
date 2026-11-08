@@ -45,7 +45,7 @@ r("msg_rest","Blocked-action message","","",
 r("msg_recruit","Blocked-action message","","",
 "Recruit one worker from the shared pool first");
 r("msg_crunch","Blocked-action message","","",
-"Set Build speed to Crunch, then build");
+"Turn on Crunch, then build");
 r("msg_promote","Blocked-action message","","",
 "Promote a Junior who has worked and rested");
 r("msg_promote_train","Blocked-action message","","",
@@ -125,7 +125,7 @@ r("place2b","Round 1 · desk bought","Desk ready: place a worker","",
 r("place2c","Round 1 · second worker placed","Nice: finish placing","",
 ">> Press **Pass: done placing** when you have placed the workers you want.\n\nEach worker needs its own workstation, so a third worker would need another desk ({wsCost}G or more). You do not have to place everyone.");
 r("build","Round 1 · manage: build","Manage: build a system","",
-">> Press **Open Systems to Build**, pick a system, and build it.{freeBuild}\n\nThe **Manage** step has begun. A **system** is a permanent engine that scores VP at the end. It costs skills, and one worker per role it needs sits out until it is finished (1 to 3 rounds). Greyed cards need skills you do not have yet.");
+">> Press **Open Systems to Build**, pick a system, and build it.{freeBuild}\n\nThe **Manage** step has begun. A **system** is a permanent engine that scores VP at the end. It costs skills{sysWait}. Greyed cards need skills you do not have yet.");
 r("tired","Round 1 · tired workers","Tired workers","Next",
 "Every worker who worked this round is now **Tired**. A Tired worker can work again, but then becomes **Exhausted**, and an Exhausted worker you place earns no skill and adds Burnout. A worker who sits out a round **rests** and recovers one step.");
 r("rest1","Round 1 · manage: finish","Manage: milestones and Done","",
@@ -137,11 +137,11 @@ r("upkeep","Round 2 · upkeep and order","Between rounds: Upkeep and order","Nex
 r("r2recruit","Round 2 · recruit","Recruit a worker","Let's play round 2",
 ">> Press **Recruit** under a worker you like.\n\nThe **Recruitment** panel is a shared pool of **{recruitN}** workers. A Junior costs **{recruitCost}G**, plus {recruitLadder}G for each worker another studio has already taken this round. You can place them right away.");
 r("board_perks","Round 2 · studio perks","Studio Perks","Next",
-"**Studio Perks** are special tiles. **Each perk takes only one worker per round**, so whoever places first gets it.\n**Talent**: recruit one extra worker, for 1G less.\n**Outsource**: a worker earns Gold.\n**R&D**: two workers from different disciplines make a system built this round **1 round shorter**, with no crunch fee.\n**Team Event**: send 2 workers with different roles and pay {teamCost}G {teamEventEffect}.");
+"**Studio Perks** are special tiles. **Each perk takes only one worker per round**, so whoever places first gets it.\n**Talent**: recruit one extra worker, for 1G less.\n**Outsource**: a worker earns Gold.\n**R&D**: {rdWhat}\n**Team Event**: send 2 workers with different roles and pay {teamCost}G {teamEventEffect}.");
 r("r2place","Round 2 · place","Place your team","",
 ">> Place your workers, leave at least one unplaced to rest, then press **Pass**.\n\nBuy another workstation if you need one.");
-r("r2crunch","Round 2 · crunch","Crunch: finish a build sooner","",
-">> Press **Open Systems to Build**, set **Build speed** to Crunch, and build. Then press **Done**.{freeBuild}\n\nA system keeps its team busy for 1 to 3 rounds. **Crunch** takes one round off. It costs **{crunchGold}G**, or it makes one worker more tired.");
+r("r2crunch","Round 2 · crunch","Crunch a build","",
+">> Press **Open Systems to Build**, {crunchSet}, and build. Then press **Done**.{freeBuild}\n\n{crunchWhat}");
 r("burnout","Round 2 · burnout","Burnout","Next",
 "**Burnout** (0 to {burnMax}) shows how worn out your team is. It rises +1 for each Exhausted worker you placed, and +1 if salaries were short by {burnUnpaidMin}G or more. It falls {burnRelief} after a calm round and {teamRelief} after a Team Event.\n\nBurnout 0 is **Energized** (+{energizedGold}G a round). At {burnStrainAt}+ you lose extra Hype, at {burnBenchAt}+ a worker is benched, at {burnQuitAt} one quits, and at the end high Burnout costs VP. **Culture** is {cultureBase} minus Burnout.");
 r("gates","Round 3 · publisher gates","Publisher Gates","Next",

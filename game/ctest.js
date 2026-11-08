@@ -99,7 +99,7 @@ S = toStep(mk(5), 'place', 4);
 
 // ---- build: delay, crunch, completion, limits (build lives in the Rest step) ----
 const VC = () => D.systems.find(s => s.name === 'Version Control');
-const mkBuild = (seed, round) => { const T = toStep(mk(seed), 'rest', round || 4); const pi = E.currentActor(T), q = T.players[pi]; q.rd = false; q.systems = []; q.building = []; q.builds = 0; q.freeBuilds = 0; rich(q);
+const mkBuild = (seed, round, inst) => { const T = mk(seed); T.cfg.instantBuild = inst ? 1 : 0; toStep(T, 'rest', round || 4); const pi = E.currentActor(T), q = T.players[pi]; q.rd = false; q.systems = []; q.building = []; q.builds = 0; q.freeBuilds = 0; rich(q);
   q.workers = [W(901, 'ENG'), W(902, 'QA')]; T.sysAvail['Version Control'] = true; T.market.Stability = ['Version Control']; return { T, pi, q } };
 { const { T, pi, q } = mkBuild(6); const rd0 = T.round;
   let r = E.act(T, { type: 'build', p: pi, name: 'Version Control' });
@@ -119,6 +119,24 @@ const mkBuild = (seed, round) => { const T = toStep(mk(seed), 'rest', round || 4
 { const { T, pi, q } = mkBuild(6); q.gold = 0; RES.forEach(k => q[k] = 0); ok(!E.canBuild(T, pi, 'Version Control').ok, 'build needs skills and Gold'); }
 { const { T, pi, q } = mkBuild(7, 11); ok(T.round === 11, 'reached round 11');
   ok(!E.canBuild(T, pi, 'Version Control', false, undefined).ok, 'normal build blocked in round 11'); ok(E.canBuild(T, pi, 'Version Control', false, 'gold').ok, 'crunched build allowed in round 11'); }
+
+// ---- instant build (toggle): no build time, crunch = bonus Progress, R&D = skills of choice ----
+{ const { T, pi, q } = mkBuild(6, 4, true); const g1 = q.gold, p1 = q.prod;
+  const r = E.act(T, { type: 'build', p: pi, name: 'Version Control' });
+  ok(r.ok && q.systems.some(s => s.name === 'Version Control') && q.building.length === 0, 'instant: system joins the studio at once');
+  ok(!q.workers.some(w => w.build), 'instant: no crew is locked'); ok(q.prod === p1, 'instant: no crunch, no bonus Progress'); }
+{ const { T, pi, q } = mkBuild(6, 4, true); const g1 = q.gold, p1 = q.prod, base = E.buildCost(T, q, VC(), false).gold;
+  const r = E.act(T, { type: 'build', p: pi, name: 'Version Control', crunch: 'gold' });
+  ok(r.ok && q.prod === p1 + T.cfg.crunchProgress && q.gold === g1 - base - T.cfg.crunchGold, 'instant: crunch with Gold = +' + T.cfg.crunchProgress + ' Progress for ' + T.cfg.crunchGold + 'G'); }
+{ const { T, pi, q } = mkBuild(6, 4, true); const r = E.act(T, { type: 'build', p: pi, name: 'Version Control', crunch: 'fat' });
+  ok(r.ok && q.workers.some(w => w.fat > 0) && q.prod >= 0, 'instant: crunch by tiring a worker still tires one'); }
+{ const { T, pi, q } = mkBuild(7, 12, true); ok(E.canBuild(T, pi, 'Version Control').ok, 'instant: building is allowed in the last round'); }
+{ const { T, pi, q } = mkBuild(6, 4, true); q.rd = true; ok(E.buildDelay(T, q, undefined, VC()) === 0 && !E.rdFree(T, q), 'instant: R&D no longer rushes builds'); }
+{ const T = mk(31, 2); T.cfg.instantBuild = 1; toStep(T, 'place', 3); const pi = E.currentActor(T), q = T.players[pi];
+  q.workers.push(W(960, 'ENG'), W(961, 'PROD'), W(962, 'ART')); q.workers.forEach(w => { w.placed = false; w.build = null; w.fat = 0 }); q.ws = 9; q.ideas = 0; q.code = 0; q.process = 0; q.buzz = 0;
+  const rd = E.activeSpots(T).find(s => s.special === 'rd'); if (rd) { const o = E.placementOptions(T, pi, q.workers.find(w => w.id === 960)).find(x => x.target === 'spot:rd');
+    const r = o && o.ok ? E.act(T, { type: 'place', p: pi, worker: 960, target: 'spot:rd', as: o.as && o.as[0], crew: o.plans && o.plans[0] ? o.plans[0].ids : undefined, rd: ['code', 'code'] }) : { ok: false };
+    ok(r.ok && q.code >= 2, 'instant: R&D gives the two chosen skills'); } else ok(true, 'R&D not on this board phase'); }
 
 // ---- convert (Launch) ----
 S = toStep(mk(8), 'place', 12);
