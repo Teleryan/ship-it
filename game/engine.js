@@ -1184,7 +1184,7 @@ const MILE_CHECK = {
   "Exactly Five": (S, p) => p.workers.length === 5,
   "Lean Operation": (S, p) => p.rs.placed === 2 && p.workers.length >= 5,
   "All-Star Team": (S, p) => sr(p) >= 3,
-  "Hiring Spree": (S, p) => p.workers.length >= 6,
+  "Full Crew": (S, p) => p.workers.length >= 6,
   "Diverse Perspectives": (S, p) => new Set(p.workers.map(w => w.disc)).size >= 7,
   "Talent Scout": (S, p) => (p.cs.recruits || 0) >= 5,
   "Mentor Program": (S, p) => jr(p) >= 2 && sr(p) >= 2,

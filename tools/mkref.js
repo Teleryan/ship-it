@@ -6,7 +6,7 @@ global.window = undefined;
 const SRC = process.env.SHIPIT_SRC || path.join(__dirname, "..", "game");
 const E = require(path.join(SRC, "engine.js")), D = require(path.join(SRC, "data.js"));
 // Variant D (Burnout) is the default game: Burnout and Training on, Insight off the board
-D.milestones = D.milestones.map(m => m.name === "Liquidation" ? { cat: "Workforce", gold: 4, name: "Double Recruit", text: "Recruit 2 workers from the shared pool in one round", phases: [1, 2] } : m.name === "Hiring Spree" ? Object.assign({}, m, { text: "Have 6+ workers at the same time" }) : m); // as the Variant D build does
+D.milestones = D.milestones.map(m => m.name === "Liquidation" ? { cat: "Workforce", gold: 4, name: "Double Recruit", text: "Recruit 2 workers from the shared pool in one round", phases: [1, 2] } : m.name === "Full Crew" ? Object.assign({}, m, { text: "Have 6+ workers at the same time" }) : m); // as the Variant D build does
 const c = Object.assign(E.defaultConfig(), D.config);
 // Variant D constants (these keys were removed from the config; the reference text below still branches on them)
 Object.assign(c, { flowV2: 1, catchUpOrder: 1, recruitOnly: 1, leanRound: 1, cultureFold: 1, promoFree: 1 });
