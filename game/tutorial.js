@@ -76,6 +76,8 @@ function tokens(S) {
   t.hint = fmt(rw(hintId(S)).text, t);
   return t;
 }
+const deskLeft = S => { const p = me(S); return Math.max(0, (p.ws == null ? Math.min(S.cfg.wsMax, S.cfg.wsFree) : p.ws) - (p.wsUsed || 0)); };
+const placedN = S => me(S).workers.filter(w => w.placed).length;
 const sysOpt = S => me(S).workers.some(w => w.lvl === "Sr" && !w.placed && E.placementOptions(S, 0, w).some(o => o.kind === "sys" && o.ok));
 const srIds = S => me(S).workers.filter(w => w.lvl === "Sr" && !w.placed && E.placementOptions(S, 0, w).some(o => o.kind === "sys" && o.ok)).map(w => w.id);
 const convOpt = S => me(S).workers.some(w => !w.placed && E.placementOptions(S, 0, w).some(o => o.ok && o.spot && o.spot.special === "convert"));
@@ -120,7 +122,9 @@ let STEPS = [
     allow: a => a.type === "place" ? null : a.type === "pass" ? MSG("msg_place_first") : MSG("msg_place") }),
   info("stats", { hl: () => ".pt[data-pid='0'] .stats.res" }),
   info("ws1", { hl: () => ".pt[data-pid='0'] [data-tut=ws]" }),
-  doing("place2", { hl: () => ".pt[data-pid='0'] [data-tut=ws] [data-act=buyws]", done: S => after(S, "place", 1) || S.round > 1, allow: a => (a.type === "buyws" || a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
+  doing("place2", { hl: S => placedN(S) >= 2 ? "[data-act=pass]" : deskLeft(S) > 0 ? (U().sel != null ? ".spot.ok" : "[data-tut=workers] .wk.pick") : ".pt[data-pid='0'] [data-tut=ws] [data-act=buyws]",
+    vid: S => placedN(S) >= 2 ? "place2c" : deskLeft(S) > 0 ? "place2b" : "place2",
+    done: S => after(S, "place", 1) || S.round > 1, allow: (a, S) => (a.type === "buyws" && deskLeft(S) > 0) ? MSG("msg_ws_free") : (a.type === "buyws" || a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
   doing("build", { hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"), done: S => builtInManage(S, 1),
     allow: (a, S) => a.type === "build" ? null : a.type === "done" ? ((me(S).builds >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : MSG("msg_build_first")) : MSG("msg_build") }),
   info("tired", { hl: () => "[data-tut=workers]" }),

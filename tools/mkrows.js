@@ -34,6 +34,8 @@ r("msg_place_first","Blocked-action message","","",
 "Place at least one worker first");
 r("msg_place_pass","Blocked-action message","","",
 "Buy a workstation, keep placing, or press Pass");
+r("msg_ws_free","Blocked-action message","","",
+"You already have a free workstation. Select a worker, then a highlighted tile.");
 r("msg_build_first","Blocked-action message","","",
 "Try building one system first");
 r("msg_build","Blocked-action message","","",
@@ -116,8 +118,12 @@ r("stats","Round 1 · skills","Your skills","Next",
 "The tile paid out at once. Your four **skills** (Ideas, Code, Process, Buzz) are in your studio panel. You keep them between rounds and spend them on systems.");
 r("ws1","Round 1 · workstations","Workstations: your desks","Next",
 "Every placement needs a **workstation** (a desk). You start with just **{wsFree}**, so you can place **one worker per round** until you buy more. The counter is in your studio panel.\n\nTaking **any board tile**, including Studio Perks, uses one. Triggering one of your own systems does not.");
-r("place2","Round 1 · buy a workstation","Buy a workstation, or pass","",
-">> Press **Buy workstation** and place a second worker, or press **Pass**.\n\nYou are out of workstations. Buy one in your studio panel ({wsCost}G for the next one), then place. Extra ones cost: {wsPrices} (up to {wsMax} in all). They stay for the rest of the phase; a new phase resets you to {wsFree}.");
+r("place2","Round 1 · buy a workstation","Buy a workstation, then place","",
+">> Press **Buy workstation** and place a second worker, or press **Pass**.\n\nYou are out of workstations. Buy one in your studio panel ({wsCost}G for the next one), then place. Extra desks cost: {wsPrices} (up to {wsMax} in all). They stay for the rest of the phase; a new phase resets you to {wsFree}.");
+r("place2b","Round 1 · desk bought","Desk ready: place a worker","",
+">> **Select a worker**, then click a **highlighted tile** (orange border) and press **Place**.\n\nYou bought a workstation, so you can place another worker. Or press **Pass** to keep your Gold.");
+r("place2c","Round 1 · second worker placed","Nice: finish placing","",
+">> Press **Pass: done placing** when you have placed the workers you want.\n\nEach worker needs its own workstation, so a third worker would need another desk ({wsCost}G or more). You do not have to place everyone.");
 r("build","Round 1 · manage: build","Manage: build a system","",
 ">> Press **Open Systems to Build**, pick a system, and build it.{freeBuild}\n\nThe **Manage** step has begun. A **system** is a permanent engine that scores VP at the end. It costs skills, and one worker per role it needs sits out until it is finished (1 to 3 rounds). Greyed cards need skills you do not have yet.");
 r("tired","Round 1 · tired workers","Tired workers","Next",
