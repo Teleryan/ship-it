@@ -264,10 +264,10 @@ function hintFor(S, a) {
   if (S.step !== "place") return prompt(S);
   const free = a.workers.filter(w => !w.placed && !w.build && !w.benched), tot = a.ws == null ? Math.min(S.cfg.wsMax, S.cfg.wsFree) : a.ws, left = Math.max(0, tot - (a.wsUsed || 0));
   const sw = U.sel != null ? a.workers.find(w => w.id === U.sel) : null;
-  if (sw) return "Now tap a green tile for your " + dname(sw.disc) + ". Tap the worker again to cancel.";
+  if (sw) return "Now tap a highlighted tile (orange border) for your " + dname(sw.disc) + ". Tap the worker again to cancel.";
   if (!free.length) return "All your workers are placed. Press Pass to finish.";
   if (left <= 0) { const bw = S.cfg.wsMax ? E.canBuyWs(S, a.id) : { ok: false }; return "No free workstation. " + (bw.ok ? "Buy one for " + E.wsCost(S, a.id) + "G, or press Pass." : (bw.reason ? bw.reason + ". " : "") + "Press Pass to finish."); }
-  return "Pick a worker, then a green tile. " + free.length + " worker" + (free.length === 1 ? "" : "s") + " left · " + left + " workstation" + (left === 1 ? "" : "s") + " free.";
+  return "Pick a worker, then a highlighted tile (orange border). " + free.length + " worker" + (free.length === 1 ? "" : "s") + " left · " + left + " workstation" + (left === 1 ? "" : "s") + " free.";
 }
 function banner(S) {
   const a = actorName(S), ai = E.currentActor(S);
@@ -557,7 +557,7 @@ function rsNotes(S) {
 function startScreen(S) {
   const ph = S.data.phases[S.phase], g = (E.gateList(S) || []).find(x => x.phase === S.phase), hs = humanIds(S);
   const rows = S.players.map(p => `<tr><td><b style="color:${lite(p.color)}">${esc(p.name)}</b>${youTag(S, p)}</td><td><b class="mono">${p.gold}G</b></td><td>${p.workers.length} Juniors: ${p.workers.map(w => esc(dname(w.disc))).join(", ")}</td></tr>`).join("");
-  return [{ key: "start", step: null, title: `${esc(ph.name)} begins`, body: rsSec("Where you start", `<table class="tbl rs-tbl"><thead><tr><th>Studio</th><th>Gold</th><th>Team</th></tr></thead><tbody>${rows}</tbody></table>`) + rsSec("What is next", `<div class="rs-first">${hs.length === 1 && S.order[0] === hs[0] ? "<b>You go first.</b>" : `<b>${esc(S.players[S.order[0]].name)} goes first.</b>`} <span class="mute">Select a worker, then a green tile. You start with ${S.cfg.wsFree} workstation, so you place one worker a round until you buy more.</span></div>${g ? `<div class="rs-gate"><b>${esc(g.name)}</b> <span class="tag">${esc(g.lvlName || "Medium")}</span> is due at the end of ${esc(ph.name)}: needs ${wordIcons((g.reqs || []).join(", "))}. Pass <b>${gatePass(S, g)}</b> · miss <b>${esc(E.gateEff(S, g).miss.replace("-", "−"))}</b></div>` : ""}`) }];
+  return [{ key: "start", step: null, title: `${esc(ph.name)} begins`, body: rsSec("Where you start", `<table class="tbl rs-tbl"><thead><tr><th>Studio</th><th>Gold</th><th>Team</th></tr></thead><tbody>${rows}</tbody></table>`) + rsSec("What is next", `<div class="rs-first">${hs.length === 1 && S.order[0] === hs[0] ? "<b>You go first.</b>" : `<b>${esc(S.players[S.order[0]].name)} goes first.</b>`} <span class="mute">Select a worker, then a highlighted tile (orange border). You start with ${S.cfg.wsFree} workstation, so you place one worker a round until you buy more.</span></div>${g ? `<div class="rs-gate"><b>${esc(g.name)}</b> <span class="tag">${esc(g.lvlName || "Medium")}</span> is due at the end of ${esc(ph.name)}: needs ${wordIcons((g.reqs || []).join(", "))}. Pass <b>${gatePass(S, g)}</b> · miss <b>${esc(E.gateEff(S, g).miss.replace("-", "−"))}</b></div>` : ""}`) }];
 }
 function stepScreens(S) {
   if (S.round === 1) return startScreen(S);
@@ -567,7 +567,7 @@ function stepScreens(S) {
   const closed = Object.keys(S.closed || {}).map(id => { const sp = S.data.spots.find(x => x.id === id); return sp ? sp.row : id; });
   const closedHtml = closed.length ? rsSec("Industry News", `<div>Closed this round: <b>${closed.map(esc).join(" · ")}</b></div>`) : "";
   // Ordinary round: what the new round did, then turn order
-  if (!starts.includes(r)) return [{ key: "round", step: null, title: `Round ${r} begins`, body: rsSec("What just happened", rsTable(S)) + rsNotes(S) + closedHtml + rsSec("Your first move", `<div>Select a worker, then a green tile${S.recruit && S.phase !== 3 ? ". The Recruitment pool has refreshed" : ""}.</div>`) }];
+  if (!starts.includes(r)) return [{ key: "round", step: null, title: `Round ${r} begins`, body: rsSec("What just happened", rsTable(S)) + rsNotes(S) + closedHtml + rsSec("Your first move", `<div>Select a worker, then a highlighted tile (orange border)${S.recruit && S.phase !== 3 ? ". The Recruitment pool has refreshed" : ""}.</div>`) }];
   // First round of a phase: gate result, standings, what is new, next gate
   const prev = S.data.phases[S.phase - 1], g = (S.gates || []).slice(-1)[0], gl = E.gateList(S) || [], ng = gl.find(x => x.phase === S.phase), pg = g ? gl.find(x => x.phase === g.phase) : null;
   const nm = i => esc(S.players[i].name);

@@ -17,7 +17,7 @@ r("polish","Step 34 · polish","Polish begins","Got it",
 r("polishfree","Step 19 · polish, free play","Polish","",
 "{hint}");
 r("hint_place","Hint · place step","","",
-"**Place.** Select a worker, then a green tile. Leave Tired workers unplaced to rest. You can Recruit from the shared pool if you like. Press **Pass** when you are finished.");
+"**Place.** Select a worker, then a highlighted tile (orange border). Leave Tired workers unplaced to rest. You can Recruit from the shared pool if you like. Press **Pass** when you are finished.");
 r("hint_build","Hint · build step","","",
 "**Build.** Spend your skills on a system, then press **Done**. The **Systems to Build** panel under the board shows 2 cards per type; greyed cards cannot be built yet. Replacing the cards costs {refreshGold}G.");
 r("hint_wait","Hint · other steps","","",
@@ -29,7 +29,7 @@ r("msg_start","Blocked-action message","","",
 r("msg_obj","Blocked-action message","","",
 "Choose your objectives first");
 r("msg_place","Blocked-action message","","",
-"Place a worker on a green tile");
+"Place a worker on a highlighted tile");
 r("msg_place_first","Blocked-action message","","",
 "Place at least one worker first");
 r("msg_place_pass","Blocked-action message","","",
@@ -105,11 +105,11 @@ r("board_backlog","Card 5 · the board","The board: Backlog","Next",
 r("place1","Round 1 · first worker (nothing selected)","Place your first worker","",
 ">> Click one of your workers in the **Studio Workers** panel to select it.\n\nYou and the Rival take turns, one worker at a time. Most tiles hold only one worker, so going early matters.");
 r("place1b","Round 1 · first worker (worker selected)","Place your first worker","",
-">> Now click a **green tile** to send this worker there.\n\nGreen means this worker can use it. A greyed tile cannot be used: tap it to see why.");
+">> Now click a **highlighted tile** (orange border) to send this worker there.\n\nAn orange border means this worker can use it. A greyed tile cannot be used: click it to see why.");
 r("place1c","Round 1 · first worker (tile popup open)","Place your first worker","",
 ">> Press **Place worker here** to confirm.\n\nRead the tile first. The default choices are fine.");
 r("place1d","Round 1 · first worker (worker popup open)","Place your first worker","",
-">> Press **Select this worker**.\n\nThe tiles this worker can use will turn green.");
+">> Press **Select this worker**.\n\nThe tiles this worker can use get an orange border.");
 r("place1w","Round 1 · first worker (Rival's turn)","Place your first worker","",
 "The Rival is placing a worker. You are next, so look over the board while you wait.");
 r("stats","Round 1 · skills","Your skills","Next",
@@ -141,7 +141,7 @@ r("burnout","Round 2 · burnout","Burnout","Next",
 r("gates","Round 3 · publisher gates","Publisher Gates","Next",
 "The **Publisher Gates** panel lists your deadlines. At the end of each phase the publisher checks every studio: **pass** and you get funding, **miss** and you lose VP.\n\n**{gateName}** is due at the end of round {gateEnd}: {gateReqs}. Pass it for +{gateFund}G. Each requirement you miss costs 1 VP, so a near miss hurts less.");
 r("r3","Round 3 · play","Round 3: your turn","",
-">> Play round 3: place your workers, build if you can, then press **Done**.\n\nConcept ends after this round. **Production** opens more Progress and Hype tiles, so spend your skill bank on systems now.\n\nTip: the **Game Jam** tile is a **Strike Team**: place 2 or 3 workers from different disciplines together for one workstation.\n\n{hint}");
+">> Play round 3: place your workers, build if you can, then press **Done**.\n\nConcept ends after this round. **Production** opens more Progress and Hype tiles, so spend your skill bank on systems.\n\nTip: the **Game Jam** tile is a **Strike Team**: place 2 or 3 workers from different disciplines together for one workstation.\n\n{hint}");
 r("races","Round 4 · the races","Progress and Hype","Next",
 "**Progress** comes from **Prototype** tiles and **Hype** from **Pitch Deck** tiles. At the end of the game every **{raceDen} points** of Progress is **1 VP**, and so is every {raceDen} points of Hype. The Race tracks panel shows where every studio stands.\n\nRed-marked tiles add **Tech Debt**, which costs VP. **Quality** tiles remove it.");
 r("hype_bank","Round 4 · banking Hype","Banking Hype","Got it",
