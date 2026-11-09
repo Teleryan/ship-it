@@ -1018,7 +1018,8 @@ body{overscroll-behavior-y:none;min-height:100vh;min-height:100dvh}
 
 /* objective picker: one column per type, the two choices stacked, so the whole choice fits without scrolling on a landscape iPad */
 @media (min-width:900px){
-  .objpick{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:var(--sp3)}
+  .objpick{display:grid;grid-template-columns:repeat(auto-fit,minmax(122px,1fr));gap:var(--sp2)}
+  .objpick .pgrid .sys,.objpick .pcard{padding:var(--sp2);font-size:12.5px}
   .objpick .pgrp{margin:0;min-width:0}
   .objpick .pgrid{display:flex;flex-direction:column;gap:var(--sp2)}
   .objpick .pgrid>*{width:auto!important;min-width:0}
