@@ -142,6 +142,11 @@ const mkBuild = (seed, round, inst) => { const T = mk(seed); T.cfg.instantBuild 
   { const x = wsT('rd', 4, q => { q.ws = 3; q.wsUsed = 2; }); ok(x.o && !x.o.ok && x.o.wsNeed, 'R&D is blocked with only one workstation free'); }
   { const x = wsT('rd', 4, q => { q.ws = 3; q.wsUsed = 1; }); const r = x.o && x.o.ok ? x.go() : { ok: false, error: x.o && x.o.reason }; ok(r.ok && x.q.wsUsed === 3, 'R&D uses two workstations (one per worker)'); } }
 
+// ---- Energized skill generation (optional config) ----
+const RESK = ['ideas', 'code', 'process', 'buzz'];
+{ const T = mk(93, 2); T.cfg.energizedSkillJr = 1; T.cfg.energizedSkillSr = 2; T.cfg.cultureFold = 1; const q = T.players[0]; q.burnout = 0; q.workers.forEach(w => { w.build = null; w.benched = false }); q.workers[0].lvl = 'Sr'; const before = RESK.map(k => q[k]).reduce((a, b) => a + b, 0); E.burnBands(T); const after = RESK.map(k => q[k]).reduce((a, b) => a + b, 0); ok(after - before === 2 + (q.workers.length - 1), 'Energized studios generate skill from Junior (+1) and Senior (+2) workers when configured'); }
+{ const T = mk(94, 2); toStep(T, 'place', 3); ok(!T.log.some(l => /Energized workers generate/.test(l.t || l)), 'no Energized skill unless configured (default off)'); }
+
 // ---- Training tile: promote a Junior on a shared board tile ----
 const mkTrain = (seed, round, mut) => { const T = mk(seed, 3); T.cfg.trainTile = 1; toStep(T, 'place', round || 4); const pi = E.currentActor(T), q = T.players[pi]; q.workers = [W(970, 'ENG'), W(971, 'ART'), W(972, 'DES')]; q.workers.forEach(w => { w.placed = false; w.build = null; w.fat = 0; w.benched = false; w.lvl = 'Jr' }); q.ws = 9; q.wsUsed = 0; if (mut) mut(q); return { T, pi, q } };
 { const { T, pi, q } = mkTrain(41, 4, p => { p.burnout = 2; p.code = 3; }); const g0 = q.gold, bo0 = q.burnout, r = E.act(T, { type: 'place', p: pi, worker: 970, target: 'spot:train' }), w = q.workers.find(x => x.id === 970);

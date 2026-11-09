@@ -343,10 +343,15 @@ E.burnBand = function (S, p) {
   if (b <= c.energizedBurnMax && cul(S, p) >= c.energizedCulture) return "Energized";
   return "Steady";
 };
+E.burnBands = burnBands;
 function burnBands(S) {
   S.players.forEach(p => {
     const c = S.cfg;
     if (E.burnBand(S, p) === "Energized" && c.energizedGold) { S._nt = 1; gain(S, p.id, "gold", c.energizedGold); S._nt = 0; log(S, p.name + " is Energized (Burnout " + p.burnout + (", Culture " + cul(S, p)) + "): +" + c.energizedGold + "G"); }
+    if (E.burnBand(S, p) === "Energized" && (c.energizedSkillJr || c.energizedSkillSr)) { // optional: an Energized studio's workers generate a little skill of their own role every round
+      const got = {}; p.workers.forEach(w => { if (w.build || w.benched) return; const n = w.lvl === "Sr" ? (c.energizedSkillSr || 0) : (c.energizedSkillJr || 0); const k = n && RES_OF[catsOf(w)[0]]; if (k) { S._nt = 1; gain(S, p.id, k, n); S._nt = 0; got[k] = (got[k] || 0) + n; } });
+      const txt = Object.keys(got).map(k => "+" + got[k] + " " + (RES_NAME[k] || k)).join(", "); if (txt) log(S, p.name + "'s Energized workers generate " + txt);
+    }
     if (p.burnout >= c.burnQuitAt && p.workers.length > 1) {
       const q = p.workers.filter(w => !w.build).sort((a, b) => (a.lvl === "Sr") - (b.lvl === "Sr") || b.fat - a.fat || a.id - b.id)[0];
       if (q) { log(S, p.name + " Meltdown: a " + q.lvl + " " + dn(q.disc) + " quits"); removeWorker(S, p.id, q.id); p.burnout = Math.min(p.burnout, c.burnQuitReset); }
