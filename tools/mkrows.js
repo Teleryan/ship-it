@@ -147,7 +147,7 @@ r("r2done","Round 2 · finish","Finish round 2","",
 r("gates","Round 3 · publisher gates","Publisher Gates","Next",
 "The **Publisher Gates** panel lists your deadlines. At the end of each phase the publisher checks every studio: **pass** and you get funding, **miss** and you lose VP.\n\n**{gateName}** is due at the end of round {gateEnd}: {gateReqs}. Pass it for +{gateFund}G. Each requirement you miss costs 1 VP, so a near miss hurts less.");
 r("r3","Round 3 · play","Round 3: your turn","",
-">> Play round 3: place your workers, build if you can, then press **Done**.\n\nConcept ends after this round. **Production** opens more tiles, so spend your skills on systems.\n\nTip: **Game Jam** is a **Strike Team**. Select a worker, click the tile, then **pick the partner** in the pop-up. The team shares one workstation.\n\n{hint}");
+">> Play round 3: place your workers, then press **Done**.\n\nNew this round: **Game Jam** is a **Strike Team**. Select a worker, click the tile, then **pick the partner** in the pop-up. The team shares one workstation.");
 r("races","Round 4 · the races","Progress and Hype","Next",
 "**Progress** comes from **Prototype** tiles and **Hype** from **Pitch Deck** tiles. At the end of the game every **{raceDen} points** of Progress is **1 VP**, and so is every {raceDen} points of Hype. The Race tracks panel shows where every studio stands.\n\nRed-marked tiles add **Tech Debt**, which costs VP. **Quality** tiles remove it.");
 r("hype_bank","Round 4 · banking Hype","Banking Hype","Got it",
