@@ -769,15 +769,15 @@ select{max-width:100%}
 /* pick buttons: selectable or one-tap choices that are buttons (crew, decisions, menu) */
 .picks{display:grid;gap:var(--sp2)}
 .picks.cols{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
-.pick{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;width:100%;min-height:46px;margin:0;padding:var(--sp2) var(--sp3);border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--ink);font-size:15px;font-weight:600;text-align:left}
+button.pick{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;width:100%;min-height:46px;margin:0;padding:var(--sp2) var(--sp3);border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--ink);font-size:15px;font-weight:600;text-align:left}
 .pick-t{display:flex;align-items:center;gap:var(--sp2);width:100%;line-height:1.3}
 .pick-k{flex:none;display:inline-grid;place-items:center;width:26px;height:26px;border-radius:6px;border:1px solid var(--line);background:var(--panel);font-size:13px;font-weight:800}
-.pick:hover:not(:disabled){border-color:var(--mute);background:#233346}
-.pick.on{border-color:var(--prod);background:rgba(52,152,219,.14);box-shadow:inset 0 0 0 1px var(--prod)}
-.pick.on .pick-t::after{content:"\2713";margin-left:auto;color:var(--prod);font-weight:900}
-.pick.danger{border-color:var(--bad);color:var(--bad)}
-.pick.danger:hover:not(:disabled){background:rgba(255,107,94,.12)}
-.pick:disabled{opacity:.5;border-style:dashed;cursor:not-allowed}
+button.pick:hover:not(:disabled){border-color:var(--mute);background:#233346}
+button.pick.on{border-color:var(--prod);background:rgba(52,152,219,.14);box-shadow:inset 0 0 0 1px var(--prod)}
+button.pick.on .pick-t::after{content:"\2713";margin-left:auto;color:var(--prod);font-weight:900}
+button.pick.danger{border-color:var(--bad);color:var(--bad)}
+button.pick.danger:hover:not(:disabled){background:rgba(255,107,94,.12)}
+button.pick:disabled{opacity:.5;border-style:dashed;cursor:not-allowed}
 .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--sp3)}
 .pgrid.tight{grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:var(--sp2)}
 .pgrid .sys,.pcard{width:auto;padding:var(--sp3);font-size:13px;cursor:pointer}
