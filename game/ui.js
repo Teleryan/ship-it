@@ -867,9 +867,9 @@ function resultsModal() {
 }
 function masterCtx() { return { U, render, toast, SI, E, D, closeModal: () => { U.modal = null; render(); } }; }
 function masterModal() { return modalShell(SI.adminRender ? SI.adminRender(masterCtx()) : '<h2>Master</h2><p class="mute">Loading…</p>', { wide: true }); }
-function studioModal() {
-  const h = `<h2>Data Studio <span class="mute" style="font-size:13px;font-weight:400">· ${D.version} · edits apply to new games</span></h2>` + SI.renderStudio(U.studio, U.tab, U.sim) + (U.S && U.screen === "game" ? `<div class="row" style="margin-top:12px"><button class="btn primary" data-act="restart">Restart game with these values</button></div>` : "");
-  return modalShell(h, { wide: true });
+function studioModal() { // full-screen Data Studio (layout lives in studio.js / studio.css)
+  const extra = U.S && U.screen === "game" ? '<button class="btn" data-act="restart" title="Start a new game right now with these values">Restart game with these values</button>' : "";
+  return `<div class="overlay stfs-ov"><div class="modal stfs sf" role="dialog" aria-modal="true" aria-labelledby="sf-h">${SI.renderStudio(U.studio, U.tab, U.sim, extra)}</div></div>`;
 }
 function crisisIntroModal(c) { return modalShell(`<div class="rs-kick" style="text-align:center;margin-bottom:8px">Phase start · a Crisis hits every studio</div><div style="display:flex;justify-content:center">${crisisCardHtml(c)}</div><div class="rs-foot"><button class="btn primary big" data-act="close">Continue</button></div>`, { cls: "crisisov" }); }
 
@@ -927,6 +927,7 @@ function render() {
   autosave();
   if (U.toast) $root.insertAdjacentHTML("beforeend", `<div class="toast ${U.toastKind || ""}" role="status" aria-live="polite">${SI.copyFix(esc(U.toast))}${U.toastKind === "undo" && U.undo.length && !(U.S && U.S.over) ? ' <button class="btn sm" data-act="undo">Undo</button>' : ""}</div>`);
   if (keepFocus) { const el = document.getElementById(keepFocus); if (el && val != null) { try { el.value = val; el.focus(); } catch (e) {} } }
+  if (U.modal === "studio" && SI.studioAfter) SI.studioAfter();
 }
 SI.render = render; SI.stepScreens = stepScreens;
 SI.crisisPreview = crisisCardHtml; SI.symTag = symTag;

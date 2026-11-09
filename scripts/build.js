@@ -1,7 +1,7 @@
 // Builds the game (Variant D, the only variant) into dist/shipit-site.json (minified). Key "d" = file map, as the worker expects.
 const fs=require("fs"),path=require("path"),cp=require("child_process");
 const G=path.join(__dirname,"..","game"), OUT=path.join(__dirname,"..","dist");
-const FILES=["index.html","styles.css","data.js","core.js","engine.js","bot.js","studio.js","studio2.js","tutorial.js","net.js","analytics.js","admin.js","stats.js","simui.js","rules.js","ui.js"];
+const FILES=["index.html","styles.css","data.js","core.js","engine.js","bot.js","studio.js","studio2.js","studio.css","tutorial.js","net.js","analytics.js","admin.js","stats.js","simui.js","rules.js","ui.js"];
 const T=path.join(__dirname,"..","node_modules",".bin","terser");
 fs.mkdirSync(OUT,{recursive:true});
 const files={};

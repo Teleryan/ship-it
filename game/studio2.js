@@ -9,7 +9,7 @@
 const SI = root.SI = root.SI || {};
 const E = root.ShipItEngine, D = root.SHIPIT_DATA, esc = SI.esc;
 const X = SI.stu2 = {};
-const V = X.state = () => { const U = SI.U; return U.stu || (U.stu = { q: "", ed: false, view: "table", note: "", hist: [], fut: [], sel: {}, drawer: false, msg: "", confirm: null, pub: null, tpl: "systems", zip: true }); };
+const V = X.state = () => { const U = SI.U; return U.stu || (U.stu = { q: "", ed: false, view: "table", note: "", hist: [], fut: [], sel: {}, drawer: false, msg: "", confirm: null, pub: null, tpl: "systems", zip: true, rg: 0 }); };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const clone = o => JSON.parse(JSON.stringify(o));
 const TABNAME = { spots: "Board spots", systems: "Systems", milestones: "Milestones", objectives: "Objectives", crisis: "Crisis cards", tutorial: "Text", text: "Text", publisherGates: "Publisher gates", gatePool: "Gate pool", roles: "Roles", phases: "Phases", teams: "Teams", symbols: "Symbols" };
@@ -19,6 +19,7 @@ const TPLS = [["rules", "Rules (every rule value)"], ["spots", "Board spots"], [
 // live = the engine reads it when a new game starts. display = wording or symbols only.
 const STAT = { spots: { note: "display" }, systems: { name: "display", sym: "display" }, milestones: { name: "display", text: "display" }, objectives: { name: "display", sym: "display" }, crisis: { name: "display", text: "display", flavor: "display" }, publisherGates: { name: "display", flavor: "display" }, gatePool: { name: "display", flavor: "display" }, text: { text: "display" } };
 const TIP = { live: "The engine reads this when a new game starts, so changing it changes gameplay.", display: "Shown on cards and in text only. Gameplay does not change." };
+X.stat = (tab, f) => (STAT[tab] && STAT[tab][f]) || "live";
 X.chip = (tab, f) => { const s = (STAT[tab] && STAT[tab][f]) || "live"; return `<i class="chip ${s}" title="${esc(TIP[s])}">${s}</i>`; };
 
 /* ---------- differences from the shipped baseline ---------- */
@@ -33,13 +34,20 @@ X.revert = function (st, k) {
   const dc = E.defaultConfig(), dd = E.defaultData(dc);
   if (k.indexOf("cfg:") === 0) { st.config[k.slice(4)] = clone(dc[k.slice(4)]); return; }
   const [tab, i, f] = k.split("."), row = st.data[tab][+i];
-  const def = tab === "tutorial" ? dd.tutorial.find(x => x.id === row.id) : dd[tab][+i]; if (def) row[f] = clone(def[f] == null ? "" : def[f]);
+  const def = tab === "tutorial" ? dd.tutorial.find(x => x.id === row.id) : dd[tab][+i];
+  if (!def) return;
+  if (tab === "tutorial") { row[f] = clone(def[f] == null ? "" : def[f]); return; }
+  if (def[f] === undefined) delete row[f]; else row[f] = clone(def[f]); // restore the exact shipped value (including null)
 };
-const fmt = v => { let t = v == null ? "(empty)" : typeof v === "object" ? JSON.stringify(v) : String(v); return t.length > 110 ? t.slice(0, 107) + "…" : t; };
+const fmt = v => { let t = v == null ? "(empty)" : typeof v === "object" ? JSON.stringify(v) : String(v); return t.length > 110 ? t.slice(0, 107) + "\u2026" : t; };
+X.fmt = fmt;
+// edited values per section, for the navigation badges
+X.counts = function (st) { const out = {}; X.diffList(st).forEach(c => { const t = c.k.indexOf("cfg:") === 0 ? "rules" : c.k.split(".")[0], s = t === "text" ? "tutorial" : t; out[s] = (out[s] || 0) + 1; }); return out; };
 X.changes = function (st) {
-  const v = V(), list = X.diffList(st).filter(c => !v.q || (c.where + " " + c.label + " " + fmt(c.from) + " " + fmt(c.to)).toLowerCase().includes(v.q));
-  if (!list.length) return `<p class="mute">${v.q ? "No changes match the search." : "The draft matches the shipped baseline. Nothing has been edited."}</p>`;
-  return `<div class="scroll-y"><table class="dt"><thead><tr><th>Where</th><th>Item</th><th>Baseline</th><th>Draft</th><th></th></tr></thead><tbody>` + list.map(c => `<tr><td class="mute">${esc(c.where)}</td><td>${esc(c.label)}</td><td class="mute">${esc(fmt(c.from))}</td><td><b>${esc(fmt(c.to))}</b></td><td><button class="btn sm" data-act="st-revert" data-v="${esc(c.k)}">Revert</button></td></tr>`).join("") + "</tbody></table></div>";
+  const list = X.diffList(st);
+  if (!list.length) return `<div class="sf-empty"><h3>No edits yet</h3><p>The draft matches the shipped defaults. Change a value in any section and it is listed here, with the shipped value next to it and a Reset button.</p></div>`;
+  const by = {}; list.forEach(c => (by[c.where] = by[c.where] || []).push(c));
+  return `<div class="sf-chg">` + Object.keys(by).map(w => `<section class="fg" data-hay-sec><header><h3>${esc(w)} <span class="cnt">${by[w].length}</span></h3></header><div class="chg-rows">` + by[w].map(c => `<div class="chg-r" data-ed="1" data-hay="${esc((c.where + " " + c.label + " " + ((SI.studioLabel && SI.studioLabel(c.k, st)) || "") + " " + fmt(c.from) + " " + fmt(c.to)).toLowerCase())}"><div class="chg-n">${esc((SI.studioLabel && SI.studioLabel(c.k, st)) || c.label)}</div><div class="chg-v"><span class="was" title="Shipped default">${esc(fmt(c.from))}</span><span class="arr" aria-hidden="true">\u2192</span><b title="Your draft">${esc(fmt(c.to))}</b></div><button class="btn sm" data-act="st-revert" data-v="${esc(c.k)}">Reset</button></div>`).join("") + "</div></section>").join("") + "</div>";
 };
 
 /* ---------- validation ---------- */
@@ -57,52 +65,55 @@ X.validate = function (st) {
 X.snap = function (st) { const v = V(); v.hist.push(JSON.stringify({ config: st.config, data: st.data })); if (v.hist.length > 80) v.hist.shift(); v.fut = []; };
 function restore(U, json) { const o = JSON.parse(json); U.studio = { config: o.config, data: o.data }; SI.saveDraft(U.studio); }
 
+const pill = (cls, txt, tip) => `<span class="pill ${cls}"${tip ? ` title="${esc(tip)}"` : ""}>${txt}</span>`;
 X.status = function (st) {
   const U = SI.U, v = V(), n = X.diffList(st).length, val = X.validate(st), host = U.hosted, pub = v.pub || {}, pl = e => pub[e] && pub[e].version ? `v${pub[e].version}` : "defaults";
-  return `${n} edited value${n === 1 ? "" : "s"} · <span style="color:${val.errors.length ? "var(--bad)" : "inherit"}">${val.errors.length} error${val.errors.length === 1 ? "" : "s"}</span> · ${val.warnings.length} warning${val.warnings.length === 1 ? "" : "s"} · draft <span class="mono">${SI.hashOf(st)}</span>${U.active ? ` · in use for new games <span class="mono">${SI.hashOf(U.active)}</span>` : ""}${host ? ` · Live ${pl("live")} · Test ${pl("test")}` : ""}${v.msg ? ` · <b style="color:var(--gold)">${esc(v.msg)}</b>` : ""}`;
+  const dh = SI.hashOf(st), ah = U.active ? SI.hashOf(U.active) : dh, pend = dh !== ah;
+  return pill(n ? "mod" : "", `${n} edited value${n === 1 ? "" : "s"}`, "Values that differ from the shipped defaults")
+    + pill(val.errors.length ? "bad" : "", `${val.errors.length} error${val.errors.length === 1 ? "" : "s"}`) + pill(val.warnings.length ? "warn" : "", `${val.warnings.length} warning${val.warnings.length === 1 ? "" : "s"}`)
+    + pill(pend ? "warn" : "ok", pend ? "Draft not applied to new games yet" : "Applied: new games use this draft", `Draft ${dh} · in use for new games ${ah}`)
+    + (host ? pill("", `Live ${pl("live")}`, "Version published to the live site") + pill("", `Test ${pl("test")}`, "Version published to the test site") : "")
+    + (v.msg ? `<b class="pill msg" role="status">${esc(v.msg)}</b>` : "");
 };
-X.refresh = function () { const el = document.querySelector(".stu-status"), U = SI.U; if (el && U.studio) el.innerHTML = X.status(U.studio); };
-/* ---------- the frame above every Studio tab ---------- */
-X.frame = function (st, tab, tabs) {
-  const U = SI.U, v = V(), n = X.diffList(st).length, val = X.validate(st), host = U.hosted;
-  const pub = v.pub || {}; const pl = e => pub[e] && pub[e].version ? `v${pub[e].version}` : "defaults";
-  let h = '<div class="tabs">' + tabs.map(t => `<button class="tab ${tab === t[0] ? "on" : ""}" data-act="studio-tab" data-v="${t[0]}">${t[1]}</button>`).join("") + "</div>";
-  const groups = ["Tutorial steps"].concat(Array.from(new Set((st.data.text || []).map(r => r.group))));
-  if (tab === "tutorial") h += `<div class="row wrap stu-bar"><label class="row" style="gap:6px">Wording group <select data-stf="tg">${groups.map(g => `<option ${(v.tg || groups[0]) === g ? "selected" : ""}>${esc(g)}</option>`).join("")}</select></label></div>`;
-  if (tab !== "sim") h += `<div class="row wrap stu-bar"><input id="stq" placeholder="Search name, text, code" value="${esc(v.q)}" style="min-width:220px"><label class="row" style="gap:5px"><input type="checkbox" data-stf="ed" ${v.ed ? "checked" : ""}> Edited only</label>
-    <span class="seg"><button class="btn sm ${v.view === "table" ? "primary" : ""}" data-act="st-view" data-v="table">Table</button><button class="btn sm ${v.view === "changes" ? "primary" : ""}" data-act="st-view" data-v="changes">Changes (${n})</button></span></div>`;
-  h += `<div class="row wrap stu-bar"><button class="btn sm" data-act="st-undo" ${v.hist.length ? "" : "disabled"}>Undo</button><button class="btn sm" data-act="st-redo" ${v.fut.length ? "" : "disabled"}>Redo</button>
-    <button class="btn sm" data-act="st-resetall" style="${v.confirm === "reset" ? "border-color:var(--bad)" : ""}">${v.confirm === "reset" ? "Click again to reset ALL" : "Reset all"}</button>
-    <input id="stnote" placeholder="Changelog note (what changed and why)" value="${esc(v.note)}" maxlength="200" class="grow" style="min-width:200px">
-    <button class="btn sm primary" data-act="st-apply" title="Use the draft for new games on this device">Apply to game</button>
-    ${host ? `<button class="btn sm" data-act="st-publish" data-v="test">Publish to test environment</button><button class="btn sm" data-act="st-publish" data-v="live" style="${v.confirm === "live" ? "border-color:var(--bad)" : ""}">${v.confirm === "live" ? "Click again: publish to LIVE" : "Publish to live"}</button>
-    <button class="btn sm" data-act="st-loadtest">Load test version into draft</button><a class="btn sm" href="${X.testUrl()}" target="_blank" rel="noopener">Open test environment</a><button class="btn sm" data-act="st-copylink">Copy test link</button>` : ""}
-    <button class="btn sm ${v.drawer ? "primary" : ""}" data-act="st-drawer">CSV and files</button></div>`;
-  if (v.drawer) h += `<div class="panel stu-drawer"><div class="row wrap"><label class="row" style="gap:6px">Template <select id="stutpl">${TPLS.map(t => `<option value="${t[0]}" ${v.tpl === t[0] ? "selected" : ""}>${t[1]}</option>`).join("")}</select></label>
-    <button class="btn sm" data-act="st-csv-export">Export this CSV</button><label class="btn sm">Import CSV into draft<input type="file" accept=".csv,text/csv" data-stufile="csv" hidden></label>
-    <label class="row" style="gap:5px"><input type="checkbox" data-stf="zip" ${v.zip ? "checked" : ""}> one zip file</label><button class="btn sm" data-act="st-csv-all">Export all CSVs</button></div>
-    <div class="row wrap" style="margin-top:8px"><button class="btn sm" data-act="st-json-export">Export overrides JSON</button><label class="btn sm">Load JSON into draft<input type="file" accept=".json,application/json" data-stufile="json" hidden></label>
-    <span class="mute">CSV files open in Excel or Google Sheets. Change a cell, then import: only changed values are applied. The overrides JSON holds just your edits.</span></div></div>`;
-  h += `<div class="stu-status mute">${X.status(st)}</div>`;
-  if (val.errors.length || val.warnings.length) h += `<div class="mute" style="font-size:12px;margin:0 0 6px">${val.errors.map(m => `<div style="color:var(--bad)">Error: ${esc(m)}</div>`).join("")}${val.warnings.slice(0, 4).map(m => `<div>Warning: ${esc(m)}</div>`).join("")}</div>`;
-  return h;
+X.alerts = function (st) {
+  const val = X.validate(st); if (!val.errors.length && !val.warnings.length) return "";
+  return val.errors.map(m => `<div class="al bad">Error: ${esc(m)}</div>`).join("") + val.warnings.slice(0, 4).map(m => `<div class="al warn">Warning: ${esc(m)}</div>`).join("");
+};
+X.refresh = function () {
+  const U = SI.U; if (!U.studio) return;
+  const el = document.querySelector(".stu-status"); if (el) el.innerHTML = X.status(U.studio);
+  const al = document.querySelector(".stu-alerts"); if (al) al.innerHTML = X.alerts(U.studio);
+  if (SI.studioChrome) SI.studioChrome();
+};
+/* ---------- the sticky header: title, status, and every action ---------- */
+X.head = function (st, extra) {
+  const U = SI.U, v = V(), host = U.hosted;
+  return `<header class="sf-head"><div class="sf-ttl"><h2 id="sf-h">Data Studio</h2><span class="sf-ver">${esc(D.version || "")}</span></div>
+  <div class="sf-act">
+    <span class="sf-grp"><button class="btn sm" data-act="st-undo" ${v.hist.length ? "" : "disabled"} title="Undo the last edit">Undo</button><button class="btn sm" data-act="st-redo" ${v.fut.length ? "" : "disabled"} title="Redo">Redo</button></span>
+    <button class="btn sm ${v.confirm === "reset" ? "danger" : ""}" data-act="st-resetall" title="Throw away every edit and go back to the shipped defaults (can be undone)">${v.confirm === "reset" ? "Click again to reset ALL" : "Revert all"}</button>
+    ${host ? `<span class="sf-grp"><button class="btn sm" data-act="st-publish" data-v="test" title="Publish the draft to the test environment">Publish to test</button><button class="btn sm ${v.confirm === "live" ? "danger" : ""}" data-act="st-publish" data-v="live" title="Publish the draft to the live site">${v.confirm === "live" ? "Click again: publish to LIVE" : "Publish to live"}</button></span>` : ""}
+    <button class="btn primary" data-act="st-apply" title="Use the draft for new games on this device">Apply to game</button>${extra || ""}
+    <button class="x sf-close" data-act="close" aria-label="Close Data Studio (Esc)">Close</button>
+  </div>
+  <div class="sf-sub"><div class="stu-status" aria-live="polite">${X.status(st)}</div>${host ? `<input id="stnote" class="sf-note" placeholder="Changelog note for the next publish (what changed and why)" value="${esc(v.note)}" maxlength="200" aria-label="Changelog note">` : ""}</div>
+  <div class="stu-alerts">${X.alerts(st)}</div></header>`;
 };
 X.testUrl = () => "/?env=test";
-
-/* ---------- preview pane ---------- */
-function cardOf(tab, r) {
-  if (tab === "systems" && SI.sysPreview) { try { return `<div class="mgrid" style="display:block">${SI.sysPreview(r)}</div>`; } catch (e) {} }
-  if (tab === "crisis" && SI.crisisPreview) { try { return SI.crisisPreview(r); } catch (e) {} }
-  if (tab === "objectives" && SI.symTag) { try { return `<div class="sys" style="width:100%"><div class="t">${esc(r.name)} ${SI.symTag(r)}</div><div class="meta">${esc(r.type)} · ${r.vp} VP</div>${(r.reqs || []).map(q => `<div class="e">${esc(q)}</div>`).join("")}</div>`; } catch (e) {} }
-  if (tab === "milestones") return `<div class="sys" style="width:100%"><div class="t">${esc(r.name)}</div><div class="e" style="color:var(--gold)">+${r.gold} Gold</div><div class="e">${esc(r.text)}</div></div>`;
-  if (tab === "publisherGates" || tab === "gatePool") return `<div class="sys" style="width:100%"><div class="t">${esc(r.name)}</div><div class="meta">Phase ${(r.phase | 0) + 1} publisher gate</div>${(r.reqs || []).map(q => `<div class="e">${esc(q)}</div>`).join("")}<div class="e">Pass: +${r.fund} Gold${r.vp ? ", +" + r.vp + " VP" : ""}</div><div class="e">Miss: ${r.penalty} penalty</div><div class="mute" style="font-size:11px">${esc(r.flavor)}</div></div>`;
-  const COLS = SI.studioCols[tab] || [];
-  return `<div class="sys" style="width:100%"><div class="t">${esc(r.name || r.id || "")}</div>` + COLS.filter(c => c[0] !== "name" && r[c[0]] !== "" && r[c[0]] != null).map(c => `<div class="e"><span class="mute">${esc(c[1].replace(/ \(.*$/, ""))}:</span> ${esc(SI.cellVal(r[c[0]], c[2]))}</div>`).join("") + "</div>";
-}
-X.preview = function (tab, st, def, sel) {
-  const row = st.data[tab][sel]; if (!row) return "";
-  const base = def[sel], diff = base && !same(row, base);
-  return `<div class="stu-prev"><div class="mute" style="margin-bottom:6px">Preview${diff ? ": baseline and draft" : ""}</div>` + (diff ? `<div class="pv2"><div><small class="mute">Baseline</small>${cardOf(tab, base)}</div><div><small class="mute">Draft</small>${cardOf(tab, row)}</div></div>` : cardOf(tab, row)) + "</div>";
+/* ---------- Publish and Import/Export pages ---------- */
+X.publishPanel = function () {
+  const U = SI.U, v = V(), pub = v.pub || {}, row = (n, e) => { const o = pub[e]; return `<div class="pub-r"><b>${n}</b><span>${o && o.version ? `version ${o.version}${o.note ? " · " + esc(o.note) : ""}` : "shipped defaults (nothing published)"}</span></div>`; };
+  if (!U.hosted) return `<div class="sf-empty"><h3>Publishing is not available here</h3><p>This copy is running without the game server, so only <b>Apply to game</b> (this browser) is available.</p></div>`;
+  return `<div class="sf-page"><section class="fg"><header><h3>Published versions</h3><p>What the test and live sites use today. Publishing uploads only your edits; everything else stays on the shipped defaults.</p></header><div class="fg-body">${row("Live", "live")}${row("Test", "test")}</div></section>
+  <section class="fg"><header><h3>Test environment</h3><p>Try a version with real players before it goes live.</p></header><div class="fg-body"><div class="row wrap" style="gap:8px"><button class="btn" data-act="st-loadtest">Load test version into draft</button><a class="btn" href="${X.testUrl()}" target="_blank" rel="noopener">Open test environment</a><button class="btn" data-act="st-copylink">Copy test link</button></div></div></section></div>`;
+};
+X.filesPanel = function () {
+  const v = V();
+  return `<div class="sf-page"><section class="fg"><header><h3>CSV round trip</h3><p>CSV files open in Excel or Google Sheets. Change a cell, then import: only changed values are applied to the draft.</p></header><div class="fg-body">
+    <div class="f"><div class="f-lab"><label for="stutpl">Table</label></div><div class="f-ctl"><select id="stutpl">${TPLS.map(t => `<option value="${t[0]}" ${v.tpl === t[0] ? "selected" : ""}>${t[1]}</option>`).join("")}</select></div></div>
+    <div class="row wrap" style="gap:8px;padding:6px 0"><button class="btn" data-act="st-csv-export">Export this CSV</button><label class="btn">Import CSV into draft<input type="file" accept=".csv,text/csv" data-stufile="csv" hidden></label></div>
+    <div class="row wrap" style="gap:8px;padding:6px 0"><button class="btn" data-act="st-csv-all">Export all CSVs</button><label class="tg"><input type="checkbox" data-stf="zip" ${v.zip ? "checked" : ""}><span class="tg-track" aria-hidden="true"></span><span class="tg-txt">One zip file</span></label></div></div></section>
+  <section class="fg"><header><h3>Overrides JSON</h3><p>The overrides file holds just your edits, not the whole game data.</p></header><div class="fg-body"><div class="row wrap" style="gap:8px"><button class="btn" data-act="st-json-export">Export overrides JSON</button><label class="btn">Load JSON into draft<input type="file" accept=".json,application/json" data-stufile="json" hidden></label></div></div></section></div>`;
 };
 
 /* ---------- CSV ---------- */
@@ -168,8 +179,14 @@ SI.studioAct = async function (act, t, ctx) {
   try {
     switch (act) {
       case "st-view": v.view = val; v.confirm = null; ctx.render(); return;
-      case "st-sel": (v.sel[U.tab] = +val); ctx.render(); return;
-      case "st-drawer": v.drawer = !v.drawer; ctx.render(); return;
+      case "st-nav": { v.confirm = null; if (val.charAt(0) === "@") v.view = val.slice(1); else { U.tab = val; v.view = "table"; } v.refocus = '.nv[data-v="' + val + '"]'; ctx.render(); return; }
+      case "st-sel": v.sel[U.tab] = +val; v.refocus = '.li[data-i="' + val + '"]'; ctx.render(); return;
+      case "st-rg": v.rg = +val; v.refocus = '.li[data-i="' + val + '"]'; ctx.render(); return;
+      case "st-tg": v.tg = val; v.refocus = '.li[data-i="' + t.dataset.i + '"]'; ctx.render(); return;
+      case "st-clearq": v.q = ""; v.refocus = "#stq"; ctx.render(); return;
+      case "st-revertrow": { X.snap(st); X.diffList(st).filter(c => c.k.indexOf(val + ".") === 0).forEach(c => X.revert(st, c.k)); done("Item reset to the shipped values"); return; }
+      case "st-revertgrp": { const g = SI.studioRuleGroups(st)[+val]; X.snap(st); if (g) { const dc = E.defaultConfig(); g.keys.forEach(k => { if (!same(st.config[k], dc[k])) X.revert(st, "cfg:" + k); }); } done("Group reset to the shipped values"); return; }
+      case "st-drawer": v.view = v.view === "files" ? "table" : "files"; ctx.render(); return;
       case "st-undo": if (v.hist.length) { v.fut.push(JSON.stringify({ config: st.config, data: st.data })); restore(U, v.hist.pop()); v.msg = "Undone"; ctx.render(); } return;
       case "st-redo": if (v.fut.length) { v.hist.push(JSON.stringify({ config: st.config, data: st.data })); restore(U, v.fut.pop()); v.msg = "Redone"; ctx.render(); } return;
       case "st-revert": X.snap(st); X.revert(st, val); done("Reverted"); return;
@@ -193,14 +210,14 @@ SI.studioAct = async function (act, t, ctx) {
 /* ---------- inputs that are not buttons ---------- */
 document.addEventListener("input", e => {
   const t = e.target; if (!t || !SI.U || !SI.U.stu && !t.id) return;
-  if (t.id === "stq") { const v = V(); v.q = t.value.trim().toLowerCase(); document.querySelectorAll("[data-hay]").forEach(el => { el.hidden = !((!v.q || el.dataset.hay.includes(v.q)) && (!v.ed || el.dataset.ed === "1")); }); }
+  if (t.id === "stq") { const v = V(); v.q = t.value.trim().toLowerCase(); if (SI.studioFilter) SI.studioFilter(); }
   if (t.id === "stnote") V().note = t.value;
 });
 document.addEventListener("change", e => {
   const t = e.target; if (!t || !SI.U) return; const v = V();
-  if (t.dataset && t.dataset.stf === "ed") { v.ed = t.checked; SI.render(); }
+  if (t.dataset && t.dataset.stf === "ed") { v.ed = t.checked; if (SI.studioFilter) SI.studioFilter(); }
   if (t.dataset && t.dataset.stf === "zip") { v.zip = t.checked; }
-  if (t.dataset && t.dataset.stf === "tg") { v.tg = t.value; SI.render(); }
+  if (t.dataset && (t.dataset.cfg || t.dataset.cfgjson || t.dataset.path || t.dataset.mpath) && SI.studioSync) SI.studioSync(t);
   if (t.id === "stutpl") { v.tpl = t.value; }
   if (t.dataset && t.dataset.stufile && t.files && t.files[0]) {
     const kind = t.dataset.stufile, fr = new FileReader(); fr.onload = () => {
