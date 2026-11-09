@@ -305,7 +305,8 @@ function spotTile(S, spot, view) {
   const occ = (S.occ[spot.id] || []);
   let cls = "spot", reason = "";
   const a = E.currentActor(S); const w = (U.sel != null && a >= 0 && S.step === "place") ? P(a).workers.find(x => x.id === U.sel) : null;
-  if (w) { const o = E.placementOptions(S, a, w).find(x => x.target === "spot:" + spot.id); if (o && o.ok) cls += " ok"; else { cls += " no"; reason = o ? o.reason : ""; } }
+  if (w) { const o = E.placementOptions(S, a, w).find(x => x.target === "spot:" + spot.id); const tg = (o && o.ok && U.tut && !U.tut.auto && SI.tutGate) ? SI.tutGate({ type:"place", p:a, worker:w.id != null ? w.id : U.sel, target:"spot:"+spot.id }) : null; // a tile the lesson blocks is not highlighted
+    if (o && o.ok && !tg) cls += " ok"; else { cls += " no"; reason = tg || (o ? o.reason : ""); } }
   if (((spot.mode || "single") === "single" && occ.length) || (S.closed && S.closed[spot.id])) cls += " taken";
   if (spot.debt) cls += " hasdebt";
   if (spot.mode === "shared" || ["team", "outsource", "workshop", "mentor", "crunch", "fundraise"].includes(spot.id)) cls += " shared-s";
