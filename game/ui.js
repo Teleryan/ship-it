@@ -397,7 +397,7 @@ function wsLine(S, p) {
   const bw = mine ? E.canBuyWs(S, p.id) : { ok: false };
   const tot = p.ws == null ? Math.min(S.cfg.wsMax, S.cfg.wsFree) : p.ws, left = Math.max(0, tot - (p.wsUsed || 0));
   const btn = mine && tot < S.cfg.wsMax ? ` <button class="btn sm" data-act="buyws" ${bw.ok ? "" : "disabled"} title="${esc(bw.ok ? "" : bw.reason || "")}">Buy workstation · ${E.wsCost(S, p.id)}G</button>${bw.ok ? "" : `<span class="why">${esc(bw.reason || "")}</span>`}` : mine && tot >= S.cfg.wsMax ? ' <span class="mute">(the maximum)</span>' : "";
-  return `<div class="row" data-tut="ws" style="font-size:12px;margin-top:6px;gap:6px;align-items:center" title="A worker needs a free workstation to take any board tile or Studio Perk. Triggering your own systems does not need one. You start with ${S.cfg.wsFree}; buy more (max ${S.cfg.wsMax}). Bought workstations come back every round of the phase; a new phase resets you to ${S.cfg.wsFree}."><b>Workstations</b> <span>${left} free of ${tot}</span>${btn}</div>`;
+  return `<div class="row" data-tut="ws" style="font-size:12px;margin-top:6px;gap:6px;align-items:center" title="A worker needs a free workstation to take any board tile or Studio Perk. Triggering your own systems does not need one, and a Team Event uses none; R&D uses two. You start with ${S.cfg.wsFree}; buy more (max ${S.cfg.wsMax}). Bought workstations come back every round of the phase; a new phase resets you to ${S.cfg.wsFree}."><b>Workstations</b> <span>${left} free of ${tot}</span>${btn}</div>`;
 }
 function playerPanel(S) {
   const vi = viewIndex(S); const p = P(vi); const a = E.currentActor(S); const mine = a === vi && !p.bot;

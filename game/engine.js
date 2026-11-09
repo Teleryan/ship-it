@@ -596,12 +596,15 @@ E.crewText = function (spot) { return (spot.crew || []).map(a => a.join(" + ")).
 function spotModeOf(s) { return s.mode || (s.excl ? "single" : "single"); }
 // Workstations: placing a worker on ANY board spot (main board or studio perk) uses one; triggering your own systems needs none. You power them up each round.
 function isMainSpot() { return true; }
+function wsNeeded(spot) { return spot && spot.ws != null ? spot.ws : 1; } // workstations a placement uses: Team Event 0, R&D 2 (one per worker), everything else 1
+E.wsNeeded = wsNeeded;
 E.isMainSpot = isMainSpot;
 E.wsCost = function (S, pi) { const p = P(S, pi), c = S.cfg; return (c.wsCost || 0) + (c.wsStep || 0) * Math.max(0, p.ws - (c.wsLadderFrom != null ? c.wsLadderFrom : (c.wsFree || 0))); };
 E.canBuyWs = function (S, pi) { const p = P(S, pi), c = S.cfg; if (!c.wsMax || S.step !== "place") return { ok: false, reason: "Not available" }; if (p.ws >= c.wsMax) return { ok: false, reason: "You already have all " + c.wsMax + " workstations" }; const cost = E.wsCost(S, pi); if (p.gold < cost) return { ok: false, reason: "Needs " + cost + "G" }; return { ok: true, cost }; };
 function spotUsableBy(S, pi, w, spot) {
   const r = spotUsableBase(S, pi, w, spot), p = P(S, pi);
-  if (r.ok && S.cfg.wsMax && isMainSpot(S, spot) && p.wsUsed >= p.ws) return Object.assign({}, r, { ok: false, wsNeed: true, reason: p.ws >= S.cfg.wsMax ? "All " + S.cfg.wsMax + " workstations are in use" : "Needs a free workstation (buy one for " + E.wsCost(S, pi) + "G)" });
+  const need = wsNeeded(spot);
+  if (r.ok && S.cfg.wsMax && isMainSpot(S, spot) && need > 0 && p.wsUsed + need > p.ws) return Object.assign({}, r, { ok: false, wsNeed: true, reason: p.ws + 0 >= S.cfg.wsMax || (p.wsUsed + need > S.cfg.wsMax) ? (need > 1 ? "Needs " + need + " free workstations" : "All " + S.cfg.wsMax + " workstations are in use") : (need > 1 ? "Needs " + need + " free workstations (buy more for " + E.wsCost(S, pi) + "G each)" : "Needs a free workstation (buy one for " + E.wsCost(S, pi) + "G)") });
   return r;
 }
 function spotUsableBase(S, pi, w, spot) {
@@ -731,7 +734,7 @@ function doPlace(S, pi, wid, target, o) {
     const names = plan.ids.map(id => { const pw = p.workers.find(x => x.id === id); const pover = pw.fat >= (S.cfg.fatMax||2); if (pover) { pw.overWhenPlaced = true; p.rs.overN = (p.rs.overN || 0) + 1; log(S, p.name + "'s Exhausted " + pw.lvl + " " + dn(pw.disc) + " joins the strike team (Burnout risk)"); } pw.placed = true; pw.worked = true; pw.fat = Math.min(S.cfg.fatMax||2, pw.fat + 1); p.rs.placed++; if (opt.spot.r && !pover) gain(S, pi, RES_OF[plan.cats[id]], Math.min(pw.lvl === "Sr" ? S.cfg.resSr : S.cfg.resJr, S.cfg.crewPartnerCap == null ? 9 : S.cfg.crewPartnerCap)); return pw.lvl + " " + pw.disc; });
     log(S, p.name + " forms a strike team for " + opt.spot.id + ": " + w.lvl + " " + dn(w.disc) + " + " + names.join(" + "));
   }
-  if (opt.kind === "spot" && S.cfg.wsMax && isMainSpot(S, opt.spot)) p.wsUsed++;
+  if (opt.kind === "spot" && S.cfg.wsMax && isMainSpot(S, opt.spot)) p.wsUsed += wsNeeded(opt.spot);
   p.rs.placed++;
   if (opt.kind === "sys") {
     const def = opt.def; opt.sys.t = true; p.rs.triggers++; p.cs.trigTotal = (p.cs.trigTotal || 0) + 1;

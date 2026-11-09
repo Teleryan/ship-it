@@ -135,6 +135,13 @@ const mkBuild = (seed, round, inst) => { const T = mk(seed); T.cfg.instantBuild 
     const r = o && o.ok ? E.act(T, { type: 'place', p: pi, worker: 960, target: 'spot:rd', as: o.as && o.as[0], crew: o.plans && o.plans[0] ? o.plans[0].ids : undefined, rd: ['code', 'code'] }) : { ok: false };
     ok(r.ok && q.code >= 2, 'instant: R&D gives the two chosen skills'); } else ok(true, 'R&D not on this board phase'); }
 
+// ---- workstation use by strike teams: Team Event 0, R&D 2, Game Jam 1 ----
+{ const wsT = (id, round, setup) => { const T = mk(77, 2); toStep(T, 'place', round); const pi = E.currentActor(T), q = T.players[pi]; q.workers = [W(980, 'ENG'), W(981, 'PROD'), W(982, 'ART')]; q.workers.forEach(w => { w.placed = false; w.build = null; w.fat = 0; w.benched = false }); q.gold = 20; setup(q, T);
+    const o = E.placementOptions(T, pi, q.workers[0]).find(x => x.target === 'spot:' + id); return { T, pi, q, o, go: () => E.act(T, { type: 'place', p: pi, worker: 980, target: 'spot:' + id, as: o && o.as && o.as[0], crew: o && o.plans && o.plans[0] ? o.plans[0].ids : undefined, rd: ['code', 'code'] }) }; };
+  { const x = wsT('team', 4, q => { q.ws = 1; q.wsUsed = 1; }); const r = x.o && x.o.ok ? x.go() : { ok: false, error: x.o && x.o.reason }; ok(r.ok && x.q.wsUsed === 1, 'Team Event needs no workstation (usable with none free, uses none)'); }
+  { const x = wsT('rd', 4, q => { q.ws = 3; q.wsUsed = 2; }); ok(x.o && !x.o.ok && x.o.wsNeed, 'R&D is blocked with only one workstation free'); }
+  { const x = wsT('rd', 4, q => { q.ws = 3; q.wsUsed = 1; }); const r = x.o && x.o.ok ? x.go() : { ok: false, error: x.o && x.o.reason }; ok(r.ok && x.q.wsUsed === 3, 'R&D uses two workstations (one per worker)'); } }
+
 // ---- Training tile: promote a Junior on a shared board tile ----
 const mkTrain = (seed, round, mut) => { const T = mk(seed, 3); T.cfg.trainTile = 1; toStep(T, 'place', round || 4); const pi = E.currentActor(T), q = T.players[pi]; q.workers = [W(970, 'ENG'), W(971, 'ART'), W(972, 'DES')]; q.workers.forEach(w => { w.placed = false; w.build = null; w.fat = 0; w.benched = false; w.lvl = 'Jr' }); q.ws = 9; q.wsUsed = 0; if (mut) mut(q); return { T, pi, q } };
 { const { T, pi, q } = mkTrain(41, 4, p => { p.burnout = 2; p.code = 3; }); const g0 = q.gold, bo0 = q.burnout, r = E.act(T, { type: 'place', p: pi, worker: 970, target: 'spot:train' }), w = q.workers.find(x => x.id === 970);
