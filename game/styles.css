@@ -540,7 +540,6 @@ table.dt input.n{width:62px}
 .top .rn{font-size:16px}
 /* whose turn: unmistakable, with a colour-independent label ("Your turn" / "Waiting for") */
 .turnbanner{background:var(--panel2)}
-@media (min-width:981px){.turnbanner{position:sticky;top:0;z-index:20}}
 .turnbanner .kick{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
 .turnbanner.mine{background:linear-gradient(90deg,rgba(245,197,66,.16),rgba(245,197,66,0) 60%),var(--panel2);border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
 .turnbanner.mine .kick{color:var(--gold)}

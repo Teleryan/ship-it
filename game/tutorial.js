@@ -282,7 +282,8 @@ function tutHighlight0(rootEl) {
     // bring the highlighted area into view (above the coach box): the page itself or, on desktop, the .left/.right column that scrolls
     const el = extra ? rootEl.querySelector(extra) : els[0];
     // two-column layout: dock the coach box under the other column so it never sits on the highlighted panel
-    { const cb = rootEl.querySelector(".coach:not(.center)"); if (cb) cb.classList.toggle("dockl", !!(el && window.innerWidth > 980 && el.closest(".right"))); }
+    { const cb = rootEl.querySelector(".coach:not(.center)"); if (cb) { const bw = /workstation/i.test(cb.textContent) ? rootEl.querySelector('[data-act=buyws]') : null; // the hint mentions buying a desk: keep that button clear too
+      cb.classList.toggle("dockl", !!(window.innerWidth > 980 && ((el && el.closest(".right")) || (bw && bw.closest(".right"))))); } }
     if (el && el.getBoundingClientRect && !u.detail) {
       const coach = rootEl.querySelector(".coach");
       // leave room under the columns for the whole coach box, so the highlighted panel can scroll clear of it
