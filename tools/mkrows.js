@@ -141,7 +141,7 @@ r("board_perks","Round 2 · studio perks","Studio Perks","Next",
 r("r2place","Round 2 · place","Place your team","",
 ">> Place your workers, leave at least one unplaced to rest, then press **Pass**.\n\nBuy another workstation if you need one.");
 r("burnout","Round 2 · burnout","Burnout","Next",
-"**Burnout** (0 to {burnMax}) shows how worn out your team is. It rises +1 for each Exhausted worker you placed, and +1 if salaries were short by {burnUnpaidMin}G or more. It falls {burnRelief} after a calm round and {teamRelief} after a Team Event.\n\nBurnout 0 is **Energized** (+{energizedGold}G a round). At {burnStrainAt}+ you lose extra Hype, at {burnBenchAt}+ a worker is benched, at {burnQuitAt} one quits, and at the end high Burnout costs VP. **Culture** is {cultureBase} minus Burnout.");
+"**Burnout** (0 to {burnMax}) shows how worn out your team is. It rises +1 for each Exhausted worker you placed, and +1 if salaries were short by {burnUnpaidMin}G or more. It falls {burnRelief} after a calm round and {teamRelief} after a Team Event.\n\nBurnout 0 is **Energized** ({energizedText} a round). At {burnStrainAt}+ you lose extra Hype, at {burnBenchAt}+ a worker is benched, at {burnQuitAt} one quits, and at the end high Burnout costs VP. **Culture** is {cultureBase} minus Burnout.");
 r("r2done","Round 2 · finish","Finish round 2","",
 ">> Build if you can, then press **Done** to start round 3.");
 r("gates","Round 3 · publisher gates","Publisher Gates","Next",

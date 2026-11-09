@@ -63,7 +63,7 @@ function tokens(S) {
     incomeNow: (S.rnote && S.rnote.p && S.rnote.p[0] ? S.rnote.p[0].income : c.income), salaryNow: (S.rnote && S.rnote.p && S.rnote.p[0] ? S.rnote.p[0].salary : p.workers.reduce((a, w) => a + (w.lvl === "Sr" ? c.salarySr : c.salaryJr), 0)),
     goldNow: (S.rnote && S.rnote.p && S.rnote.p[0] && S.rnote.p[0].goldNow != null ? S.rnote.p[0].goldNow : p.gold),
     burnMax: c.burnMax, burnOverStep: c.burnOverStep, burnOverMax: c.burnOverMax, burnUnpaidMin: c.burnUnpaidMin, burnRelief: c.burnRelief, burnTeamRelief: c.burnTeamRelief,
-    energizedCulture: c.energizedCulture, energizedGold: c.energizedGold, burnStrainAt: c.burnStrainAt, burnStrainHype: c.burnStrainHype, burnBenchAt: c.burnBenchAt, burnQuitAt: c.burnQuitAt, burnQuitReset: c.burnQuitReset
+    energizedCulture: c.energizedCulture, energizedGold: c.energizedGold, energizedText: (function () { var a = []; if (c.energizedGold) a.push("+" + c.energizedGold + "G"); if (c.energizedSkillJr || c.energizedSkillSr) a.push(c.energizedSkillJr === c.energizedSkillSr ? "+" + c.energizedSkillJr + " skill from every worker" : "+" + c.energizedSkillJr + " skill per Junior, +" + c.energizedSkillSr + " per Senior"); return a.join(" and ") || "no bonus"; })(), burnStrainAt: c.burnStrainAt, burnStrainHype: c.burnStrainHype, burnBenchAt: c.burnBenchAt, burnQuitAt: c.burnQuitAt, burnQuitReset: c.burnQuitReset
   };
   { const pg = (c.promoGoldByN && c.promoGoldByN[2]) || 0; t.promoCostText = pg ? "it costs " + pg + "G" : "it is free"; }
   t.startWorkers = c.startWorkers; t.recruitLadder = c.recruitLadder; t.trainTimes = c.trainNeeded + (c.trainNeeded === 1 ? " time" : " times"); t.wsFree = c.wsFree; t.wsCost = c.wsCost;  t.wsPrices = wsPriceText(c); t.wsMax = c.wsMax;
