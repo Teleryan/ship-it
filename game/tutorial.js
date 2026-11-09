@@ -145,10 +145,10 @@ let STEPS = [
   info("gates", { hl: () => "[data-tut=gates]" }),
   play("r3", { hl: () => null, done: S => S.round >= 4, allow: a => (a.type === "train" || a.type === "promote") ? MSG("msg_train_later") : null }),
   /* ---- production ---- */
+  softInfo("crisis", { hl: () => "[data-tut=crisis]" }),
   softInfo("gateresult", { hl: () => "[data-tut=gates]" }),
   softInfo("races", { hl: () => "[data-tut=tracks]" }),
   softInfo("hype_bank", { hl: () => "[data-tut=tracks]" }),
-  softInfo("crisis", { hl: () => "[data-tut=crisis]" }),
   doing("promote", { rv: () => "promote_train", hl: () => placedTrain(S0()) ? "[data-act=pass]" : U().sel != null ? ".spot[data-id=train]" : "[data-tut=workers] .wk.pick", done: S => me(S).workers.some(w => w.lvl === "Sr") || S.round > 4,
     allow: (a, S) => a.type === "place" ? (a.target === "spot:train" ? ((!trigOk(S, me(S).workers.find(w => w.id === a.worker) || {}) && eligibleJr(S).some(w => trigOk(S, w))) ? MSG("msg_promote_fit") : null) : MSG("msg_promote_train")) : a.type === "pass" || a.type === "recruit" ? MSG("msg_promote_train") : null }),
   play("r4play", { hl: () => null, done: S => reachedRound(S, 4, "rest") }),
