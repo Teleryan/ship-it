@@ -1024,3 +1024,6 @@ body{overscroll-behavior-y:none;min-height:100vh;min-height:100dvh}
   .objpick .pgrid{display:flex;flex-direction:column;gap:var(--sp2)}
   .objpick .pgrid>*{width:auto!important;min-width:0}
 }
+/* the Tech Debt corner badge sits above the role chips instead of on top of them */
+.spot.hasdebt{padding-top:28px}
+.spot.hasdebt .corner{top:1px;right:1px}
