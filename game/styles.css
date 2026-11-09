@@ -587,7 +587,7 @@ table.dt input.n{width:62px}
 .coach .cp{font-size:11.5px}
 .coach .prog{margin:6px 0 8px}
 .coach .cta{margin:2px 0 8px;padding:8px 10px;border-radius:9px;background:rgba(245,197,66,.14);border:1px solid var(--gold);font-size:15px;font-weight:600;line-height:1.35}
-.coach .cta .ctl{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);font-weight:800;margin-bottom:2px}
+.coach .cta .ctl{display:block;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);font-weight:800;margin-bottom:2px}
 .coach .cta.wait{background:rgba(255,255,255,.05);border-color:var(--line);opacity:.9}
 .coach .cta.wait .ctl{color:var(--mute)}
 .coach .ct{font-size:14px}
@@ -702,7 +702,8 @@ select{max-width:100%}
 .mb>.pp-sec+.pp-sec,.mb>.kv+.pp-sec,.mb>.pp-chips+.pp-sec{border-top:1px solid var(--line);padding-top:var(--sp4)}
 .mf{flex:none;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:var(--sp2) var(--sp3);padding:var(--sp3) var(--sp5);border-top:1px solid var(--line);background:var(--panel);box-shadow:0 -10px 16px -12px rgba(0,0,0,.6)}
 .mf .btn{min-height:44px;padding:0 20px}
-.mf-note{order:-1;flex:1 1 180px;text-align:left;font-size:13px;line-height:1.35;color:var(--mute)}
+.mf-note{font-size:13px;line-height:1.35;color:var(--mute)}
+.mf .mf-note{order:-1;flex:1 1 180px;text-align:left}
 .modal .btn,.modal .btn.sm,.modal .tab{min-height:44px}
 .btn.danger.solid{background:var(--bad);border-color:var(--bad);color:#2b0a07}
 .btn.danger.solid:hover:not(:disabled){background:#ff8277}
@@ -842,7 +843,7 @@ button.pick:disabled{opacity:.5;border-style:dashed;cursor:not-allowed}
 .toast .btn{min-height:40px;margin-left:auto;padding:0 16px;flex:none}
 
 /* the guided-tutorial coach card never covers a pop-up: the pop-up shifts to the free side (wide screens) or above the coach sheet (phones) */
-@media (min-width:701px){
+@media (min-width:701px) and (orientation:landscape){
   #root:has(.coach:not(.center):not(.dockl)) .overlay:not(.rulesov){padding-right:calc(min(360px,100vw - 36px) + 34px)}
   #root:has(.coach.dockl) .overlay:not(.rulesov){padding-left:calc(min(360px,100vw - 36px) + 34px)}
   #root:has(.coach:not(.center):not(.dockl)) .toast{left:calc((100vw - min(360px,100vw - 36px) - 34px)/2)}
@@ -897,3 +898,121 @@ button.pick:disabled{opacity:.5;border-style:dashed;cursor:not-allowed}
 .overlay~.overlay{background:rgba(5,9,14,.5)}
 #root:has(.overlay) .toast.feed{display:none}
 .toast{pointer-events:none}.toast .btn{pointer-events:auto}
+
+/* =====================================================================================================
+   IPAD PASS: one stacking order, one modal sizing system, touch behaviour, dynamic-toolbar safe heights.
+   Later rules intentionally override the earlier passes above.
+   Stacking tokens (low to high): board < sticky banner < tutorial dim < tutorial-mode top-bar buttons
+   < modal backdrop < modal (inside the backdrop) < rules/menu layer < zoom < toast < tutorial coach card.
+   ===================================================================================================== */
+:root{
+  --z-board:1; --z-banner:20; --z-spot:90; --z-top:95; --z-backdrop:100; --z-modal:101; --z-rules:120; --z-zoom:130; --z-toast:400; --z-coachdim:490; --z-coach:500; --z-tip:9999;
+  --safe-t:env(safe-area-inset-top,0px); --safe-r:env(safe-area-inset-right,0px); --safe-b:env(safe-area-inset-bottom,0px); --safe-l:env(safe-area-inset-left,0px);
+  --tap:44px;
+}
+.overlay{z-index:var(--z-backdrop)}
+.overlay.rulesov{z-index:var(--z-rules)}
+.cover{z-index:var(--z-backdrop)}
+.zoomov{z-index:var(--z-zoom)}
+.pop{z-index:60}
+.toast{z-index:var(--z-toast)}
+.coach{z-index:var(--z-coach);bottom:max(18px,var(--safe-b));right:max(18px,var(--safe-r))}
+.coach.dockl{right:auto;left:max(18px,var(--safe-l))}
+.coach-dim{z-index:var(--z-coachdim)}
+#tutspot{z-index:var(--z-spot)}
+.tut-hl{z-index:var(--z-board)}
+.modal .tut-hl{outline-offset:-3px}
+.turnbanner{z-index:var(--z-banner)}
+.tutmode [data-act=rules],.tutmode [data-act=menu],.tutmode [data-act=log],.tutmode [data-act=save],.tutmode [data-act=gamemenu]{z-index:var(--z-top)}
+.ico::after{z-index:var(--z-banner)}
+
+/* Safari: dynamic toolbar safe heights, no double-tap zoom, no grey tap flash, no accidental text selection on game pieces */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+body{overscroll-behavior-y:none;min-height:100vh;min-height:100dvh}
+.center-screen{min-height:100vh;min-height:100dvh}
+.app{height:100vh;height:100dvh}
+@media (max-width:980px){.app{height:auto;min-height:100vh;min-height:100dvh}}
+.wk,.spot,.sys,.sys2,.btn,.pick,.opt,.tab,.step,.pt,.turnbanner,.rail,.coach .cb,.top,.mh,.mf{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.left,.right,.mb,.modal,.studios,.scroll-x,.log,.scroll-y{-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.studios,.scroll-x{overscroll-behavior-x:contain}
+.top{padding-left:max(14px,var(--safe-l));padding-right:max(14px,var(--safe-r));padding-top:max(8px,var(--safe-t))}
+.main{padding-left:max(12px,var(--safe-l));padding-right:max(12px,var(--safe-r))}
+
+/* modal sizing: width follows the content between a min and a max tier; height is capped at 85dvh and only the body scrolls */
+.overlay{padding:max(16px,var(--safe-t)) max(16px,var(--safe-r)) max(16px,var(--safe-b)) max(16px,var(--safe-l))}
+.modal{width:fit-content;min-width:min(var(--mw-min,420px),100%);max-width:min(var(--mw-max,600px),100%);max-height:85vh;max-height:85dvh;z-index:var(--z-modal)}
+.modal.sz-sm{width:fit-content;--mw-min:340px;--mw-max:440px}
+.modal.sz-md{width:fit-content;--mw-min:420px;--mw-max:600px}
+.modal.sz-lg{width:fit-content;--mw-min:520px;--mw-max:800px}
+.modal.sz-xl{width:fit-content;--mw-min:880px;--mw-max:1100px;max-height:90vh;max-height:90dvh}
+.modal.detail{width:fit-content;--mw-min:420px;--mw-max:560px}
+.modal.rsm{width:fit-content;--mw-min:520px;--mw-max:720px}
+.modal.pp-legacy{min-width:min(var(--mw-min,420px),100%)}
+.modal.crisisintro,.modal.decision{--mw-min:480px}
+.mb{-webkit-overflow-scrolling:touch}
+/* option cards fill the row (2 objectives per type stretch across the pop-up instead of leaving an empty strip) */
+.pgrid{grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))}
+.pgrid.tight{grid-template-columns:repeat(auto-fit,minmax(min(100%,128px),1fr))}
+.picks.cols{grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr))}
+.pcard{padding:var(--sp3) var(--sp3) var(--sp2)}
+.pcard .meta{line-height:1.35}
+.modal.decision .mb{gap:var(--sp3)}
+.modal.decision .pgrp{gap:6px}
+
+/* Manage step: milestones are one compact block each, in a grid that fills the panel */
+.mcells{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:var(--sp3);align-items:start}
+.mcell{display:flex;flex-direction:column;gap:6px;min-width:0}
+.mcell .sys{width:auto!important}
+.mcell .btn{width:100%;min-height:var(--tap)}
+.mcell .mf-note{text-align:center}
+
+/* top bar: secondary actions live in Menu on iPad widths (portrait and the 1000px Safari window) so the bar stays 1-2 rows */
+@media (max-width:1100px){
+  .top .sec{display:none}
+  .top .stepgroup.sg-phase:not(:has(.on)){display:none}
+  .top{gap:8px 12px}
+}
+
+/* touch: 44px targets, 16px inputs (iOS zooms the page when a focused input is smaller), 12px type floor */
+@media (pointer:coarse){
+  .btn,.btn.sm,.tab,select,.pick,.opt,.wk .wi,.mcell .btn{min-height:var(--tap)}
+  .btn.sm{padding:6px 12px}
+  input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea{font-size:16px;min-height:var(--tap)}
+  .ico{min-width:var(--tap);min-height:28px;justify-content:center}
+  .coach .cb .btn{min-height:var(--tap)}
+}
+.coach .cp,.coach .ctl{font-size:12px}
+
+/* tutorial coach card vs pop-ups: in landscape the pop-up shifts to the free side (rule above); in portrait it sits above the card */
+@media (min-width:701px) and (orientation:portrait){
+  #root:has(.coach:not(.center)) .overlay:not(.rulesov){padding-bottom:calc(min(50dvh,380px) + 24px)}
+  #root:has(.coach:not(.center)) .toast{bottom:auto;top:16px}
+}
+.modal{max-height:min(85dvh,100%)}
+.modal.sz-xl{max-height:min(90dvh,100%)}
+@media (min-width:701px){.card-box{width:min(640px,100%)}}
+@media (min-width:701px){.mgrid{grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))}}
+/* Systems strip: columns may shrink below their content instead of pushing the page sideways */
+.mcol,.mcol .spots,.mcol .sys2{min-width:0;max-width:100%}
+.mcol .sys2 .h,.mcol .sys2 .c,.mcol .sys2 .sr>*{min-width:0;flex-wrap:wrap}
+/* studio perks and shared tiles use two columns on iPad portrait instead of one long stack */
+@media (min-width:701px) and (max-width:980px){
+  .shared.col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .shared.col>:first-child{grid-column:1/-1}
+}
+/* worker cards: wide enough for the longest discipline name at the 12px floor */
+@media (min-width:701px){.wk{width:112px}.wk .whd{letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
+@media (min-width:701px) and (orientation:landscape){
+  #root:has(.coach:not(.center)) .toast{max-width:calc(100vw - min(360px,100vw - 36px) - 34px - 32px)}
+}
+/* Rules viewer: the printable pages keep their layout but the on-screen type floor is 12px */
+.modal.rulesm .paper .note,.modal.rulesm .paper table.t th,.modal.rulesm .paper .rc,.modal.rulesm .paper .phases span,.modal.rulesm .paper .note b{font-size:12px}
+.modal .x,.modal.detail .x{min-width:44px;min-height:44px}
+/* score tables: headers wrap and cells tighten so the table fits an iPad portrait pop-up without sideways scrolling */
+@media (max-width:1100px){
+  .scoretbl th{white-space:normal;line-height:1.2;vertical-align:bottom}
+  .scoretbl td,.scoretbl th{padding:7px 5px}
+  .scoretbl td:first-child{white-space:normal}
+  .top .stepgroup>span.lab{display:none}
+  .top .step{padding:6px 8px}
+}

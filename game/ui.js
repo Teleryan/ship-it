@@ -448,8 +448,8 @@ function actionArea(S) {
 function cleanMiles(S, a) {
   if (!a || a.bot) return "";
   const cards = a.miles.map(id => { const met = E.milestoneMet(S, a.id, id), m = S.data.milestones[id], open = E.mileWindow(S, m) !== "later";
-    return `<div class="col" style="gap:4px">${mileCard(S, id, a.id, true)}${actBtn("Cash in +" + m.gold + "G", `data-act="claim" data-mile="${id}"`, !met, met ? "" : "Requirement not met yet", false)}</div>`; }).join("");
-  return `<div class="panel" data-tut="miles"><h3>Your milestones (${a.miles.length}): cash in when met</h3><div class="row wrap" style="align-items:flex-start">${cards || '<span class="mute">No milestones in hand.</span>'}</div></div>`;
+    return `<div class="mcell">${mileCard(S, id, a.id, true)}${actBtn("Cash in +" + m.gold + "G", `data-act="claim" data-mile="${id}"`, !met, met ? "" : "Requirement not met yet", false)}</div>`; }).join("");
+  return `<div class="panel" data-tut="miles"><h3>Your milestones (${a.miles.length}): cash in when met</h3><div class="mcells">${cards || '<span class="mute">No milestones in hand.</span>'}</div></div>`;
 }
 function restView(S, a) {
   return `<div class="panel" data-tut="rest"><h3>${S.cfg.trainTile ? "Manage: build, cash in" : "Manage: build, train, promote, cash in"}</h3><div class="mute" style="margin:2px 0 6px">${S.cfg.trainTile ? "Build systems, cash in any met Milestone above, then press Done. Train Juniors on the Training tile." : "Cash in any met Milestone above, click a worker to train or promote them, then press Done."}</div><div class="workers">${a.workers.map(w => workerCard(S, w, a.id, false)).join("") || '<span class="mute">No workers.</span>'}</div></div>`;

@@ -115,7 +115,7 @@ let STEPS = [
   /* ---- cards 1-5: the goal, your pick, your team, the board. First action: objectives (card 3). First placement: lesson 6. ---- */
   info("welcome", { center: true, hold: true, hl: () => null, allow: () => MSG("msg_start") }),
   info("win_vp", { center: true, hl: () => null }),
-  doing("objectives", { hl: () => ".modal", done: S => !S.dq.some(d => d.t === "keepObj" && d.p === 0), allow: a => a.type === "keepObj" ? null : MSG("msg_obj"), noSkip: true }),
+  doing("objectives", { hl: () => ".modal.decision .mb, .modal.decision .mf .btn.primary", done: S => !S.dq.some(d => d.t === "keepObj" && d.p === 0), allow: a => a.type === "keepObj" ? null : MSG("msg_obj"), noSkip: true }),
   info("team", { hl: () => "[data-tut=workers]" }),
   info("board_backlog", { hl: () => "[data-row=EARN]" }),
   /* ---- round 1: place, the one-desk lesson, build ---- */
@@ -285,7 +285,7 @@ function tutHighlight0(rootEl) {
     // two-column layout: dock the coach box under the other column so it never sits on the highlighted panel
     { const cb = rootEl.querySelector(".coach:not(.center)"); if (cb) { const bw = /workstation/i.test(cb.textContent) ? rootEl.querySelector('[data-act=buyws]') : null; // the hint mentions buying a desk: keep that button clear too
       cb.classList.toggle("dockl", !!(window.innerWidth > 980 && ((el && el.closest(".right")) || (bw && bw.closest(".right"))))); } }
-    if (el && el.getBoundingClientRect && !u.detail) {
+    if (el && el.getBoundingClientRect && !u.detail && !rootEl.querySelector(".overlay")) {
       const coach = rootEl.querySelector(".coach");
       // leave room under the columns for the whole coach box, so the highlighted panel can scroll clear of it
       if (coach) { const need = Math.ceil(coach.getBoundingClientRect().height) + 28; if (rootEl.style.getPropertyValue("--coachH") !== need + "px") rootEl.style.setProperty("--coachH", need + "px"); }
@@ -295,7 +295,8 @@ function tutHighlight0(rootEl) {
       const top = Math.max(box.top, 0) + 16;
       let bottom = Math.min(box.bottom, window.innerHeight) - 16;
       if (cr && cr.top > window.innerHeight * 0.2 && cr.right > box.left && cr.left < box.right) bottom = Math.min(bottom, cr.top - 12); // the coach covers the lower part of this column
-      const r = el.getBoundingClientRect();
+      // several highlighted pieces (e.g. a button and its panel): keep the whole group clear of the coach card, not just the first piece
+      const r = (() => { const rs = extra ? [] : Array.from(els).filter(x => x.getClientRects().length).map(x => x.getBoundingClientRect()); if (rs.length < 2) return el.getBoundingClientRect(); const t0 = Math.min.apply(null, rs.map(a => a.top)), b0 = Math.max.apply(null, rs.map(a => a.bottom)); return { top: t0, bottom: b0, height: b0 - t0 }; })();
       if (r.top < top || r.bottom > bottom) {
         const room = bottom - top, dy = r.height > room ? r.top - top : r.top - top - Math.max(0, (room - r.height) / 2);
         (scrolls ? sc : window).scrollBy({ top: dy, behavior: "smooth" });

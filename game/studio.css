@@ -4,8 +4,8 @@
    Uses the game's theme variables (see styles.css :root).
    ============================================================ */
 body:has(.stfs){overflow:hidden}
-.overlay.stfs-ov{display:block;padding:0;background:var(--bg);z-index:60}
-.modal.stfs{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none;min-width:0;margin:0;padding:0;border:0;border-radius:0;overflow:hidden;background:var(--bg);display:flex;flex-direction:column;font-size:14px}
+.overlay.stfs-ov{display:block;padding:0;background:var(--bg);z-index:var(--z-backdrop,100)}
+.modal.stfs{position:fixed;inset:0;width:100%;height:100vh;height:100dvh;max-width:none;max-height:none;min-width:0;margin:0;padding:0;border:0;border-radius:0;overflow:hidden;background:var(--bg);display:flex;flex-direction:column;font-size:14px}
 .stfs *{scrollbar-width:thin;scrollbar-color:#33475c transparent}
 .stfs button,.stfs select,.stfs input,.stfs textarea{font-family:inherit}
 .stfs .mono{font-family:var(--mono)}
@@ -100,7 +100,7 @@ body:has(.stfs){overflow:hidden}
 .stfs .dt-prev-body{display:flex;flex-direction:column;gap:12px}
 @media (min-width:1400px){
   .stfs .dt-grid{grid-template-columns:minmax(0,1fr) 320px}
-  .stfs .dt-prev{order:0;position:sticky;top:84px;max-height:calc(100vh - 230px);overflow-y:auto;padding-right:2px}
+  .stfs .dt-prev{order:0;position:sticky;top:84px;max-height:calc(100vh - 230px);max-height:calc(100dvh - 230px);overflow-y:auto;padding-right:2px}
 }
 @media (min-width:1900px){
   .stfs .dt-grid{grid-template-columns:minmax(0,1fr) 360px}
@@ -252,7 +252,7 @@ body:has(.stfs){overflow:hidden}
   .stfs .sf-rail-in{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;padding:6px}
   .stfs .nv-grp{display:flex;gap:4px;margin:0}.stfs .nv-h,.stfs .rail-sum{display:none}
   .stfs .nv{width:auto;white-space:nowrap}
-  .stfs .sf-md{grid-template-columns:minmax(0,1fr);grid-template-rows:200px minmax(0,1fr)}
+  .stfs .sf-md{grid-template-columns:minmax(0,1fr);grid-template-rows:clamp(200px,32vh,360px) minmax(0,1fr);grid-template-rows:clamp(200px,32dvh,360px) minmax(0,1fr)}
   .stfs .sf-list{border-right:0;border-bottom:1px solid var(--line)}
   .stfs .f{grid-template-columns:minmax(0,1fr)}.stfs .f-lab{grid-column:1;grid-row:1;padding-top:0}.stfs .f-ctl{grid-column:1;grid-row:2}.stfs .f-note{grid-column:1;grid-row:3}
 }
@@ -272,3 +272,16 @@ body:has(.stfs){overflow:hidden}
 @media (max-height:820px){.stfs .rail-sum span,.stfs .rail-sum .btn{display:none}.stfs .sf-rail-sum{padding:6px 10px}.stfs .nv{min-height:30px;padding:5px 10px}.stfs .nv-h{padding-top:3px}}
 .stfs .pc-r{grid-template-columns:96px minmax(0,1fr)}
 .stfs .pc-k{letter-spacing:.02em;font-size:11px}
+
+/* ---- iPad pass: type floor 12px, 44px touch targets, notch-safe edges ---- */
+.stfs .chip-t small,.stfs .pp small,.stfs .sim-res .st small,.stfs .nv-h,.stfs .li-s,.stfs .li-grp,.stfs .f-key,.stfs .ph,.stfs i.ph,.stfs .f-disp,.stfs .pc-kind,.stfs .rchip,.stfs .pc-k,.stfs .pp,.stfs .pc-id,.stfs .pc-sh,.stfs .pc-sm,.stfs .vpb,.stfs small,.stfs .nv-b,.stfs .x.sf-close::after{font-size:12px}
+.stfs .li-grp,.stfs .li-s{line-height:1.35}
+.stfs .sf-head{padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+.stfs .sf-rail-in,.stfs .sf-list,.stfs .sf-detail,.stfs .sf-main{-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+@media (pointer:coarse){
+  .stfs .btn,.stfs .btn.sm,.stfs .sf-act .btn,.stfs .sf-act .btn.sm,.stfs .x.sf-close,.stfs .nv,.stfs select,.stfs input:not([type=checkbox]):not([type=radio]),.stfs textarea,.stfs summary,.stfs label.chip-t,.stfs label.tg,.stfs label.tg.sm,.stfs .f-ctl input[type=text]:not(.keep),.stfs .f-ctl input[type=search],.stfs .f-ctl select,.stfs .srch input{min-height:44px!important}
+  .stfs .num-b{min-width:44px;min-height:44px}
+  .stfs .sf-act .btn{padding:6px 14px}
+  .stfs label.chip-t,.stfs label.tg{display:inline-flex;align-items:center}
+  .stfs .nv{padding:8px 10px}
+}
