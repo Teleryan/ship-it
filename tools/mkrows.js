@@ -33,9 +33,9 @@ r("msg_place","Blocked-action message","","",
 r("msg_place_first","Blocked-action message","","",
 "Place at least one worker first");
 r("msg_place_pass","Blocked-action message","","",
-"Buy a workstation, keep placing, or press Pass");
-r("msg_ws_free","Blocked-action message","","",
-"You already have a free workstation. Select a worker, then a highlighted tile.");
+"Keep placing, or press Pass");
+r("msg_wsbuy","Blocked-action message","","",
+"Choose your workstations in the pop-up first");
 r("msg_build_first","Blocked-action message","","",
 "Try building one system first");
 r("msg_build","Blocked-action message","","",
@@ -117,13 +117,11 @@ r("place1w","Round 1 · first worker (Rival's turn)","Place your first worker","
 r("stats","Round 1 · skills","Your skills","Next",
 "The tile paid out at once. Your four **skills** (Ideas, Code, Process, Buzz) are in your studio panel. You keep them between rounds and spend them on systems.");
 r("ws1","Round 1 · workstations","Workstations: your desks","Next",
-"Every placement needs a **workstation** (a desk). You start with just **{wsFree}**, so you can place **one worker per round** until you buy more. The counter is in your studio panel.\n\nTaking **any board tile**, including Studio Perks, uses one. Triggering one of your own systems does not.");
-r("place2","Round 1 · buy a workstation","Buy a workstation, then place","",
-">> Press **Buy workstation** and place a second worker, or press **Pass**.\n\nYou are out of workstations. Buy one in your studio panel ({wsCost}G for the next one), then place. Extra desks cost: {wsPrices} (up to {wsMax} in all). They stay for the rest of the phase; a new phase resets you to {wsFree}.");
-r("place2b","Round 1 · desk bought","Desk ready: place a worker","",
-">> **Select a worker**, then click a **highlighted tile** (orange border) and press **Place**.\n\nYou bought a workstation, so you can place another worker. Or press **Pass** to keep your Gold.");
-r("place2c","Round 1 · second worker placed","Nice: finish placing","",
-">> Press **Pass: done placing** when you have placed the workers you want.\n\nEach worker needs its own workstation, so a third worker would need another desk ({wsCost}G or more). You do not have to place everyone.");
+"Every placement needs a **workstation** (a desk). You get **{wsFree}** free each round, so you can place **one worker per round** unless you buy more.\n\nYou buy desks **before Place**, in the Income step, and they **reset every round**. Plan how many workers you will place. Taking **any board tile**, including Studio Perks, uses one. Triggering your own systems does not.");
+r("buy1","Round 1 · buy workstations","Buy your workstations","",
+">> Buy **1 more** workstation in the pop-up, then confirm.\n\nThat gives you two desks, so you can place two workers this round. Extra desks cost: {wsPrices} (up to {wsMax} in all). You cannot buy more once Place starts.");
+r("place2","Round 1 · place a second worker","Place a second worker","",
+">> Place a second worker, then press **Pass: done placing**.\n\nEach worker needs its own desk, so a third worker would have needed another one. You do not have to place everyone.");
 r("build","Round 1 · manage: build","Manage: build a system","",
 ">> Press **Open Systems to Build**, pick a system, and build it.{freeBuild}\n\nThe **Manage** step has begun. A **system** is a permanent engine that scores VP at the end. It costs skills{sysWait}. Greyed cards need skills you do not have yet.");
 r("tired","Round 1 · tired workers","Tired workers","Next",
@@ -134,12 +132,14 @@ r("income","Round 2 · income and salaries","Round 2: Gold changed","Next",
 "A new round began, and your Gold changed. Every round each studio gets **{income}G** of Income, then pays **salaries**: {salaryJr}G per Junior, or {salarySr}G per Senior (a promoted worker you will meet later).\n\nThis round: **+{incomeNow}G** income, **−{salaryNow}G** salaries. You now hold **{goldNow}G**.");
 r("upkeep","Round 2 · upkeep and order","Between rounds: Upkeep and order","Next",
 "Two things happen by themselves at the start of every round after round 1.\n**Upkeep**: workers who rested recover, and Burnout is updated.\n**Order**: the studio with the **fewest VP goes first**, so a studio that is behind gets first pick.");
+r("r2buy","Round 2 · buy workstations","Workstations reset every round","",
+">> Buy the workstations you want for round 2, then confirm.\n\nYour desks went back to {wsFree}. Decide how many workers you will place this round: buy that many desks, or none to keep {wsFree}.");
 r("r2recruit","Round 2 · recruit","Recruit a worker","Let's play round 2",
 ">> Press **Recruit** under a worker you like.\n\nThe **Recruitment** panel is a shared pool of **{recruitN}** workers. A Junior costs **{recruitCost}G**, plus {recruitLadder}G for each worker another studio has already taken this round. You can place them right away.");
 r("board_perks","Round 2 · studio perks","Studio Perks","Next",
 "**Studio Perks** are special tiles. **Each perk takes only one worker per round**, so whoever places first gets it.\n**Talent**: recruit one extra worker, for 1G less.\n**Outsource**: a worker earns Gold.\n**R&D**: {rdWhat}\n**Team Event**: send 2 workers with different roles and pay {teamCost}G {teamEventEffect}.");
 r("r2place","Round 2 · place","Place your team","",
-">> Place your workers, leave at least one unplaced to rest, then press **Pass**.\n\nBuy another workstation if you need one.");
+">> Place your workers, leave at least one unplaced to rest, then press **Pass**.\n\nEach worker you place uses one of this round's workstations.");
 r("burnout","Round 2 · burnout","Burnout","Next",
 "**Burnout** (0 to {burnMax}) shows how worn out your team is. It rises +1 for each Exhausted worker you placed, and +1 if salaries were short by {burnUnpaidMin}G or more. It falls {burnRelief} after a calm round and {teamRelief} after a Team Event.\n\nBurnout 0 is **Energized** (+{energizedGold}G a round). At {burnStrainAt}+ you lose extra Hype, at {burnBenchAt}+ a worker is benched, at {burnQuitAt} one quits, and at the end high Burnout costs VP. **Culture** is {cultureBase} minus Burnout.");
 r("r2done","Round 2 · finish","Finish round 2","",

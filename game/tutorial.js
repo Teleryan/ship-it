@@ -118,16 +118,16 @@ let STEPS = [
   doing("objectives", { hl: () => ".modal.decision .mb, .modal.decision .mf .btn.primary", done: S => !S.dq.some(d => d.t === "keepObj" && d.p === 0), allow: a => a.type === "keepObj" ? null : MSG("msg_obj"), noSkip: true }),
   info("team", { hl: () => "[data-tut=workers]" }),
   info("board_backlog", { hl: () => "[data-row=EARN]" }),
-  /* ---- round 1: place, the one-desk lesson, build ---- */
+  /* ---- round 1: workstations, place, build ---- */
+  info("ws1", { hl: () => ".pt[data-pid='0'] [data-tut=ws]" }),
+  doing("buy1", { hl: () => ".modal.decision .mb, .modal.decision .mf .btn.primary", done: S => !S.dq.some(d => d.t === "wsBuy" && d.p === 0), allow: a => a.type === "wsBuy" ? null : MSG("msg_wsbuy") }),
   doing("place1", { hl: () => (U().sel == null ? "[data-tut=workers] .wk:not(.placed)" : "[data-tut=board]"),
     vid: S => !actorIsMe(S) ? "place1w" : U().detail && U().detail.k === "spot" ? "place1c" : U().detail && U().detail.k === "worker" ? "place1d" : U().sel == null ? "place1" : "place1b",
     done: S => after(S, "place", 1) || (S.round === 1 && S.step === "place" && me(S).rs.placed >= 1),
     allow: a => a.type === "place" ? null : a.type === "pass" ? MSG("msg_place_first") : MSG("msg_place") }),
   info("stats", { hl: () => ".pt[data-pid='0'] .stats.res" }),
-  info("ws1", { hl: () => ".pt[data-pid='0'] [data-tut=ws]" }),
-  doing("place2", { hl: S => placedN(S) >= 2 ? "[data-act=pass]" : deskLeft(S) > 0 ? (U().sel != null ? ".spot.ok" : "[data-tut=workers] .wk.pick") : ".pt[data-pid='0'] [data-tut=ws] [data-act=buyws]",
-    vid: S => placedN(S) >= 2 ? "place2c" : deskLeft(S) > 0 ? "place2b" : "place2",
-    done: S => after(S, "place", 1) || S.round > 1, allow: (a, S) => (a.type === "buyws" && deskLeft(S) > 0) ? MSG("msg_ws_free") : (a.type === "buyws" || a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
+  doing("place2", { hl: S => placedN(S) >= 2 || deskLeft(S) === 0 ? "[data-act=pass]" : (U().sel != null ? ".spot.ok" : "[data-tut=workers] .wk.pick"),
+    done: S => after(S, "place", 1) || S.round > 1, allow: a => (a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
   doing("build", { hl: () => (U().modal === "market" ? ".modal [data-act=build]:not([disabled])" : "[data-tut=market]"), done: S => builtInManage(S, 1),
     allow: (a, S) => a.type === "build" ? null : a.type === "done" ? ((me(S).builds >= 1 || !(canBuildAny(S, false) || (me(S).freeBuilds && canBuildAny(S, true)))) ? null : MSG("msg_build_first")) : MSG("msg_build") }),
   info("tired", { hl: () => "[data-tut=workers]" }),
@@ -135,6 +135,7 @@ let STEPS = [
   /* ---- round 2: what the new round did, recruit, perks, burnout ---- */
   info("income", { hl: () => ".pt[data-pid='0'] .st.rs.g" }),
   info("upkeep", { hl: () => ".pt[data-pid='0'] .ordbadge" }),
+  doing("r2buy", { hl: () => ".modal.decision .mb, .modal.decision .mf .btn.primary", done: S => S.round > 2 || !S.dq.some(d => d.t === "wsBuy" && d.p === 0), allow: a => a.type === "wsBuy" ? null : MSG("msg_wsbuy") }),
   doing("r2recruit", { hl: () => "[data-tut=recruit]", done: S => me(S).recruited >= 1 || S.round > 2,
     allow: (a, S) => (a.type === "buyws" || a.type === "place" || a.type === "recruit") ? null : a.type === "pass" ? MSG("msg_recruit") : MSG("msg_recruit") }),
   info("board_perks", { hl: () => ".shared" }),
@@ -203,6 +204,7 @@ SI.tutGate = function (a) {
   const st = cur(); if (!st) return null;
   if (a && a.type === "place" && a.target === "spot:train" && st.id !== "promote") return MSG("msg_train_later"); // the Training tile is taught in round 4
   if (a && a.type === "place" && u.S.round < 3 && /^spot:/.test(a.target || "")) { const sp = u.S.data.spots.find(x => "spot:" + x.id === a.target); if (sp && sp.crew) return MSG("msg_strike_later"); } // strike teams are taught in round 3
+  if (a && a.type === "wsBuy" && st.id !== "buy1" && st.id !== "r2buy") return null; // desks are bought at the start of every round
   if (!st.allow) return null;
   return st.allow(a, u.S);
 };

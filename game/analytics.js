@@ -58,6 +58,7 @@ function mkEv(S, a) { // -> [code, arg] or null
     switch (dq.t) {
       case "keepObj": { const ids = []; Object.keys(dq.opts || {}).forEach(t => { const keep = (a.picks && a.picks[t] != null) ? a.picks[t] : dq.opts[t][0]; [].concat(keep).slice(0, S.cfg.objKeep).forEach(x => { if (dq.opts[t].includes(x)) ids.push(x); }); }); return ["ko", ids]; }
       case "keepMile": return ["km", [].concat(a.keep != null ? a.keep : dq.opts[0]).slice(0, dq.keep)];
+      case "wsBuy": return ["wb", Math.max(0, Math.floor(a.n || 0))];
       case "bid": return ["bid", [dq.card, Math.floor(a.amount)]];
       case "choose": return ["ch", [dq.card, a.k]];
       case "pickWorker": return ["pw", lvl1(p.workers.find(x => x.id === a.worker))];

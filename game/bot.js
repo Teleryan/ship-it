@@ -87,6 +87,14 @@ function decision(S, p, d) {
       });
       return { type: "keepObj", p: p.id, picks };
     }
+    case "wsBuy": { // buy desks for the round: enough to place most of the team, keeping a little Gold in hand
+      const cap = S.cfg.fatMax != null ? S.cfg.fatMax : 2;
+      const can = p.workers.filter(w => !w.benched && !w.build && !w.placed).length;
+      const want = Math.min(S.cfg.wsMax, can >= 4 ? can - 1 : can);
+      const reserve = PF && PF.deskReserve != null ? PF.deskReserve : 2;
+      let n = 0; while (p.ws + n < want && p.gold - E.wsBuyCost(S, p.id, n + 1) >= reserve) n++;
+      return { type: "wsBuy", p: p.id, n };
+    }
     case "bid": { // crisis auctions
       const room = Math.max(0, p.gold - 4);
       const amt = Math.min(p.gold, Math.min(room, 1 + rint(4)));

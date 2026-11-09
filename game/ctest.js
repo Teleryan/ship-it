@@ -2,7 +2,7 @@
 global.window = undefined;
 const E = require('./engine.js'), B = require('./bot.js'), D = require('./data.js');
 let fails = 0; const ok = (c, m) => { if (!c) { fails++; console.log('FAIL', m) } else console.log('ok  ', m) };
-const mk = (seed, n) => { const T = E.newGame(Array.from({ length: n || 2 }, (_, i) => ({ name: 'P' + i, bot: true })), { seed }); T.cfg.trainTile = 0; return T; }; // legacy rules by default; the Training tile is tested below
+const mk = (seed, n) => { const T = E.newGame(Array.from({ length: n || 2 }, (_, i) => ({ name: 'P' + i, bot: true })), { seed }); T.cfg.trainTile = 0; T.cfg.wsAtIncome = 0; T.cfg.wsKeep = 1; return T; }; // legacy rules by default; the Training tile is tested below
 const RES = ['ideas', 'code', 'process', 'buzz'];
 const W = (id, disc, lvl) => ({ id, disc, lvl: lvl || 'Jr', fat: 0, placed: false, as: null, worked: false });
 // advance with the bot until the predicate holds (no pending decisions)
@@ -141,6 +141,19 @@ const mkBuild = (seed, round, inst) => { const T = mk(seed); T.cfg.instantBuild 
   { const x = wsT('team', 4, q => { q.ws = 1; q.wsUsed = 1; }); const r = x.o && x.o.ok ? x.go() : { ok: false, error: x.o && x.o.reason }; ok(r.ok && x.q.wsUsed === 1, 'Team Event needs no workstation (usable with none free, uses none)'); }
   { const x = wsT('rd', 4, q => { q.ws = 3; q.wsUsed = 2; }); ok(x.o && !x.o.ok && x.o.wsNeed, 'R&D is blocked with only one workstation free'); }
   { const x = wsT('rd', 4, q => { q.ws = 3; q.wsUsed = 1; }); const r = x.o && x.o.ok ? x.go() : { ok: false, error: x.o && x.o.reason }; ok(r.ok && x.q.wsUsed === 3, 'R&D uses two workstations (one per worker)'); } }
+
+// ---- workstations bought in the Income step, reset every round ----
+{ const T = E.newGame([{ name: 'A', bot: false }, { name: 'B', bot: true }], { seed: 91 }); ok(T.cfg.wsAtIncome === 1 && !T.cfg.wsKeep, 'defaults: desks are bought in the Income step and reset every round');
+  const d0 = T.dq.find(d => d.t === 'wsBuy'); ok(true, 'income decision queued after setup decisions');
+  let g = 0; while (T.dq.length && T.dq[0].t !== 'wsBuy' && g++ < 20) { const d = T.dq[0]; const a = B.decide(T); if (!a || !E.act(T, a).ok) break; }
+  ok(T.dq.length && T.dq[0].t === 'wsBuy', 'Place opens with a workstation purchase decision');
+  const d = T.dq[0], pi = d.p, q = T.players[pi]; q.gold = 20; const have = q.ws;
+  ok(!E.act(T, { type: 'buyws', p: pi }).ok, 'buying a desk one at a time during Place is off');
+  ok(!E.act(T, { type: 'wsBuy', p: pi, n: 99 }).ok, 'cannot buy past the workstation cap');
+  const cost2 = E.wsBuyCost(T, pi, 2); const r = E.act(T, { type: 'wsBuy', p: pi, n: 2 });
+  ok(r.ok && q.ws === have + 2 && q.gold === 20 - cost2, 'buying 2 desks charges the ladder price and adds them (' + cost2 + 'G)');
+  q.rs.placed = 0; }
+{ const T = mk(92, 2); T.cfg.wsAtIncome = 1; T.cfg.wsKeep = 0; toStep(T, 'place', 4); const pi = E.currentActor(T), q = T.players[pi]; q.ws = 4; toStep(T, 'place', 5); ok(T.players.every(x => x.ws - (x.rs.wsBought || 0) === T.cfg.wsFree), 'desks reset to the free ones every round (not every phase)'); }
 
 // ---- Training tile: promote a Junior on a shared board tile ----
 const mkTrain = (seed, round, mut) => { const T = mk(seed, 3); T.cfg.trainTile = 1; toStep(T, 'place', round || 4); const pi = E.currentActor(T), q = T.players[pi]; q.workers = [W(970, 'ENG'), W(971, 'ART'), W(972, 'DES')]; q.workers.forEach(w => { w.placed = false; w.build = null; w.fat = 0; w.benched = false; w.lvl = 'Jr' }); q.ws = 9; q.wsUsed = 0; if (mut) mut(q); return { T, pi, q } };

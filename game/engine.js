@@ -407,6 +407,8 @@ function beginRest(S) {
 }
 function startPlace(S) {
   S.passed = []; S.cur = 0;
+  // the Income step: every studio chooses how many workstations to buy for this round (they reset each round, so plan the space)
+  if (S.cfg.wsMax && S.cfg.wsAtIncome) (S.order || S.players.map(p => p.id)).forEach(pi => { const p = P(S, pi); if (p.ws < S.cfg.wsMax && p.gold >= E.wsCostAt(S, p.ws) && p.workers.length > p.ws) S.dq.push({ t: "wsBuy", p: pi }); });
   // skip players who cannot ever place
   placeAdvance(S);
 }
@@ -599,8 +601,11 @@ function isMainSpot() { return true; }
 function wsNeeded(spot) { return spot && spot.ws != null ? spot.ws : 1; } // workstations a placement uses: Team Event 0, R&D 2 (one per worker), everything else 1
 E.wsNeeded = wsNeeded;
 E.isMainSpot = isMainSpot;
-E.wsCost = function (S, pi) { const p = P(S, pi), c = S.cfg; return (c.wsCost || 0) + (c.wsStep || 0) * Math.max(0, p.ws - (c.wsLadderFrom != null ? c.wsLadderFrom : (c.wsFree || 0))); };
-E.canBuyWs = function (S, pi) { const p = P(S, pi), c = S.cfg; if (!c.wsMax || S.step !== "place") return { ok: false, reason: "Not available" }; if (p.ws >= c.wsMax) return { ok: false, reason: "You already have all " + c.wsMax + " workstations" }; const cost = E.wsCost(S, pi); if (p.gold < cost) return { ok: false, reason: "Needs " + cost + "G" }; return { ok: true, cost }; };
+E.wsCostAt = function (S, have) { const c = S.cfg; return (c.wsCost || 0) + (c.wsStep || 0) * Math.max(0, have - (c.wsLadderFrom != null ? c.wsLadderFrom : (c.wsFree || 0))); }; // price of the next desk when you already own "have"
+E.wsCost = function (S, pi) { return E.wsCostAt(S, P(S, pi).ws); };
+E.wsBuyCost = function (S, pi, n) { const have = P(S, pi).ws; let t = 0; for (let i = 0; i < n; i++) t += E.wsCostAt(S, have + i); return t; }; // total price of buying n more desks now
+E.wsBuyMax = function (S, pi) { const p = P(S, pi); let n = 0; while (p.ws + n < S.cfg.wsMax && E.wsBuyCost(S, pi, n + 1) <= p.gold) n++; return n; };
+E.canBuyWs = function (S, pi) { const p = P(S, pi), c = S.cfg; if (!c.wsMax || S.step !== "place") return { ok: false, reason: "Not available" }; if (c.wsAtIncome) return { ok: false, reason: "Workstations are bought before Place, in the Income step" }; if (p.ws >= c.wsMax) return { ok: false, reason: "You already have all " + c.wsMax + " workstations" }; const cost = E.wsCost(S, pi); if (p.gold < cost) return { ok: false, reason: "Needs " + cost + "G" }; return { ok: true, cost }; };
 function spotUsableBy(S, pi, w, spot) {
   const r = spotUsableBase(S, pi, w, spot), p = P(S, pi);
   const need = wsNeeded(spot);
@@ -1025,6 +1030,15 @@ function resolveDecision(S, a) {
         d.opts[t].forEach(id => { if (ks.includes(id)) P(S, p).objectives.push(id); else S.decks.obj[t].unshift(id); });
       });
       S.dq.shift(); log(S, P(S, p).name + " chose objectives"); return { ok: true };
+    }
+    case "wsBuy": {
+      if (a.type !== "wsBuy") return err("Choose how many workstations to buy");
+      const n = Math.floor(a.n == null ? 0 : a.n), pl = P(S, p);
+      if (!(n >= 0)) return err("Pick 0 or more"); if (pl.ws + n > S.cfg.wsMax) return err("At most " + S.cfg.wsMax + " workstations (you have " + pl.ws + ")");
+      const cost = E.wsBuyCost(S, p, n); if (cost > pl.gold) return err("Needs " + cost + "G");
+      if (n) { gain(S, p, "gold", -cost); pl.ws += n; pl.rs.wsBought = (pl.rs.wsBought || 0) + n; log(S, pl.name + " sets up " + n + " extra workstation" + (n === 1 ? "" : "s") + " for this round (" + cost + "G, " + pl.ws + " in total)"); }
+      else log(S, pl.name + " keeps " + pl.ws + " workstation" + (pl.ws === 1 ? "" : "s") + " this round");
+      S.dq.shift(); return { ok: true };
     }
     case "bid": {
       if (a.type !== "bid") return err("Place a bid");

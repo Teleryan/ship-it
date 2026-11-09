@@ -260,7 +260,7 @@ function topbar(S) {
 function prompt(S) {
   const d = S.dq[0]; const a = actorName(S);
   if (S.over) return "Game over";
-  if (d) return { keepObj: "choose your objectives", bid: "secret auction bid", choose: "make a crisis choice", pickWorker: "choose a worker to lose", raidHire: "Studio Raid: hire at half cost?", pivot: "pivot your Platform", dropObj: "remove an objective", keepMile: "choose milestone(s) to keep", swapObjPick: "choose objective", patch: "Day-One Patch: spend Momentum" }[d.t] || "decide";
+  if (d) return { keepObj: "choose your objectives", wsBuy: "buy workstations for this round", bid: "secret auction bid", choose: "make a crisis choice", pickWorker: "choose a worker to lose", raidHire: "Studio Raid: hire at half cost?", pivot: "pivot your Platform", dropObj: "remove an objective", keepMile: "choose milestone(s) to keep", swapObjPick: "choose objective", patch: "Day-One Patch: spend Momentum" }[d.t] || "decide";
   return { place: "select a worker, then a highlighted tile (or Pass)", rest: (U.S && U.S.cfg && U.S.cfg.trainTile ? "manage: build systems, cash in milestones, then Done" : "manage: build systems, cash in milestones, train or promote, then Done") }[S.step] || "";
 }
 // what the person whose turn it is should do right now, in one sentence
@@ -396,8 +396,8 @@ function wsLine(S, p) {
   const a = E.currentActor(S), mine = a === p.id && !p.bot && S.step === "place" && !S.dq.length;
   const bw = mine ? E.canBuyWs(S, p.id) : { ok: false };
   const tot = p.ws == null ? Math.min(S.cfg.wsMax, S.cfg.wsFree) : p.ws, left = Math.max(0, tot - (p.wsUsed || 0));
-  const btn = mine && tot < S.cfg.wsMax ? ` <button class="btn sm" data-act="buyws" ${bw.ok ? "" : "disabled"} title="${esc(bw.ok ? "" : bw.reason || "")}">Buy workstation · ${E.wsCost(S, p.id)}G</button>${bw.ok ? "" : `<span class="why">${esc(bw.reason || "")}</span>`}` : mine && tot >= S.cfg.wsMax ? ' <span class="mute">(the maximum)</span>' : "";
-  return `<div class="row" data-tut="ws" style="font-size:12px;margin-top:6px;gap:6px;align-items:center" title="A worker needs a free workstation to take any board tile or Studio Perk. Triggering your own systems does not need one, and a Team Event uses none; R&D uses two. You start with ${S.cfg.wsFree}; buy more (max ${S.cfg.wsMax}). Bought workstations come back every round of the phase; a new phase resets you to ${S.cfg.wsFree}."><b>Workstations</b> <span>${left} free of ${tot}</span>${btn}</div>`;
+  const btn = S.cfg.wsAtIncome ? "" : mine && tot < S.cfg.wsMax ? ` <button class="btn sm" data-act="buyws" ${bw.ok ? "" : "disabled"} title="${esc(bw.ok ? "" : bw.reason || "")}">Buy workstation · ${E.wsCost(S, p.id)}G</button>${bw.ok ? "" : `<span class="why">${esc(bw.reason || "")}</span>`}` : mine && tot >= S.cfg.wsMax ? ' <span class="mute">(the maximum)</span>' : "";
+  return `<div class="row" data-tut="ws" style="font-size:12px;margin-top:6px;gap:6px;align-items:center" title="A worker needs a free workstation to take any board tile or Studio Perk. Triggering your own systems does not need one, and a Team Event uses none; R&D uses two. Every round you start with ${S.cfg.wsFree} and can buy more before Place (max ${S.cfg.wsMax}); they reset each round."><b>Workstations</b> <span>${left} free of ${tot}</span>${btn}</div>`;
 }
 function playerPanel(S) {
   const vi = viewIndex(S); const p = P(vi); const a = E.currentActor(S); const mine = a === vi && !p.bot;
@@ -690,6 +690,11 @@ function decisionModal(S) {
       Object.keys(d.opts).forEach(t => { h += `<div class="pgrp"><div class="pgrp-l">${esc(t)}</div><div class="pgrid">${d.opts[t].map((id, i) => { const o = S.data.objectives[id]; const sel = (U.keep && U.keep[t] === id) || (!U.keep || U.keep[t] == null) && i === 0; return card(o, `data-act="keep" data-t="${t}" data-id="${id}"`, sel); }).join("")}</div></div>`; });
       h += "</div>";
       foot = `<button class="btn primary" data-act="keep-ok">Confirm objectives</button>`; break;
+    case "wsBuy": { const mx = E.wsBuyMax(S, p.id), sel = Math.min(U.wsn || 0, mx), can = p.workers.filter(w => !w.benched && !w.build).length;
+      sub = `Round ${S.round} · Income: buy workstations`;
+      h += `<p class="pp-p">Workstations <b>reset every round</b>, so decide now how many you need. Each board tile or Studio Perk takes one (Team Event none, R&amp;D two). You cannot buy more once Place starts.</p>${ppKv([["Free this round", `${p.ws}`], ["Workers who can work", `${can}`], ["Your gold", `<b style="color:var(--gold)">${p.gold}G</b>`]])}`;
+      h += `<div class="picks pk-grid">${Array.from({ length: mx + 1 }, (_, i) => ppPick(`data-act="wsn" data-n="${i}"`, i ? `Buy ${i} more: ${p.ws + i} in total` : `Keep ${p.ws}: buy none`, { on: sel === i, help: i ? E.wsBuyCost(S, p.id, i) + "G" : "Free" })).join("")}</div>`;
+      foot = `<button class="btn primary big" data-tut="act" data-act="wsbuy-ok">${sel ? "Buy " + sel + " for " + E.wsBuyCost(S, p.id, sel) + "G" : "Keep " + p.ws}</button>`; break; }
     case "bid":
       sub = "Secret auction bid";
       h += `<p class="pp-p">The winner pays their bid. Others keep their gold.</p>${ppKv([["Your gold", `<b style="color:var(--gold)">${p.gold}G</b>`]])}<div class="pgrp"><label class="pgrp-l bidlab" for="bid">Your bid in Gold (0 to ${p.gold})</label><input id="bid" class="bidin" type="number" inputmode="numeric" min="0" max="${p.gold}" value="0"></div>`;
@@ -1261,6 +1266,8 @@ $root.addEventListener("click", e => {
     /* decisions */
     case "keep": U.keep = Object.assign(U.keep || {}, { [t.dataset.t]: +t.dataset.id }); render(); return;
     case "keep-ok": { const d = S.dq[0]; const picks = {}; Object.keys(d.opts).forEach(k => { picks[k] = (U.keep && U.keep[k] != null && d.opts[k].includes(U.keep[k])) ? U.keep[k] : d.opts[k][0]; }); U.keep = null; act({ type: "keepObj", p: pi, picks }); return; }
+    case "wsn": U.wsn = +t.dataset.n; render(); return;
+    case "wsbuy-ok": { const n = Math.min(U.wsn || 0, E.wsBuyMax(S, pi)); U.wsn = null; act({ type: "wsBuy", p: pi, n }); return; }
     case "bid": act({ type: "bid", p: pi, amount: +document.getElementById("bid").value }); return;
     case "choose": act({ type: "choose", p: pi, k: t.dataset.k }); return;
     case "pickw": act({ type: "pickWorker", p: pi, worker: +t.dataset.w }); return;

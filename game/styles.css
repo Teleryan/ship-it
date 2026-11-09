@@ -1027,3 +1027,6 @@ body{overscroll-behavior-y:none;min-height:100vh;min-height:100dvh}
 /* the Tech Debt corner badge sits above the role chips instead of on top of them */
 .spot.hasdebt{padding-top:28px}
 .spot.hasdebt .corner{top:1px;right:1px}
+
+/* workstation purchase: the choices sit in a compact grid so the pop-up never scrolls */
+.picks.pk-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--sp2)}
