@@ -452,7 +452,7 @@ function cleanMiles(S, a) {
   return `<div class="panel" data-tut="miles"><h3>Your milestones (${a.miles.length}): cash in when met</h3><div class="mcells">${cards || '<span class="mute">No milestones in hand.</span>'}</div></div>`;
 }
 function restView(S, a) {
-  return `<div class="panel" data-tut="rest"><h3>${S.cfg.trainTile ? "Manage: build, cash in" : "Manage: build, train, promote, cash in"}</h3><div class="mute" style="margin:2px 0 6px">${S.cfg.trainTile ? "Build systems, cash in any met Milestone above, then press Done. Train Juniors on the Training tile." : "Cash in any met Milestone above, click a worker to train or promote them, then press Done."}</div><div class="workers">${a.workers.map(w => workerCard(S, w, a.id, false)).join("") || '<span class="mute">No workers.</span>'}</div></div>`;
+  return `<div class="panel" data-tut="rest"><h3>${S.cfg.trainTile ? "Manage: build, cash in" : "Manage: build, train, promote, cash in"}</h3><div class="mute" style="margin:2px 0 6px">${S.cfg.trainTile ? "Build systems, cash in any met Milestone above, then press Done. Train Juniors on the Training tile." : "Cash in any met Milestone above, click a worker to train or promote them, then press Done."}</div>${S.cfg.trainTile ? "" : `<div class="workers">${a.workers.map(w => workerCard(S, w, a.id, false)).join("") || '<span class="mute">No workers.</span>'}</div>`}</div>`; // with the Training tile the studio workers panel below already shows them
 }
 function gatesPanel(S) {
   if (!S.cfg.gatesEnabled || !(S.data.publisherGates || []).length || S.step === "setup") return "";
