@@ -978,7 +978,6 @@ body{overscroll-behavior-y:none;min-height:100vh;min-height:100dvh}
   .btn,.btn.sm,.tab,select,.pick,.opt,.wk .wi,.mcell .btn{min-height:var(--tap)}
   .btn.sm{padding:6px 12px}
   input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea{font-size:16px;min-height:var(--tap)}
-  .ico{min-width:var(--tap);min-height:28px;justify-content:center}
   .coach .cb .btn{min-height:var(--tap)}
 }
 .coach .cp,.coach .ctl{font-size:12px}
