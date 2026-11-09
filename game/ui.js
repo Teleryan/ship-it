@@ -80,7 +80,7 @@ function noteNotices() { // a player was turned into "done placing" because no t
   const ns = S.notices || []; if (noticeSeen > ns.length) noticeSeen = 0;
   const fresh = ns.slice(noticeSeen); noticeSeen = ns.length;
   const mine = fresh.filter(n => U.net ? U.net.mine.includes(n.p) : !S.players[n.p].bot);
-  if (mine.length) setTimeout(() => toast(mine[mine.length - 1].t + ".", 7000, "info"), 0);
+  if (mine.length) setTimeout(() => toast(mine[mine.length - 1].t + ".", 7000, "info feed"), 0); // also shown in the turn banner, so it hides while a pop-up is open
 }
 function noteRecruits() {
   const S = U.S; if (!S || !S.recruit || U.tut || U.screen !== "game") return;
@@ -91,7 +91,7 @@ function noteRecruits() {
     const q = S.players[o.by]; if (!q || (U.net ? U.net.mine.includes(o.by) : !q.bot)) return; // you already know about your own recruit
     msgs.push(q.name + " recruited a " + nameOf(o.disc) + " from the pool (" + S.recruit.filter(x => x.by == null).length + " left)");
   });
-  if (msgs.length) setTimeout(() => toast(msgs.join(" · "), 5000, "info"), 0);
+  if (msgs.length) setTimeout(() => toast(msgs.join(" · "), 5000, "info feed"), 0); // "feed" toasts only recap the log, so they stay out of the way while a pop-up is open
 }
 function snapshot() { try { return SI.an.mark() + "|" + JSON.stringify(U.S, (k, v) => k === "data" ? undefined : v); } catch (e) { return null; } } // the number before | is the analytics event count, so Undo also rewinds the event log
 function restore(js) { const data = U.S.data; const bar = js.indexOf("|"), mk = +js.slice(0, bar); const S = JSON.parse(js.slice(bar + 1)); S.data = data; U.S = S; SI.an.rebind(S, mk); }
@@ -502,14 +502,14 @@ function playersPanel(S) {
 function crewModal(S) {
   const c = U.crew; if (!c) return "";
   const pi = viewIndex(S), p = P(pi), def = E.sysDef(S, c.name), cands = E.crewCandidates(S, pi, c.name);
-  const wl = id => { const w = p.workers.find(x => x.id === id); return `${w.lvl === "Sr" ? "Senior" : "Junior"} ${esc(dname(w.disc))} · ${FAT[w.fat]}`; };
+  const wl = id => { const w = p.workers.find(x => x.id === id); return [`${w.lvl === "Sr" ? "Senior" : "Junior"} ${esc(dname(w.disc))}`, FAT[w.fat]]; };
   const used = Object.values(c.sel);
-  const rows = cands.map((r, i) => `<div class="dsec"><h4>${esc(dname(r.role))} needed</h4><div class="row wrap" style="gap:6px">${r.ids.length ? r.ids.map(id => { const on = c.sel[i] === id, taken = !on && used.includes(id); return `<button class="btn sm ${on ? "primary" : ""}" ${taken ? "disabled" : ""} data-act="crew-pick" data-i="${i}" data-w="${id}">${wl(id)}</button>`; }).join("") : `<span class="mute">Nobody free can fill this role</span>`}</div></div>`).join("");
+  const rows = cands.map((r, i) => ppSec(`${esc(dname(r.role))} needed`, r.ids.length ? `<div class="picks cols">${r.ids.map(id => { const on = c.sel[i] === id, taken = !on && used.includes(id), t = wl(id); return ppPick(`data-act="crew-pick" data-i="${i}" data-w="${id}"`, t[0], { on, off: taken, help: taken ? t[1] + " · picked for another role" : t[1] }); }).join("")}</div>` : `<div class="callout warn">Nobody free can fill this role</div>`)).join("");
   let crunchRow = "";
-  if (c.crunch === "fat") { const tw = p.workers.filter(w => w.fat < 2); crunchRow = `<div class="dsec"><h4>Crunch: who works late?</h4><div class="row wrap" style="gap:6px">${tw.map(w => `<button class="btn sm ${c.cw === w.id ? "primary" : ""}" data-act="crew-cw" data-w="${w.id}">${wl(w.id)}</button>`).join("")}</div><div class="mute" style="font-size:12px;margin-top:4px">That worker becomes one step more tired.</div></div>`; }
+  if (c.crunch === "fat") { const tw = p.workers.filter(w => w.fat < 2); crunchRow = ppSec("Crunch: who works late?", `<div class="picks cols">${tw.map(w => { const t = wl(w.id); return ppPick(`data-act="crew-cw" data-w="${w.id}"`, t[0], { on: c.cw === w.id, help: t[1] }); }).join("")}</div><div class="pp-help">That worker becomes one step more tired.</div>`); }
   const ready = cands.length === Object.keys(c.sel).length && cands.every((r, i) => c.sel[i] != null) && (c.crunch !== "fat" || c.cw != null);
-  return modalShell(`<h2>Pick the build crew</h2><p class="mute">${esc(def.name)} needs ${cands.length} worker${cands.length === 1 ? "" : "s"}. They sit out until it is finished. You choose who.</p>${rows}${crunchRow}
-  <div class="row" style="margin-top:12px;gap:8px"><button class="btn" data-act="crew-cancel">Back</button>${actBtn("Start build", 'data-act="crew-ok"', !ready, "Pick a worker for every role", true)}</div>`);
+  return modalShell(rows + crunchRow, { eyebrow: "Build", title: "Pick the build crew", sub: `${esc(def.name)} needs ${cands.length} worker${cands.length === 1 ? "" : "s"}. They sit out until it is finished. You choose who.`, size: "md", cls: "crewm",
+    foot: `<button class="btn" data-act="crew-cancel">Back</button>${actBtn("Start build", 'data-act="crew-ok"', !ready, "Pick a worker for every role", true)}` });
 }
 function liveVpPanel(S) {
   if (["setup"].includes(S.step) || !S.players.length) return "";
@@ -526,7 +526,8 @@ const PHASE_GOAL = ["Earn skills, recruit your first workers and start your firs
 /* One layout for every between-step screen (round start, phase start, round 12): a header with the round rail, what just happened (signed deltas),
    what changed for you, what is next, and ONE primary button in the same place. Only the sections differ. */
 function stepShell(S, step, title, body, btn) {
-  return modalShell(`<div class="rs"><div class="rs-top"><span class="rs-kick">Round ${S.round} of ${S.cfg.rounds || 12}</span>${railHtml(S)}<span class="phasepill" style="background:${PH[S.phase].color}">${esc(PH[S.phase].name.toUpperCase())}</span></div><h2>${title}</h2>${body}<div class="rs-foot"><button class="btn primary big" data-act="stepnext" data-tut="stepnext">${btn || "Continue"}</button></div></div>`, { noClose: true, cls: "rsm" });
+  const top = `<div class="rs-top"><span class="rs-kick">Round ${S.round} of ${S.cfg.rounds || 12}</span>${railHtml(S)}<span class="phasepill" style="background:${PH[S.phase].color}">${esc(PH[S.phase].name.toUpperCase())}</span></div>`;
+  return modalShell(`<div class="rs">${body}</div>`, { noClose: true, cls: "rsm", size: "lg", eyebrow: top, title, foot: `<button class="btn primary big" data-act="stepnext" data-tut="stepnext">${btn || "Continue"}</button>` });
 }
 const sgn = n => n > 0 ? "+" + n : n < 0 ? "−" + Math.abs(n) : "0";
 // a signed change: the sign carries the meaning, colour only reinforces it (good = green, bad = red)
@@ -617,10 +618,28 @@ function gameView() {
 }
 
 /* ---------- modals ---------- */
+/* POPUPS design system (see POPUPS section of styles.css).
+   modalShell(body, { title, eyebrow, sub, toolbar, foot, size: sm|md|lg|xl, wide, cls, ov, accent, noClose })
+   header row (eyebrow, title, subtitle, close x top-right) / optional toolbar / scrolling body / sticky footer of actions.
+   A call without title is the legacy shell (Data Studio, Master): body markup keeps its own heading, the x floats top-right. */
+let modalSeq = 0;
 function modalShell(inner, opts) {
   opts = opts || {};
-  return `<div class="overlay" ${opts.noClose ? "" : 'data-act="overlay"'}><div class="modal ${opts.cls || ""}" ${opts.wide ? 'style="width:min(1100px,100%)"' : ""}>${opts.noClose ? "" : '<button class="x" data-act="close" aria-label="Close">×</button>'}${inner}</div></div>`;
+  const legacy = !opts.title, size = opts.wide ? "xl" : (opts.size || "md"), id = "mt" + (++modalSeq);
+  const close = opts.noClose ? "" : '<button class="x" data-act="close" aria-label="Close">×</button>';
+  const head = legacy ? close : `<header class="mh"><div class="mh-t">${opts.eyebrow ? `<div class="mh-e">${opts.eyebrow}</div>` : ""}<h2 class="mh-h" id="${id}">${opts.title}</h2>${opts.sub ? `<div class="mh-s">${opts.sub}</div>` : ""}</div>${close}</header>${opts.toolbar ? `<div class="mtb">${opts.toolbar}</div>` : ""}`;
+  return `<div class="overlay ${opts.ov || ""}" ${opts.noClose ? "" : 'data-act="overlay"'}><div class="modal sz-${size} ${legacy ? "pp-legacy" : ""} ${opts.cls || ""}" role="dialog" aria-modal="true" ${legacy ? "" : `aria-labelledby="${id}"`} tabindex="-1"${opts.accent ? ` style="--acc:${opts.accent}"` : ""}>${head}<div class="mb">${inner}</div>${opts.foot ? `<footer class="mf">${opts.foot}</footer>` : ""}</div></div>`;
 }
+const plain = h => String(h == null ? "" : h).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+/* section with a small caps label */
+const ppSec = (label, inner, cls) => `<section class="pp-sec ${cls || ""}"><h3 class="pp-h">${label}</h3>${inner}</section>`;
+/* key-value rows: label column + value column, aligned across rows */
+const ppKv = rows => `<dl class="kv">${rows.filter(Boolean).map(r => `<div class="kv-r"><dt>${r[0]}</dt><dd>${r[1]}</dd></div>`).join("")}</dl>`;
+/* selectable option row (radio): full width, 44px+ tap target, title and optional helper on aligned lines */
+const ppOpt = (name, val, title, o) => { o = o || {}; return `<label class="opt${o.off ? " off" : ""}"${o.why ? ` title="${SI.esc(o.why)}"` : ""}><input type="radio" name="${name}" value="${SI.esc(val)}" ${o.checked ? "checked" : ""} ${o.off ? "disabled" : ""}><span class="opt-b"><span class="opt-t">${title}</span>${o.help ? `<span class="opt-h">${o.help}</span>` : ""}</span></label>`; };
+const ppGroup = (label, opts, o) => { o = o || {}; return `<div class="pgrp${o.need ? " need" : ""}" role="radiogroup" aria-label="${SI.esc(plain(label))}"><div class="pgrp-l">${label}</div>${o.help ? `<div class="pgrp-h">${o.help}</div>` : ""}<div class="opts${o.inline ? " inline" : ""}">${opts.join("")}</div></div>`; };
+/* selectable button row (data-act buttons that act like options: crew picks, decisions) */
+const ppPick = (attrs, title, o) => { o = o || {}; return `<button type="button" class="pick${o.on ? " on" : ""}" ${attrs} ${o.off ? "disabled" : ""} aria-pressed="${o.on ? "true" : "false"}"><span class="pick-t">${title}</span>${o.help ? `<span class="opt-h">${o.help}</span>` : ""}</button>`; };
 function roundIntroModal(S) {
   const rn = S.rnote; if (!rn) return "";
   const sg = n => (n > 0 ? "+" : n < 0 ? "\u2212" : "") + Math.abs(n);
@@ -644,91 +663,115 @@ function milesModal(S) {
   const done = {}; S.players.forEach(p => p.claimed.forEach(id => { done[id] = p; }));
   const cats = []; S.data.milestones.forEach((m, id) => { let c = cats.find(x => x.name === m.cat); if (!c) { c = { name: m.cat, items: [] }; cats.push(c); } c.items.push({ m, id }); });
   const left = S.data.milestones.length - Object.keys(done).length;
-  return modalShell(`<h2>Milestones</h2><p class="mute">Every milestone is public. Players hold them in secret, but anyone can see what exists and what has already been cashed in. ${left} of ${S.data.milestones.length} still available.</p>
-  ${cats.map(c => `<div class="dtitle" style="margin-top:12px">${esc(c.name)} <span class="mute" style="font-size:12px;font-weight:400">${c.items.filter(x => !done[x.id]).length}/${c.items.length} available</span></div><div class="col" style="gap:4px">${c.items.map(({ m, id }) => { const p = done[id]; return `<div class="row" style="gap:8px;align-items:baseline;${p ? "opacity:.5" : ""}"><b style="min-width:150px">${esc(m.name)}</b><span style="color:var(--gold);min-width:34px">+${m.gold}G</span><span class="mute grow">${esc(m.text)}</span>${p ? `<span title="Cashed in by ${esc(p.name)}"><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${p.color}"></i> ${esc(p.name)}</span>` : ""}</div>`; }).join("")}</div>`).join("")}`, { wide: true });
+  const body = cats.map(c => ppSec(`${esc(c.name)} <span class="pp-cnt">${c.items.filter(x => !done[x.id]).length}/${c.items.length} available</span>`,
+    `<div class="mrows">${c.items.map(({ m, id }) => { const p = done[id]; return `<div class="mrow${p ? " done" : ""}"><b class="mn">${esc(m.name)}</b><span class="mg">+${m.gold}G</span><span class="mt">${esc(m.text)}</span>${p ? `<span class="mo" title="Cashed in by ${esc(p.name)}"><i style="background:${p.color}"></i>${esc(p.name)}</span>` : ""}</div>`; }).join("")}</div>`)).join("");
+  return modalShell(body, { title: "Milestones", sub: `Every milestone is public. Players hold them in secret, but anyone can see what exists and what has already been cashed in. ${left} of ${S.data.milestones.length} still available.`, size: "lg", cls: "milem" });
 }
 function endGameModal() {
-  return modalShell(`<h2>End the game now?</h2><p class="mute">The game stops where it is and scores are counted as things stand. Use this to finish a test early or after a mistake.</p><div class="row" style="margin-top:14px"><button class="btn primary" data-act="endgame-yes">End game and show scores</button><button class="btn" data-act="close">Keep playing</button></div>`);
+  return modalShell(`<p class="pp-p">The game stops where it is and scores are counted as things stand. Use this to finish a test early or after a mistake.</p>`, { title: "End the game now?", size: "sm", foot: `<button class="btn" data-act="close">Keep playing</button><button class="btn danger solid" data-act="endgame-yes">End game and show scores</button>` });
 }
 function clearDataModal() {
-  return modalShell(`<h2>Clear saved data on this device</h2><p class="mute">Nothing here touches other players or the shared game records.</p><div class="col" style="gap:8px;margin-top:10px">
-    <button class="btn" data-act="cleardata-do" data-v="save" ${hasSave() ? "" : "disabled"}>Clear saved game and recent game</button>
-    <button class="btn" data-act="cleardata-do" data-v="room">Forget my last online game</button>
-    ${U.owner ? '<button class="btn" data-act="cleardata-do" data-v="studio">Reset my local Data Studio edits</button>' : ""}
-    <button class="btn" data-act="cleardata-do" data-v="all">Clear everything above and my saved name</button></div>`);
+  return modalShell(`<div class="picks">
+    <button type="button" class="pick" data-act="cleardata-do" data-v="save" ${hasSave() ? "" : "disabled"}><span class="pick-t">Clear saved game and recent game</span></button>
+    <button type="button" class="pick" data-act="cleardata-do" data-v="room"><span class="pick-t">Forget my last online game</span></button>
+    ${U.owner ? '<button type="button" class="pick" data-act="cleardata-do" data-v="studio"><span class="pick-t">Reset my local Data Studio edits</span></button>' : ""}
+    <button type="button" class="pick danger" data-act="cleardata-do" data-v="all"><span class="pick-t">Clear everything above and my saved name</span></button></div>`, { title: "Clear saved data on this device", sub: "Nothing here touches other players or the shared game records.", size: "sm", foot: `<button class="btn" data-act="close">Cancel</button>` });
 }
 function decisionModal(S) {
   const d = S.dq[0]; const p = P(d.p); const crisis = d.card ? S.data.crisis.find(c => c.id === d.card) : (S.crisisCard && ["choose","pickWorker","raidHire","pivot","dropObj","patch"].includes(d.t) ? S.data.crisis.find(c => c.id === S.crisisCard) : null);
-  let h = `<h2 style="color:${lite(p.color)}">${esc(p.name)}</h2>`;
-  if (crisis) h += crisisCardHtml(crisis) + '<div style="height:10px"></div>';
+  const objRule = `Each objective scores ${S.cfg.objGraded} VP per requirement met, +${S.cfg.objBonus} more if all are met.`;
+  const card = (o, attrs, on, extra) => `<div class="sys pcard ${on ? "ok on" : ""}" role="button" tabindex="0" ${attrs}><div class="t">${esc(o.name)} ${symTag(o)}</div><div class="meta">${extra || `up to ${o.vp} VP`}</div>${(o.reqs || []).map(r => `<div class="meta">• ${esc(r)}</div>`).join("")}</div>`;
+  let h = crisis ? `<div class="pp-crisis">${crisisCardHtml(crisis)}</div>` : "", foot = "", sub = "", size = "md";
   switch (d.t) {
     case "keepObj":
-      h += `<h3 style="margin-bottom:8px">Choose your objectives (keep ${S.cfg.objKeep} of ${S.cfg.objDraw} per type)</h3>`;
-      Object.keys(d.opts).forEach(t => { h += `<div class="mute" style="margin:8px 0 4px">${t}</div><div class="row wrap">${d.opts[t].map((id, i) => { const o = S.data.objectives[id]; const sel = (U.keep && U.keep[t] === id) || (!U.keep || U.keep[t] == null) && i === 0; return `<div class="sys ${sel ? "ok" : ""}" style="width:220px;border-color:${sel ? "var(--gold)" : "var(--line)"}" data-act="keep" data-t="${t}" data-id="${id}"><div class="t">${esc(o.name)} ${symTag(o)}</div><div class="meta">up to ${o.vp} VP (1 per requirement met, +${S.cfg.objBonus} if all)</div>${o.reqs.map(r => `<div class="meta">• ${esc(r)}</div>`).join("")}</div>`; }).join("")}</div>`; });
-      h += `<div style="margin-top:12px"><button class="btn primary" data-act="keep-ok">Confirm objectives</button></div>`; break;
-    case "bid": {
-      h += `<h3>Secret auction bid</h3><p class="mute">Winner pays their bid. Others keep their gold. You have <b style="color:var(--gold)">${p.gold}G</b>.</p>
-      <label class="bidlab" for="bid">Your bid in Gold (0 to ${p.gold})</label><div class="row"><input id="bid" type="number" inputmode="numeric" min="0" max="${p.gold}" value="0" style="width:110px;font-size:22px;min-height:48px"><button class="btn primary" style="min-height:48px;padding:0 22px" data-tut="act" data-act="bid">Lock in bid</button></div>`; break; }
-    case "choose": h += `<h3>Your choice</h3>` + d.options.map(o => `<button class="btn optbtn" data-act="choose" data-k="${o.k}" ${o.disabled ? "disabled" : ""} title="${esc(o.reason || "")}"><b>${o.k.length === 1 ? o.k + ")" : ""}</b> ${esc(o.label)}${o.disabled ? ' <span class="mute">(' + esc(o.reason || "") + ")</span>" : ""}</button>`).join(""); break;
-    case "pickWorker": h += `<h3>Choose a worker to lose${d.srOnly ? " (Sr only)" : ""}</h3><div class="workers">${p.workers.map(w => `<div class="wk" data-act="pickw" data-w="${w.id}" style="${d.srOnly && w.lvl !== "Sr" ? "opacity:.3;pointer-events:none" : ""}"><div class="d" style="color:${dcol(w.disc)}">${w.disc}</div><div class="l">${w.lvl} · ${["Active","Tired","Exhausted"][w.fat]}</div></div>`).join("")}</div>`; break;
+      size = "lg"; sub = `Choose your objectives: keep ${S.cfg.objKeep} of ${S.cfg.objDraw} per type. ${objRule}`;
+      Object.keys(d.opts).forEach(t => { h += `<div class="pgrp"><div class="pgrp-l">${esc(t)}</div><div class="pgrid">${d.opts[t].map((id, i) => { const o = S.data.objectives[id]; const sel = (U.keep && U.keep[t] === id) || (!U.keep || U.keep[t] == null) && i === 0; return card(o, `data-act="keep" data-t="${t}" data-id="${id}"`, sel); }).join("")}</div></div>`; });
+      foot = `<button class="btn primary" data-act="keep-ok">Confirm objectives</button>`; break;
+    case "bid":
+      sub = "Secret auction bid";
+      h += `<p class="pp-p">The winner pays their bid. Others keep their gold.</p>${ppKv([["Your gold", `<b style="color:var(--gold)">${p.gold}G</b>`]])}<div class="pgrp"><label class="pgrp-l bidlab" for="bid">Your bid in Gold (0 to ${p.gold})</label><input id="bid" class="bidin" type="number" inputmode="numeric" min="0" max="${p.gold}" value="0"></div>`;
+      foot = `<button class="btn primary big" data-tut="act" data-act="bid">Lock in bid</button>`; break;
+    case "choose":
+      sub = "Your choice";
+      h += `<div class="picks">${d.options.map(o => ppPick(`data-act="choose" data-k="${o.k}" title="${esc(o.reason || "")}"`, (o.k.length === 1 ? `<span class="pick-k">${esc(o.k)}</span>` : "") + esc(o.label), { off: o.disabled, help: o.disabled ? esc(o.reason || "") : "" })).join("")}</div>`; break;
+    case "pickWorker":
+      sub = `Choose a worker to lose${d.srOnly ? " (Seniors only)" : ""}`;
+      h += `<div class="workers pp-workers">${p.workers.map(w => `<div class="wk" role="button" tabindex="0" data-act="pickw" data-w="${w.id}" style="${d.srOnly && w.lvl !== "Sr" ? "opacity:.3;pointer-events:none" : ""}"><div class="d" style="color:${dcol(w.disc)}">${w.disc}</div><div class="l">${w.lvl} · ${["Active","Tired","Exhausted"][w.fat]}</div></div>`).join("")}</div>`; break;
     case "raidHire": {
       const half = l => Math.floor((l === "Jr" ? S.cfg.jrCost : S.cfg.srCost) / 2);
-      h += `<h3>Recruit a Junior at half cost</h3><p class="mute">Jr ${half("Jr")}G · you have ${p.gold}G. Any discipline is available.</p>`;
+      sub = "Recruit a Junior at half cost";
+      h += `${ppKv([["Cost", `Jr ${half("Jr")}G`], ["Your gold", `${p.gold}G`], ["Pool", "Any discipline is available"]])}`;
       const opts = S.pool.length ? S.pool : E.DISCS.map(x => ({ disc: x, lvl: "Jr" })); // Seniors are never for sale, so only Juniors are offered
-      h += `<div class="row wrap">${opts.map(o => `<button class="btn sm" data-act="raid" data-disc="${o.disc}" data-lvl="${o.lvl}" ${p.gold < half(o.lvl) || (o.lvl === "Sr" && !E.srAllowed(S)) ? "disabled" : ""}>${o.lvl} ${o.disc} · ${half(o.lvl)}G</button>`).join("")}</div><div style="margin-top:10px"><button class="btn" data-act="raid-skip">Pass</button></div>`; break; }
+      h += `<div class="pgrp"><div class="pgrp-l">Recruit</div><div class="pgrid tight">${opts.map(o => ppPick(`data-act="raid" data-disc="${o.disc}" data-lvl="${o.lvl}"`, `${o.lvl} ${esc(o.disc)}`, { off: p.gold < half(o.lvl) || (o.lvl === "Sr" && !E.srAllowed(S)), help: `${half(o.lvl)}G` })).join("")}</div></div>`;
+      foot = `<button class="btn" data-act="raid-skip">Pass</button>`; break; }
     case "pivot": { const o = S.data.objectives[d.fresh], old = S.data.objectives[d.old];
-      h += `<h3>New Platform: ${esc(o.name)}</h3><div class="sys" style="width:240px"><div class="t">${esc(o.name)} ${symTag(o)}</div><div class="meta">up to ${o.vp} VP (1 per requirement met, +${S.cfg.objBonus} if all)</div>${o.reqs.map(r => `<div class="meta">• ${esc(r)}</div>`).join("")}</div><p class="mute">Current Platform: ${esc(old.name)} (up to ${old.vp} VP)</p><div class="row"><button class="btn primary" data-act="pivot" data-r="1">Replace current</button><button class="btn" data-act="pivot" data-r="0">Keep both</button></div>`; break; }
-    case "dropObj": h += `<h3>Remove ${d.left} objective(s) from scoring</h3><div class="row wrap">${p.objectives.map(id => { const o = S.data.objectives[id]; return `<div class="sys" data-act="drop" data-id="${id}" style="cursor:pointer"><div class="t">${esc(o.name)}</div><div class="meta">up to ${o.vp} VP (1 per requirement met, +${S.cfg.objBonus} if all)</div></div>`; }).join("")}</div>`; break;
-    case "keepMile": h += `<h3>Keep ${d.keep} milestone(s)</h3><div class="row wrap">${d.opts.map(id => { const m = S.data.milestones[id]; return `<div class="sys" style="width:200px;cursor:pointer" data-act="keepm" data-id="${id}"><div class="t">${esc(m.name)}</div><div class="meta">${esc(m.text)}</div><div class="e" style="color:var(--gold)">+${m.gold}G</div></div>`; }).join("")}</div>`; break;
-    case "patch": { const fx = S.data.crisis.find(c => c.id === "patch").params.fixes; h += `<h3>Emergency fixes</h3><p class="mute">${resNow(p)} · Tech Debt ${p.debt}</p><div class="row wrap">${fx.map((f, i) => `<button class="btn" data-act="patchfix" data-i="${i}" ${E.resTotal(p) < f[0] ? "disabled" : ""}>Spend ${f[0]} skills → −${f[1]} Debt</button>`).join("")}<button class="btn primary" data-act="patchdone">Done</button></div>`; break; }
+      sub = `New Platform: ${esc(o.name)}`;
+      h += `<div class="pgrp"><div class="pgrp-l">New Platform objective</div>${card(o, "", false)}</div>${ppKv([["Current Platform", `${esc(old.name)} (up to ${old.vp} VP)`], ["Scoring", objRule]])}`;
+      foot = `<button class="btn" data-act="pivot" data-r="0">Keep both</button><button class="btn primary" data-act="pivot" data-r="1">Replace current</button>`; break; }
+    case "dropObj": sub = `Remove ${d.left} objective(s) from scoring`; h += `<div class="pgrid">${p.objectives.map(id => card(S.data.objectives[id], `data-act="drop" data-id="${id}"`, false)).join("")}</div>`; break;
+    case "keepMile": sub = `Keep ${d.keep} milestone(s)`; h += `<div class="pgrid">${d.opts.map(id => { const m = S.data.milestones[id]; return `<div class="sys pcard" role="button" tabindex="0" data-act="keepm" data-id="${id}"><div class="t">${esc(m.name)}</div><div class="meta">${esc(m.text)}</div><div class="e" style="color:var(--gold)">+${m.gold}G</div></div>`; }).join("")}</div>`; break;
+    case "patch": { const fx = S.data.crisis.find(c => c.id === "patch").params.fixes; sub = "Emergency fixes";
+      h += `${ppKv([["Your skills", resNow(p)], ["Tech Debt", `${p.debt}`]])}<div class="picks">${fx.map((f, i) => ppPick(`data-act="patchfix" data-i="${i}"`, `Spend ${f[0]} skills → −${f[1]} Debt`, { off: E.resTotal(p) < f[0] })).join("")}</div>`;
+      foot = `<button class="btn primary" data-act="patchdone">Done</button>`; break; }
   }
-  return modalShell(h, { noClose: true });
+  return modalShell(h, { noClose: true, eyebrow: "Decision", title: `<span style="color:${lite(p.color)}">${esc(p.name)}</span>`, sub, foot, size, cls: "decision" });
 }
 function coverView(S) {
   const d = S.dq[0]; const p = P(d.p);
   return `<div class="cover"><div><div class="dot" style="background:${p.color};width:34px;height:34px;margin:0 auto 14px"></div><h1>Pass to ${esc(p.name)}</h1><p class="mute">${d.t === "keepObj" ? "Choose your secret objectives" : "Secret bid"}. Other players look away.</p><button class="btn primary" style="font-size:18px;padding:12px 28px" data-act="uncover">I'm ready</button></div></div>`;
 }
 /* ---------- detail popup (click any card, tile or object) ---------- */
+/* Action button. A disabled button explains itself in the footer note (left of the buttons), once. */
 function actBtn(label, attrs, disabled, reason, primary) {
-  return `<button class="btn ${primary === false ? "" : "primary"}" data-tut="act" ${attrs} ${disabled ? "disabled" : ""} title="${esc(reason || "")}">${esc(label)}</button>${disabled && reason ? `<span class="mute" style="font-size:12px;margin-left:6px">${esc(reason)}</span>` : ""}`;
+  return `<button class="btn ${primary === false ? "" : "primary"}" data-tut="act" ${attrs} ${disabled ? "disabled" : ""} title="${esc(reason || "")}">${esc(label)}</button>${disabled && reason ? `<span class="mf-note">${esc(reason)}</span>` : ""}`;
 }
-function discHead(disc) { const d = D.disciplines[disc]; return `<div class="dhead" style="${fill(dcol(disc))}"><span>${esc(d.cat)}</span></div>`; }
 const dname = d => (D.disciplines[d] || {}).name || d;
-function lines(items) { return `<ul class="dl">${items.filter(Boolean).map(s => `<li>${s}</li>`).join("")}</ul>`; }
-function sec(title, items) { return `<div class="dsec"><h4>${esc(title)}</h4>${lines(items)}</div>`; }
+function lines(items) { return `<ul class="pp-list">${items.filter(Boolean).map(s => `<li>${s}</li>`).join("")}</ul>`; }
+function sec(title, items) { return ppSec(esc(title), lines(items)); }
+const tcase = t => { t = String(t || ""); return /^[A-Z ]+$/.test(t) && t.length > 3 ? t.toLowerCase().replace(/(^|\s)\w/g, m => m.toUpperCase()) : t; };
+const crewWho = spot => (spot.crew || []).map(alt => alt.map(c => `<span class="chip" style="${fill((D.categories[c] || {}).color || "#666677")}">${c}</span>`).join('<span class="pl">+</span>')).join('<span class="or">or</span>');
 function utilLines(disc) {
   const dd = D.disciplines[disc];
   return dd.util.split(/\.\s+/).map(s => s.replace(/\.$/, "")).filter(Boolean).map(s => { const m = s.match(/^([^:]{2,20}):\s*(.+)$/); return m ? `<b>${esc(m[1])}:</b> ${esc(m[2])}` : esc(s); });
 }
-function discInfo(disc) {
-  const d = D.disciplines[disc];
-  return `<div class="dtitle">${esc(d.name)}</div>${sec("What they do", utilLines(disc))}${sec("Good to know", ["Board tiles list this role as <b>" + d.name + "</b>", "Placing them earns the skill of their role (" + ({ Creative: "Ideas", Development: "Code", Operations: "Process", Marketing: "Buzz" })[d.cat] + "). Junior: +" + U.S.cfg.resJr + ". Senior: +" + U.S.cfg.resSr + " and +" + U.S.cfg.srBonus + " Progress or Marketing"])}`;
-}
 function placeForm(S, pi, w, target) {
+  const wname = (w.lvl === "Sr" ? "Senior " : "Junior ") + dname(w.disc), label = "Place " + wname + " here";
   const o = E.placementOptions(S, pi, w).find(x => x.target === target);
-  if (!o) return `<p class="mute">Not available.</p>`;
-  if (!o.ok) return `<div class="row">${actBtn("Place " + (w.lvl === "Sr" ? "Senior " : "Junior ") + dname(w.disc) + " here", "", true, o.reason)}</div>`;
-  const fx = o.spot ? E.parseEffect(o.spot.fx) : null; let h = "";
-  if (o.as && o.as.length > 1) h += `<div><div class="mute">Declare as</div>${o.as.map((x, i) => `<label style="margin-right:10px"><input type="radio" name="as" value="${x}" ${i === 0 ? "checked" : ""}> ${esc(nameOf(x))}</label>`).join("")}</div>`;
-  if (w.lvl === "Sr" && o.kind === "spot" && !o.spot.special) h += `<div><div class="mute">Senior bonus</div><label style="margin-right:10px"><input type="radio" name="bonus" value="prod" checked> +${S.cfg.srBonus} Progress</label><label><input type="radio" name="bonus" value="mktg"> +${S.cfg.srBonus} Marketing</label></div>`;
-  if (o.plans && o.plans.length) { const pw = P(pi).workers; h += `<div><div class="mute">Strike Team: placed together, each earns the skill of the role they fill. Pick the partner for ${esc(dname(w.disc))} (you must choose)</div>${o.plans.map((pl, i) => `<label style="display:block;margin:3px 0"><input type="radio" name="crew" value="${pl.ids.join(",")}"> <b>${(w.lvl === "Sr" ? "Senior " : "Junior ") + esc(dname(w.disc))} as ${pl.wcat}</b> + ${pl.ids.map(id => { const x = pw.find(y => y.id === id); return (x.lvl === "Sr" ? "Senior " : "Junior ") + esc(nameOf(x.disc)) + " as " + pl.cats[id]; }).join(" + ")}</label>`).join("")}</div>`; }
-  if (fx && fx.choice) h += `<div><div class="mute">Effect</div>${(() => { const parts = String(o.spot.fx || "").split(/\s+OR\s+/); return ["0", "1"].map(i => `<label style="margin-right:10px"><input type="radio" name="choice" value="${i}" ${i === "0" ? "checked" : ""}> ${parts[+i] ? fxTxt(parts[+i].trim()) : "option " + (+i + 1)}</label>`).join(""); })()}</div>`;
-  if (fx && (fx.stats.prod || 0) > 0 && o.kind === "spot" && (o.as || []).some(x => x === "ENG" || x === "ART")) h += `${(() => { const eff = o.as && o.as.length === 1 ? o.as[0] : w.disc, noDebt = (P(pi).debt || 0) <= 0, noEng = eff === "ART" || noDebt, noArt = eff === "ENG", opt = (v, txt, off, why) => `<label style="margin-right:10px;${off ? "opacity:.4" : ""}" ${off ? `title="${why}"` : ""}><input type="radio" name="alt" value="${v}" ${off ? "disabled" : ""}> ${txt}</label>`; return `<div><div class="mute">Alternate action (Engineer / Artist)</div><label style="margin-right:10px"><input type="radio" name="alt" value="" checked> Normal</label>${opt("fixdebt", "Engineer: fix Tech Debt instead", noEng, eff === "ART" ? "Only an Engineer can do this" : "You have no Tech Debt to fix")}${opt("hype", "Artist: Hype instead", noArt, "Only an Artist can do this")}</div>`; })()}`;
-  if (o.spot && o.spot.special === "convert") { const rk = E.RES_OF[E.CAT_OF(o.as[0])], n = Math.floor((P(pi)[rk] || 0) / (S.cfg.convertRate || 3)); h += `<div><div class="mute">Convert ${n * (S.cfg.convertRate || 3)} ${E.RES_NAME[rk]} into ${n}:</div><label style="margin-right:10px"><input type="radio" name="conv" value="prod" checked> Progress</label><label><input type="radio" name="conv" value="hype"> Hype</label></div>`; }
-  if (o.spot && o.spot.special === "rd" && S.cfg.instantBuild) { const ks = [["ideas", "Ideas"], ["code", "Code"], ["process", "Process"], ["buzz", "Buzz"]], n = S.cfg.rdSkills == null ? 2 : S.cfg.rdSkills; for (let i = 1; i <= n; i++) h += `<div><div class="mute">Skill ${i} of ${n}</div>${ks.map((k, j) => `<label style="margin-right:10px"><input type="radio" name="rd${i}" value="${k[0]}" ${j === i - 1 ? "checked" : ""}> ${k[1]}</label>`).join("")}</div>`; }
-  if (o.spot && o.spot.special === "train") { const sc = S.cfg.trainSkillCost == null ? 1 : S.cfg.trainSkillCost; h += `<div class="mute">Training costs ${sc} skill${sc === 1 ? "" : "s"} of the worker\u2019s role. The Junior becomes a Senior, earns no skill and is not tired.</div>`; }
-  if (o.spot && o.spot.special === "mentor") h += `<div><div class="mute">Promote which Junior?</div>${P(pi).workers.filter(x => x.lvl === "Jr" && x.disc === w.disc).map((x, i) => `<label style="margin-right:10px"><input type="radio" name="jr" value="${x.id}" ${i === 0 ? "checked" : ""}> Junior ${esc(nameOf(x.disc))} #${x.id}</label>`).join("")}</div>`;
-  return `<div class="col" style="margin:8px 0">${h}</div><div class="row">${actBtn("Place " + (w.lvl === "Sr" ? "Senior " : "Junior ") + dname(w.disc) + " here", 'data-act="confirm-place"')}</div>`;
+  if (!o) return { b: `<div class="callout">Not available.</div>`, f: "" };
+  if (!o.ok) return { b: `<div class="callout warn"><b>Cannot place here.</b> ${esc(o.reason || "")}</div>`, f: actBtn(label, "", true, "") };
+  const fx = o.spot ? E.parseEffect(o.spot.fx) : null; const G = []; const pw = P(pi).workers;
+  if (o.as && o.as.length > 1) G.push(ppGroup("Declare as", o.as.map((x, i) => ppOpt("as", x, esc(nameOf(x)), { checked: i === 0 })), { inline: true }));
+  if (w.lvl === "Sr" && o.kind === "spot" && !o.spot.special) G.push(ppGroup("Senior bonus", [ppOpt("bonus", "prod", `+${S.cfg.srBonus} Progress`, { checked: true }), ppOpt("bonus", "mktg", `+${S.cfg.srBonus} Marketing`)], { inline: true }));
+  if (o.plans && o.plans.length) {
+    const one = o.plans.length === 1;
+    G.push(ppGroup(`${one ? "Strike Team partner" : "Choose a partner"} for ${esc(dname(w.disc))}`,
+      o.plans.map(pl => { const ps = pl.ids.map(id => pw.find(y => y.id === id));
+        const t = `${esc(dname(w.disc))} (${esc(pl.wcat)}) + ` + ps.map(x => `${esc(nameOf(x.disc))} (${esc(pl.cats[x.id])})`).join(" + ");
+        const hp = `${wname} + ` + ps.map(x => `${x.lvl === "Sr" ? "Senior" : "Junior"} ${esc(nameOf(x.disc))} · ${FAT[x.fat]}`).join(" + ");
+        return ppOpt("crew", pl.ids.join(","), t, { help: hp, checked: one }); }), { need: !one, help: "A strike team is placed together. Each worker earns the skill of the role they fill." }));
+  }
+  if (fx && fx.choice) { const parts = String(o.spot.fx || "").split(/\s+OR\s+/); G.push(ppGroup("Effect", ["0", "1"].map(i => ppOpt("choice", i, parts[+i] ? fxTxt(parts[+i].trim()) : "Option " + (+i + 1), { checked: i === "0" })), { inline: true })); }
+  if (fx && (fx.stats.prod || 0) > 0 && o.kind === "spot" && (o.as || []).some(x => x === "ENG" || x === "ART")) {
+    const eff = o.as && o.as.length === 1 ? o.as[0] : w.disc, noDebt = (P(pi).debt || 0) <= 0, noEng = eff === "ART" || noDebt, noArt = eff === "ENG";
+    G.push(ppGroup("Alternate action (Engineer / Artist)", [ppOpt("alt", "", "Normal", { checked: true }), ppOpt("alt", "fixdebt", "Engineer: fix Tech Debt instead", { off: noEng, help: noEng ? (eff === "ART" ? "Only an Engineer can do this" : "You have no Tech Debt to fix") : "" }), ppOpt("alt", "hype", "Artist: Hype instead", { off: noArt, help: noArt ? "Only an Artist can do this" : "" })]));
+  }
+  if (o.spot && o.spot.special === "convert") { const rk = E.RES_OF[E.CAT_OF(o.as[0])], n = Math.floor((P(pi)[rk] || 0) / (S.cfg.convertRate || 3)); G.push(ppGroup(`Convert ${n * (S.cfg.convertRate || 3)} ${E.RES_NAME[rk]} into ${n}`, [ppOpt("conv", "prod", "Progress", { checked: true }), ppOpt("conv", "hype", "Hype")], { inline: true })); }
+  if (o.spot && o.spot.special === "rd" && S.cfg.instantBuild) { const ks = [["ideas", "Ideas"], ["code", "Code"], ["process", "Process"], ["buzz", "Buzz"]], n = S.cfg.rdSkills == null ? 2 : S.cfg.rdSkills; for (let i = 1; i <= n; i++) G.push(ppGroup(`Skill ${i} of ${n}`, ks.map((k, j) => ppOpt("rd" + i, k[0], k[1], { checked: j === i - 1 })), { inline: true })); }
+  if (o.spot && o.spot.special === "train") { const sc = S.cfg.trainSkillCost == null ? 1 : S.cfg.trainSkillCost; G.push(`<p class="pp-help">Training costs ${sc} skill${sc === 1 ? "" : "s"} of the worker’s role. The Junior becomes a Senior, earns no skill and is not tired.</p>`); }
+  if (o.spot && o.spot.special === "mentor") G.push(ppGroup("Promote which Junior?", pw.filter(x => x.lvl === "Jr" && x.disc === w.disc).map((x, i) => ppOpt("jr", x.id, `Junior ${esc(nameOf(x.disc))} #${x.id}`, { checked: i === 0, help: FAT[x.fat] }))));
+  return { b: G.join(""), f: actBtn(label, 'data-act="confirm-place"') };
 }
+/* the Place block of a tile or system pop-up: { b: body section, f: footer buttons } */
 function placeSection(S, target) {
   const a = E.currentActor(S);
-  if (S.step !== "place" || S.dq.length || a < 0 || S.players[a].bot) return "";
+  if (S.step !== "place" || S.dq.length || a < 0 || S.players[a].bot) return { b: "", f: "" };
   const w = U.sel != null ? P(a).workers.find(x => x.id === U.sel) : null;
-  if (!w) return `<p class="mute" style="margin-top:10px">To place a worker here, close this and click one of your workers first.</p>`;
-  return `<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">${placeForm(S, a, w, target)}</div>`;
+  if (!w) return { b: `<div class="callout">To place a worker here, close this and click one of your workers first.</div>`, f: "" };
+  const pf = placeForm(S, a, w, target);
+  return { b: pf.b || pf.f ? ppSec(`Place ${(w.lvl === "Sr" ? "Senior " : "Junior ") + esc(dname(w.disc))}`, pf.b || '<div class="pp-help">Nothing to choose. Confirm to place.</div>', "pp-place") : "", f: pf.f ? `<button class="btn" data-act="close">Cancel</button>` + pf.f : "" };
 }
 function detailModal() {
-  const S = U.S, d = U.detail; const a = E.currentActor(S); const mineTurn = a >= 0 && !S.players[a].bot; let h = "";
+  const S = U.S, d = U.detail; const a = E.currentActor(S); const mineTurn = a >= 0 && !S.players[a].bot; let h = "", foot = "", title = "", eyebrow = "", sub = "", accent = "";
   const closeOnly = x => { U.detail = null; return ""; };
   switch (d.k) {
     case "worker": {
@@ -736,55 +779,68 @@ function detailModal() {
       const fatTxt = ["<b>Fresh:</b> ready to work", "<b>Tired:</b> worked last round. Works normally", "<b>Exhausted:</b> worked two rounds in a row"][w.fat];
       const fatNext = ["Placing them makes them Tired", "Placing them is fine, but then they are Exhausted. Resting recovers one step", "Placing them again is <b>overwork</b>: no skill earned and +1 Burnout. Resting recovers one step"][w.fat];
       const abil = (w.disc === "PX" || w.disc === "DATA") ? ((w.lvl === "Sr" && w.placed) || (w.lvl === "Jr" && !w.placed) ? "<b>Ability ready:</b> triggers at Rest" : "<b>Ability not active:</b> " + (w.lvl === "Jr" ? "a Junior must rest (stay unplaced)" : "a Senior must be placed")) : "";
-      h += discHead(w.disc) + `<div class="dtitle">${w.lvl === "Sr" ? "Senior" : "Junior"} ${esc(dname(w.disc))}</div>`
+      accent = dcol(w.disc); eyebrow = esc(D.disciplines[w.disc].cat); title = `${w.lvl === "Sr" ? "Senior" : "Junior"} ${esc(dname(w.disc))}`;
+      const trainRow = w.lvl === "Jr" && !S.cfg.trainTile ? ["Training", (w.trained || 0) + " of " + S.cfg.trainNeeded + (w.trainNow ? " (in training this round)" : w.training ? " (away next round)" : "")] : null;
+      h += `<div class="pp-chips"><span class="fatchip f${w.fat}">${FAT[w.fat]}</span><span class="fatchip st">${w.placed ? "Placed" : "Not placed yet"}</span>${w.as ? `<span class="fatchip st">Declared as ${esc(nameOf(w.as))}</span>` : ""}</div>`
         + sec("What they do", utilLines(w.disc))
-        + sec(w.lvl === "Sr" ? "As a Senior" : "As a Junior", w.lvl === "Sr" ? [`+${S.cfg.resSr} skills of their role when placed`, "Can trigger system tiles (Juniors cannot)", "Promoted from a Junior who trained " + S.cfg.trainNeeded + " times"] : [`+${S.cfg.resJr} skill of their role when placed`, "Can be promoted to Senior during Rest", abil ? "" : ""])
-        + sec("Condition", [fatTxt, fatNext])
-        + sec("This round", [w.lvl === "Jr" && !S.cfg.trainTile ? "Training: " + (w.trained || 0) + " of " + S.cfg.trainNeeded + (w.trainNow ? " (in training this round)" : w.training ? " (away next round)" : "") : "", w.placed ? "Placed on the board" : "Not placed yet (resting if you leave them)", w.as ? "Declared as " + nameOf(w.as) : "", abil]);
+        + sec(w.lvl === "Sr" ? "As a Senior" : "As a Junior", w.lvl === "Sr" ? [`+${S.cfg.resSr} skills of their role when placed`, "Can trigger system tiles (Juniors cannot)", "Promoted from a Junior who trained " + S.cfg.trainNeeded + " times"] : [`+${S.cfg.resJr} skill of their role when placed`, "Can be promoted to Senior during Rest"])
+        + ppSec("Condition", ppKv([["Now", fatTxt], ["If placed", fatNext]]))
+        + ppSec("This round", ppKv([trainRow, ["Status", w.placed ? "Placed on the board" : "Not placed yet (resting if you leave them)"], abil ? ["Ability", abil] : null]));
       if (a === pi && mineTurn && !S.dq.length) {
-        if (S.step === "place") { const tk = E.canTrain(S, pi, w); h += `<div class="row" style="margin-top:12px">${actBtn(U.sel === w.id ? "Deselect worker" : "Select this worker", 'data-act="sel-worker" data-id="' + w.id + '"', w.placed, w.placed ? "Already placed this round" : "")}${w.lvl === "Jr" && !S.cfg.trainTile ? actBtn("Train \u00b7 " + S.cfg.trainCost + "G, " + (S.cfg.trainCulture ? "-1 Burnout" : "") , `data-act="train" data-w="${w.id}"`, !tk.ok, tk.reason || "") : ""}</div>`; }
+        if (S.step === "place") { const tk = E.canTrain(S, pi, w); foot = `${w.lvl === "Jr" && !S.cfg.trainTile ? actBtn("Train · " + S.cfg.trainCost + "G" + (S.cfg.trainCulture ? ", -1 Burnout" : ""), `data-act="train" data-w="${w.id}"`, !tk.ok, tk.reason || "", false) : ""}${actBtn(U.sel === w.id ? "Deselect worker" : "Select this worker", 'data-act="sel-worker" data-id="' + w.id + '"', w.placed, w.placed ? "Already placed this round" : "")}`; }
         if (S.step === "rest" && !S.cfg.trainTile) {
           const cost = E.promoGold(S), needRest = !!E.trainPromoWhy(S, w);
           const pp = P(a), tr = pp.rs.trains || 0, why = w.lvl !== "Jr" ? "Only Juniors train" : S.round >= 12 ? "The game ends this round" : w.placed || w.build ? "Worked or building this round" : w.training ? "Already training" : tr >= S.cfg.trainsPerRest ? "Training limit reached" : pp.gold < S.cfg.trainCost ? "Not enough gold" : "";
-          h += `<div class="row" style="margin-top:12px">${w.lvl === "Jr" ? actBtn("Train · " + S.cfg.trainCost + "G, +" + S.cfg.trainCulture + " Culture", `data-act="train" data-w="${w.id}"`, !!why, why) : ""}${w.lvl === "Jr" ? actBtn("Promote · " + (cost ? cost + "G" : "free"), `data-act="promote" data-w="${w.id}"`, pp.gold < cost || pp.promos >= S.cfg.promotionsPerRest || !E.srAllowed(S) || needRest, !E.srAllowed(S) ? "Seniors unlock in Production" : needRest ? E.trainPromoWhy(S, w) : "") : ""}</div>`;
+          foot = `${w.lvl === "Jr" ? actBtn("Train · " + S.cfg.trainCost + "G, +" + S.cfg.trainCulture + " Culture", `data-act="train" data-w="${w.id}"`, !!why, why, false) : ""}${w.lvl === "Jr" ? actBtn("Promote · " + (cost ? cost + "G" : "free"), `data-act="promote" data-w="${w.id}"`, pp.gold < cost || pp.promos >= S.cfg.promotionsPerRest || !E.srAllowed(S) || needRest, !E.srAllowed(S) ? "Seniors unlock in Production" : needRest ? E.trainPromoWhy(S, w) : "") : ""}`;
         }
       }
       break; }
     case "spot": {
       const spot = S.data.spots.find(x => x.id === d.id); if (!spot) return closeOnly();
       const tutHold = (U.tut && !U.tut.auto && SI.tutGate) ? SI.tutGate({ type: "place", p: viewIndex(S), worker: U.sel, target: "spot:" + spot.id }) : null; // guided tutorial: explain instead of offering a blocked placement
-      const occ = S.occ[spot.id] || []; const mode = spot.crew ? "Strike Team tile: one strike team of " + spot.crew[0].length + " workers per round" : spot.mode === "shared" ? "Shared: several workers can use it" : spot.mode === "multi" ? "Multi: several workers can use it" : spot.excl ? "Exclusive" : "One worker only";
-      h += `<div class="dtitle">${esc(spot.row)}</div><div style="margin:6px 0">${spot.crew ? "Strike Team of " + spot.crew[0].length + ": " + crewChips(spot) : spot.discs.map(x => x === "ANY" ? '<span class="chip" style="background:#667">ANY</span>' : chip(x)).join(" ")}${spot.srOnly ? ' <span class="chip" style="background:#a33">Senior only</span>' : ""}</div>
-      <p><b>${esc(spot.fx || spot.note || "")}</b></p>${spot.fx && spot.note ? `<p class="mute">${esc(spot.note)}</p>` : ""}<p class="mute">${mode}.${spot.debt ? ` Adds ${spot.debt} Tech Debt.` : ""}${spot.cost ? (spot.cost.res ? ` Costs ${spot.cost.res} skills (any mix).` : ` Costs ${spot.cost.gold}G.`) : ""}</p>
-      ${occ.length ? `<p>Occupied by: ${occ.map(i => `<b style="color:${P(i).color}">${esc(P(i).name)}</b>`).join(", ")}</p>` : ""}` + (tutHold ? `<p class="mute" style="margin-top:10px"><b>${esc(tutHold)}</b></p>` : placeSection(S, "spot:" + spot.id));
+      const occ = S.occ[spot.id] || []; const n = spot.crew ? spot.crew[0].length : 0;
+      const limit = spot.crew ? "One strike team of " + n + " workers per round" : spot.mode === "shared" ? "Shared: several workers can use it" : spot.mode === "multi" ? "Multi: several workers can use it" : spot.excl ? "Exclusive" : "One worker only";
+      const anyCrew = spot.crew && spot.crew.every(alt => alt.every(c => c === "Any"));
+      const who = (spot.crew ? crewWho(spot) : spot.discs.map(x => x === "ANY" ? '<span class="chip" style="background:#667">ANY</span>' : chip(x)).join("")) + (spot.srOnly ? '<span class="chip" style="background:#a33">Senior only</span>' : "");
+      const redundant = spot.crew && /^Strike Team( of \d)?:/.test(spot.note || ""); // the note only restates the crew chips and the cost row
+      const gives = spot.fx ? `<b>${esc(spot.fx)}</b>${spot.note && !redundant ? `<div class="pp-help">${esc(spot.note)}</div>` : ""}` : (spot.note && !redundant ? esc(spot.note) : "");
+      eyebrow = "Board tile"; title = esc(spot.crew && spot.row === "CREW" ? "Strike Team" : tcase(rowTitle(S, spot.row)));
+      h += ppKv([["Who can use it", `<div class="pp-chips">${who}</div>${anyCrew ? '<div class="pp-help">2 workers of different disciplines</div>' : ""}`], gives ? ["Gives", gives] : null,
+        spot.cost ? ["Cost", `<b>${spot.cost.res ? spot.cost.res + " skills (any mix)" : spot.cost.gold + "G"}</b>`] : null, spot.debt ? ["Tech Debt", `<b class="bad">+${spot.debt}</b>`] : null,
+        ["Limit", esc(limit)], occ.length ? ["Occupied by", occ.map(i => `<b style="color:${lite(P(i).color)}">${esc(P(i).name)}</b>`).join(", ")] : null]);
+      if (tutHold) h += `<div class="callout"><b>${esc(tutHold)}</b></div>`;
+      else { const ps = placeSection(S, "spot:" + spot.id); h += ps.b; foot = ps.f; }
       break; }
     case "sys": case "market": {
       let def, idx = null;
       if (d.k === "sys") { idx = +d.id; const sy = P(+d.p).systems[idx]; if (!sy) return closeOnly(); def = E.sysDef(S, sy.name); } else { def = S.data.systems.find(x => x.name === d.id); if (!def) return closeOnly(); }
-      const busyD = E.buildRounds(S, P(viewIndex(S)), U.crunch, def), dl = (k, v) => `<div class="drow"><span class="dk">${k}</span><span>${v}</span></div>`;
-      h += `<div class="dhead" style="${fill(catColor[def.cat])}"><span>${def.cat}</span></div><div class="dtitle">${esc(def.name)} ${symTag(def)} <span class="dvp">${def.vp} VP</span></div>
-      <div class="dsec"><h4>Cost to build</h4><div class="c" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:15px">${buildChips(def.build)}</div>${busyD ? dl("Team busy", busyD + " round" + (busyD === 1 ? "" : "s") + " while it is built") : ""}${def.debt ? dl("Tech Debt", `<b class="bad">+${def.debt}</b> when built`) : ""}</div>
-      <div class="dsec"><h4>Reward when triggered</h4>${dl("Trigger", "place " + esc(fmtTrig(def.trig)) + " worker here")}${def.fx ? dl("Gives", "<b>" + fxTxt(def.fx) + "</b>") : ""}${def.once ? dl("On build", esc(def.once)) : ""}${def.each ? dl("Each time", esc(def.each)) : ""}</div>
-      <div class="dsec"><h4>Benefit</h4>${def.pas ? dl("Passive", `<span style="color:var(--gold)">${esc(def.pas)}</span> (always on)`) : ""}${dl("End of game", def.vp + " VP at the end of the game")}</div>`;
-      if (d.k === "sys") h += placeSection(S, "sys:" + idx);
+      const busyD = E.buildRounds(S, P(viewIndex(S)), U.crunch, def);
+      accent = catColor[def.cat]; eyebrow = esc(def.cat) + " system"; title = `${esc(def.name)} ${symTag(def)}`; sub = `${def.vp} VP at the end of the game`;
+      h += ppSec("Cost to build", `<div class="pp-chips big">${buildChips(def.build)}</div>${ppKv([busyD ? ["Team busy", busyD + " round" + (busyD === 1 ? "" : "s") + " while it is built"] : null, def.debt ? ["Tech Debt", `<b class="bad">+${def.debt}</b> when built`] : null])}`)
+        + ppSec("Reward when triggered", ppKv([["Trigger", "place " + esc(fmtTrig(def.trig)) + " worker here"], def.fx ? ["Gives", "<b>" + fxTxt(def.fx) + "</b>"] : null, def.once ? ["On build", esc(def.once)] : null, def.each ? ["Each time", esc(def.each)] : null]))
+        + (def.pas ? ppSec("Benefit", ppKv([["Passive", `<span style="color:var(--gold)">${esc(def.pas)}</span> (always on)`]])) : "");
+      if (d.k === "sys") { const ps = placeSection(S, "sys:" + idx); h += ps.b; foot = ps.f; }
       else if (U.modal === "market" && canBuildNow(S) && mineTurn) {
         const p = P(a), free = p.freeBuilds > 0; const crd = U.crunch || undefined; const ck = E.canBuild(S, a, def.name, free, crd), ckp = free ? E.canBuild(S, a, def.name, false, crd) : ck;
-        h += `<div class="row" style="margin-top:12px">${actBtn("Build", `data-act="build" data-name="${esc(def.name)}" data-free="0"`, !ckp.ok, ckp.reason)}${free ? actBtn("Build free", `data-act="build" data-name="${esc(def.name)}" data-free="1"`, !ck.ok, ck.reason, false) : ""}</div>`;
+        foot = free ? `${actBtn("Build", `data-act="build" data-name="${esc(def.name)}" data-free="0"`, !ckp.ok, ckp.reason, false)}${actBtn("Build free", `data-act="build" data-name="${esc(def.name)}" data-free="1"`, !ck.ok, ck.reason)}`
+          : actBtn("Build", `data-act="build" data-name="${esc(def.name)}" data-free="0"`, !ckp.ok, ckp.reason);
       }
       break; }
     case "mile": {
       const id = +d.id, m = S.data.milestones[id]; if (!m) return closeOnly(); const met = E.milestoneMet(S, +d.p, id);
-      h += `<div class="dtitle">${esc(m.name)}</div><p>${esc(m.text)}</p><p class="mute">Phase window: ${mileWhen(m, E.mileWindow(S, m))}. A milestone can only be completed inside its window; a card whose window has passed is swapped for a new one at the next phase start.</p><p style="color:var(--gold)"><b>Reward: +${m.gold}G</b> ${met ? '<span style="color:var(--good)">MET</span>' : '<span class="mute">not met yet</span>'}</p>`;
-      if (S.step === "rest" && mineTurn && a === +d.p && !S.dq.length) h += `<div class="row" style="margin-top:12px">${actBtn("Cash in", `data-act="claim" data-mile="${id}"`, !met, "Requirement not met yet")}</div>`;
+      eyebrow = "Milestone"; title = esc(m.name);
+      h += `<p class="pp-p">${esc(m.text)}</p>${ppKv([["Reward", `<b style="color:var(--gold)">+${m.gold}G</b>`], ["Status", met ? '<span class="fatchip st ok">MET</span>' : '<span class="fatchip st">Not met yet</span>'], ["Phase window", mileWhen(m, E.mileWindow(S, m))]])}<p class="pp-help">A milestone can only be completed inside its window; a card whose window has passed is swapped for a new one at the next phase start.</p>`;
+      if (S.step === "rest" && mineTurn && a === +d.p && !S.dq.length) foot = actBtn("Cash in", `data-act="claim" data-mile="${id}"`, !met, ""); // the Status row above already says "Not met yet"
       break; }
     case "obj": {
       const id = +d.id, o = S.data.objectives[id]; if (!o) return closeOnly(); const st = E.objectiveStatus(S, +d.p, id);
-      h += `<div class="dtitle">${esc(o.name)} ${symTag(o)}</div><p class="mute">${o.type} objective · ${S.cfg.objGraded} VP per requirement met, +${S.cfg.objBonus} if all</p>${st.reqs.map(r => `<p style="color:${r.ok ? "var(--good)" : "var(--ink)"}">${r.ok ? "✓" : "○"} ${esc(r.r)}</p>`).join("")}${o.res ? `<p class="mute">Skill: ${ICN[o.res]}. Built systems whose main skill is ${ICN[o.res]} earn synergy VP once this is completed.</p>` : ""}`;
+      eyebrow = `${esc(o.type)} objective`; title = `${esc(o.name)} ${symTag(o)}`; sub = `${S.cfg.objGraded} VP per requirement met, +${S.cfg.objBonus} if all`;
+      h += ppSec("Requirements", `<ul class="reqs">${st.reqs.map(r => `<li class="${r.ok ? "ok" : ""}"><span class="rk">${r.ok ? "✓" : "○"}</span><span>${esc(r.r)}</span></li>`).join("")}</ul>`) + (o.res ? `<p class="pp-help">Skill: ${ICN[o.res]}. Built systems whose main skill is ${ICN[o.res]} earn synergy VP once this is completed.</p>` : "");
       break; }
-    case "crisis": { const c = S.crisisCard && S.data.crisis.find(x => x.id === S.crisisCard); if (!c) return closeOnly(); h += crisisCardHtml(c); break; }
+    case "crisis": { const c = S.crisisCard && S.data.crisis.find(x => x.id === S.crisisCard); if (!c) return closeOnly(); eyebrow = "Crisis"; title = "Active crisis"; h += crisisCardHtml(c); break; }
     default: return closeOnly();
   }
-  return modalShell(h, { cls: "detail" + (h.indexOf('class="dhead"') >= 0 ? " hashead" : "") });
+  return modalShell(h, { cls: "detail", size: "md", eyebrow, title, sub, accent, foot });
 }
 const buildChips = str => {
   const p = String(str).split("+"), m = p[0].match(/^(\d+)([MG])$/); if (!m) return esc(str);
@@ -816,54 +872,65 @@ function marketStrip(S) {
   return `<div class="panel" data-tut="mstrip"><h3>Systems to Build <span class="mute" style="font-weight:400;font-size:12px">${p ? esc(p.name) + " · " : ""}greyed = cannot build yet · tap a card for details</span></h3><div class="mgrid">${rows}</div></div>`;
 }
 function gameMenuModal() {
-  return modalShell(`<h2>Menu</h2><div class="col" style="gap:8px;min-width:260px"><button class="btn primary" data-act="close">Resume game</button><button class="btn" data-act="rules">Rules and guides</button><button class="btn" data-act="milesref">Milestones</button><button class="btn" data-act="log">${U.logOpen ? "Hide full log" : "Show full log"}</button>${U.net ? "" : '<button class="btn" data-act="save">Save game</button>'}${U.tut || (U.S && U.S.over) || (U.net && !U.net.host) ? "" : '<button class="btn danger" data-act="endgame">End game now</button>'}${U.owner ? '<button class="btn" data-act="studio">Data Studio</button><button class="btn" data-act="master">Master and analytics</button>' : ""}<button class="btn" data-act="menu">Quit to main menu</button></div><p class="dim" style="margin:12px 0 0;font-size:12px">Quitting leaves this game. Save first if you want to continue later.${U.owner ? "" : " Data Studio and analytics need the owner login."}</p>`).replace('<div class="overlay"', '<div class="overlay rulesov" style="z-index:300"');
+  const grp = (label, items) => `<div class="pgrp"><div class="pgrp-l">${label}</div><div class="picks">${items.join("")}</div></div>`;
+  const mb = (act, t, cls) => `<button type="button" class="pick ${cls || ""}" data-act="${act}"><span class="pick-t">${t}</span></button>`;
+  const game = [mb("rules", "Rules and guides"), mb("milesref", "Milestones"), mb("log", U.logOpen ? "Hide full log" : "Show full log")].concat(U.net ? [] : [mb("save", "Save game")]);
+  const owner = U.owner ? [mb("studio", "Data Studio"), mb("master", "Master and analytics")] : [];
+  const leave = [].concat(U.tut || (U.S && U.S.over) || (U.net && !U.net.host) ? [] : [mb("endgame", "End game now", "danger")], [mb("menu", "Quit to main menu")]);
+  return modalShell(grp("Game", game) + (owner.length ? grp("Owner tools", owner) : "") + grp("Leave", leave) + `<p class="pp-help">Quitting leaves this game. Save first if you want to continue later.${U.owner ? "" : " Data Studio and analytics need the owner login."}</p>`,
+    { title: "Menu", size: "sm", ov: "rulesov", foot: `<button class="btn primary" data-act="close">Resume game</button>` });
 }
 function rulesModal() {
   const R = root.SHIPIT_RULES || []; const id = U.rulesTab || "start"; const cur = R.find(r => r.id === id) || R[0];
-  if (!cur) return modalShell("<h2>Rules</h2><p class=\"mute\">Rules are not loaded.</p>");
-  return modalShell(`<h2>Rules <span class="mute" style="font-size:13px;font-weight:400">· guides, icons and card lists</span></h2><style>${root.SHIPIT_RULES_CSS || ""}.paper{background:#fff;color:#1b2430;border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.4}.paper .rh{font-size:20px;margin:0 0 8px;border-bottom:3px solid #1b2430;padding-bottom:4px}.paper .rh small{font-size:12px;color:#5b6775;font-weight:400;margin-left:10px}.paper hr{border:0;border-top:2px dashed #c9d1da;margin:16px 0}.paper .cards{margin-top:10px}.paper .card{min-height:0}.rtabs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 10px}</style><div class="rtabs">${R.map(r => `<button class="tab ${r.id === cur.id ? "on" : ""}" data-act="rtab" data-v="${r.id}">${r.title}</button>`).join("")}</div><div class="row wrap" style="gap:8px;margin:0 0 8px"><button class="btn sm" data-act="rprint" data-v="one">Print or save this page as PDF</button><button class="btn sm" data-act="rprint" data-v="all">Print or save all pages as PDF</button><span class="mute" style="font-size:12px">In the print window choose Save as PDF.</span></div><div class="scroll-y" style="max-height:68vh"><div class="paper">${cur.html}</div></div>`, { wide: true }).replace('<div class="overlay"', '<div class="overlay rulesov" style="z-index:300"');
+  if (!cur) return modalShell(`<p class="pp-p">Rules are not loaded.</p>`, { title: "Rules", size: "sm", ov: "rulesov" });
+  const tb = `<div class="rtabs" role="tablist">${R.map(r => `<button class="tab ${r.id === cur.id ? "on" : ""}" role="tab" aria-selected="${r.id === cur.id}" data-act="rtab" data-v="${r.id}">${r.title}</button>`).join("")}</div><div class="rprint"><button class="btn sm" data-act="rprint" data-v="one">Print or save this page as PDF</button><button class="btn sm" data-act="rprint" data-v="all">Print or save all pages as PDF</button><span class="pp-help">In the print window choose Save as PDF.</span></div>`;
+  return modalShell(`<style>${root.SHIPIT_RULES_CSS || ""}.paper{background:#fff;color:#1b2430;border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.4}.paper .rh{font-size:20px;margin:0 0 8px;border-bottom:3px solid #1b2430;padding-bottom:4px}.paper .rh small{font-size:12px;color:#5b6775;font-weight:400;margin-left:10px}.paper hr{border:0;border-top:2px dashed #c9d1da;margin:16px 0}.paper .cards{margin-top:10px}.paper .card{min-height:0}</style><div class="paper">${cur.html}</div>`,
+    { title: "Rules", sub: "Guides, icons and card lists", toolbar: tb, size: "xl", ov: "rulesov", cls: "rulesm" });
 }
 function marketModal() {
   const S = U.S; const a = P(E.currentActor(S)); const cat = U.marketCat || "All"; const free = a.freeBuilds > 0;
-  const list = S.data.systems.filter(d => E.inMarket(S, d) && (cat === "All" || d.cat === cat)); const canRefresh = !!S.cfg.marketSize && (a.refreshed || 0) < (S.cfg.marketRefreshesPerRound || 1) && a.gold >= S.cfg.marketRefreshGold;
+  const list = S.data.systems.filter(d => E.inMarket(S, d) && (cat === "All" || d.cat === cat));
   const cr = U.crunch || undefined; const rdFree = E.rdFree(S, a), inst = !!S.cfg.instantBuild;
-  let h = `<h2>Systems to Build</h2>` + (inst ? "" : (`<div class="row wrap" style="margin-bottom:8px;gap:8px;align-items:center"><b>Build speed:</b>${rdFree ? `<span class="mute">R&amp;D: system development reduced by 1 round, with no crunch fee</span>` : ([["none", "Normal"], ["gold", "Crunch with Gold (+" + S.cfg.crunchGold + "G): finishes one round sooner"], ["fat", "Crunch by tiring a worker: finishes one round sooner"]]).map(o => `<button class="tab ${(cr || "none") === o[0] ? "on" : ""}" data-act="crunch" data-v="${o[0]}">${o[1]}</button>`).join("")}</div>`)) + `<div class="row wrap" style="margin-bottom:10px">${["All"].concat(E.CATS).map(c => `<button class="tab ${cat === c ? "on" : ""}" data-act="mcat" data-v="${c}">${c}</button>`).join("")}<span class="grow"></span><span class="mono">${resNow(a)} · Gold <b style="color:var(--gold)">${a.gold}</b> · builds ${a.builds}/${E.maxBuilds(S, a)}${free ? " · FREE build ready" : ""}</span></div>` + (cat !== "All" && D.typeRules && D.typeRules[cat] ? `<div class="mute" style="margin:0 0 8px"><b>${cat}:</b> ${esc(D.typeRules[cat])}</div>` : "");
+  const speed = inst ? "" : `<div class="tb-row"><span class="tb-l">Build speed</span>${rdFree ? `<span class="pp-help">R&amp;D: system development reduced by 1 round, with no crunch fee</span>` : `<div class="tabs seg">${([["none", "Normal"], ["gold", "Crunch with Gold (+" + S.cfg.crunchGold + "G): finishes one round sooner"], ["fat", "Crunch by tiring a worker: finishes one round sooner"]]).map(o => `<button class="tab ${(cr || "none") === o[0] ? "on" : ""}" data-act="crunch" data-v="${o[0]}">${o[1]}</button>`).join("")}</div>`}</div>`;
+  const tb = speed + `<div class="tb-row"><div class="tabs seg">${["All"].concat(E.CATS).map(c => `<button class="tab ${cat === c ? "on" : ""}" data-act="mcat" data-v="${c}">${c}</button>`).join("")}</div><span class="grow"></span><span class="mstat">${resNow(a)}<span>Gold <b style="color:var(--gold)">${a.gold}</b></span><span>Builds <b>${a.builds}/${E.maxBuilds(S, a)}</b></span>${free ? '<span class="fatchip st ok">Free build ready</span>' : ""}</span></div>`;
   const cards = list.map(d => {
     const ck = E.canBuild(S, a.id, d.name, free, cr); const ckPaid = free ? E.canBuild(S, a.id, d.name, false, cr) : ck;
-    const hint = a.objectives.some(id => S.data.objectives[id].res === E.sysMainRes(d));
-    return { ok: ck.ok || ckPaid.ok, html: sysTile(d, ck.ok || ckPaid.ok, `<div class="row" style="margin-top:6px;gap:4px"><button class="btn sm primary" data-act="build" data-name="${esc(d.name)}" data-free="0" ${ckPaid.ok ? "" : "disabled"} title="${esc(ckPaid.ok ? "" : ckPaid.reason)}">Build</button>${free ? `<button class="btn sm good" data-act="build" data-name="${esc(d.name)}" data-free="1" ${ck.ok ? "" : "disabled"} title="${esc(ck.ok ? "" : ck.reason)}">Free</button>` : ""}</div>${!ckPaid.ok && !(U.tut && free) ? `<div class="why" style="margin-top:4px">${esc(ckPaid.reason)}</div>` : ""}`) }; // the tutorial's free build makes the "You have 1 of 3 Ideas" note confusing, so it is hidden there
+    return { ok: ck.ok || ckPaid.ok, html: sysTile(d, ck.ok || ckPaid.ok, `<div class="row bld"><button class="btn sm primary" data-act="build" data-name="${esc(d.name)}" data-free="0" ${ckPaid.ok ? "" : "disabled"} title="${esc(ckPaid.ok ? "" : ckPaid.reason)}">Build</button>${free ? `<button class="btn sm good" data-act="build" data-name="${esc(d.name)}" data-free="1" ${ck.ok ? "" : "disabled"} title="${esc(ck.ok ? "" : ck.reason)}">Free</button>` : ""}</div>${!ckPaid.ok && !(U.tut && free) ? `<div class="why">${esc(ckPaid.reason)}</div>` : ""}`) }; // the tutorial's free build makes the "You have 1 of 3 Ideas" note confusing, so it is hidden there
   });
   const can = cards.filter(c => c.ok), cant = cards.filter(c => !c.ok);
-  h += `<div class="scroll-y"><div class="mute" style="margin:0 0 6px;font-weight:700">You can build now (${can.length})</div>${can.length ? `<div class="row wrap" style="align-items:stretch">${can.map(c => c.html).join("")}</div>` : '<p class="mute">Nothing available right now. See below for what each system needs.</p>'}
-  <div class="mkt-divider"><span>Not available yet (${cant.length})</span></div><div class="row wrap" style="align-items:stretch">${cant.map(c => c.html).join("")}</div></div>`;
-  return modalShell(h, { wide: true });
+  const body = (cat !== "All" && D.typeRules && D.typeRules[cat] ? `<div class="callout"><b>${cat}:</b> ${esc(D.typeRules[cat])}</div>` : "")
+    + ppSec(`You can build now <span class="pp-cnt">${can.length}</span>`, can.length ? `<div class="cardgrid">${can.map(c => c.html).join("")}</div>` : '<div class="callout">Nothing available right now. See below for what each system needs.</div>')
+    + (cant.length ? ppSec(`Not available yet <span class="pp-cnt">${cant.length}</span>`, `<div class="cardgrid">${cant.map(c => c.html).join("")}</div>`) : "");
+  return modalShell(body, { title: "Systems to Build", sub: "Tap a card for details. Greyed cards cannot be built yet.", toolbar: tb, size: "xl", cls: "marketm" });
 }
 function scoreModal(S) {
   const c = S.cfg, sc = E.score(S), rows = sc.slice().sort((a, b) => b.total - a.total);
   const cols = [["prodShare", "Progress race"], ["hypeStrength", "Hype race"], ["debtPenalty", "Debt"], ["burnout", "Burnout"], ["objectives", "Objectives"], ["systems", "Systems"], ["gold", "Gold"], ["crisis", "Gates & crisis"]];
   const f = v => { const n = Math.round(+v * 10) / 10; return Number.isInteger(n) ? String(n) : n.toFixed(1); };
   const body = rows.map(r => `<tr><td><span class="dot" style="background:${P(r.id).color};display:inline-block;margin-right:6px"></span>${esc(r.name)}</td>${cols.map(k => `<td>${f(r.parts[k[0]])}</td>`).join("")}<td><b>${f(r.total)}</b></td></tr>`).join("");
-  const awards = S.players.length >= (c.awardMinN || 0);
-  return modalShell(`<h2>Score if the game ended now</h2><p class="mute">Races are ranked against the other studios, so these numbers move every round.</p>
-  <div class="scroll-y"><table class="scoretbl"><thead><tr><th>Studio</th>${cols.map(k => `<th>${k[1]}</th>`).join("")}<th>TOTAL</th></tr></thead><tbody>${body}</tbody></table></div>
-  <div class="mute" style="font-size:12px;margin-top:10px;line-height:1.5">
-  <b>Progress and Hype:</b> 1 VP for every ${c.raceDen} points you have. Your Wishlists count as Hype.<br>
-  <b>Debt:</b> the most Debt loses the most VP; the least loses none.<br>
-  <b>Burnout:</b> costs VP from 2 upward (2: ${c.burnVP[2]}, 3: ${c.burnVP[3]}, 4: ${c.burnVP[4]}, 5: ${c.burnVP[5]}, 6: ${c.burnVP[6]}).<br>
-  <b>Objectives:</b> ${c.objGraded} VP for each requirement you meet, plus ${c.objBonus} more if you meet them all.<br>
-  <b>Systems:</b> the VP printed on each system you built. <b>Gold:</b> 1 VP per ${c.goldPerVP} Gold left.<br>
-  <b>Gates and crisis:</b> each requirement you miss at a gate costs ${c.gatePerReq} VP, passing the last gate pays +${(c.gateWin || [0,0,0,0])[3]} VP, plus Crisis card results.</div>
-  <div style="margin-top:12px;text-align:right"><button class="btn" data-act="close">Close</button></div>`, { wide: true });
+  return modalShell(`<div class="scroll-x"><table class="scoretbl"><thead><tr><th>Studio</th>${cols.map(k => `<th>${k[1]}</th>`).join("")}<th>TOTAL</th></tr></thead><tbody>${body}</tbody></table></div>`
+    + ppSec("How each column is scored", ppKv([
+      ["Progress and Hype", `1 VP for every ${c.raceDen} points you have. Your Wishlists count as Hype.`],
+      ["Debt", "The most Debt loses the most VP; the least loses none."],
+      ["Burnout", `Costs VP from 2 upward (2: ${c.burnVP[2]}, 3: ${c.burnVP[3]}, 4: ${c.burnVP[4]}, 5: ${c.burnVP[5]}, 6: ${c.burnVP[6]}).`],
+      ["Objectives", `${c.objGraded} VP for each requirement you meet, plus ${c.objBonus} more if you meet them all.`],
+      ["Systems", "The VP printed on each system you built."],
+      ["Gold", `1 VP per ${c.goldPerVP} Gold left.`],
+      ["Gates and crisis", `Each requirement you miss at a gate costs ${c.gatePerReq} VP, passing the last gate pays +${(c.gateWin || [0,0,0,0])[3]} VP, plus Crisis card results.`]])),
+    { title: "Score if the game ended now", sub: "Races are ranked against the other studios, so these numbers move every round.", size: "xl", cls: "scorem", foot: `<button class="btn primary" data-act="close">Close</button>` });
 }
 function resultsModal() {
   const S = U.S; const rows = S.scores.slice().sort((a, b) => b.total - a.total);
   const cols = [["prodShare", "Progress race"], ["hypeStrength", "Hype race"], ["debtPenalty", "Debt"], ["burnout", "Burnout"], ["objectives", "Obj."], ["systems", "Sys"], ["gold", "Gold"], ["crisis", "Crisis/Gates"]];
   const wr = S.scores.find(x => x.id === S.winner), top = wr ? cols.map(c => [c[1], +wr.parts[c[0]]]).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, 2) : [], runner = rows[1];
-  const why = wr ? `<p class="mute" style="margin:4px 0 10px">${esc(wr.name)} won with <b>${wr.total.toFixed(0)} VP</b>${runner ? ", " + (wr.total - runner.total).toFixed(0) + " ahead of " + esc(runner.name) : ""}. Biggest sources: ${top.map(x => esc(x[0]) + " (+" + x[1].toFixed(0) + ")").join(" and ") || "none"}.</p>` : "";
-  let h = `<h2>${esc(P(S.winner).name)} ships the best game!</h2>${why}<div class="swipehint">Swipe the table sideways to see where each VP came from.</div><div class="scroll-y"><table class="scoretbl"><thead><tr><th>Studio</th>${cols.map(c => `<th>${c[1]}</th>`).join("")}<th>TOTAL</th></tr></thead><tbody>`;
+  const why = wr ? `${esc(wr.name)} won with <b>${wr.total.toFixed(0)} VP</b>${runner ? ", " + (wr.total - runner.total).toFixed(0) + " ahead of " + esc(runner.name) : ""}. Biggest sources: ${top.map(x => esc(x[0]) + " (+" + x[1].toFixed(0) + ")").join(" and ") || "none"}.` : "";
+  let h = `<div class="swipehint">Swipe the table sideways to see where each VP came from.</div><div class="scroll-x"><table class="scoretbl"><thead><tr><th>Studio</th>${cols.map(c => `<th>${c[1]}</th>`).join("")}<th>TOTAL</th></tr></thead><tbody>`;
   rows.forEach(r => { h += `<tr class="${r.id === S.winner ? "win" : ""}"><td><span class="dot" style="background:${P(r.id).color};display:inline-block;margin-right:6px"></span>${esc(r.name)}${r.id === S.winner ? ' <span class="wintag">Winner</span>' : ""} <span class="dim">Debt ${P(r.id).debt} · Wishlists ${P(r.id).mktg}</span></td>${cols.map(c => `<td>${(+r.parts[c[0]]).toFixed(0)}</td>`).join("")}<td><b>${r.total.toFixed(0)}</b></td></tr>`; });
-  h += `</tbody></table>${U.tut || U.tutDone ? SI.tutScoreExplainer(S) : ""}</div>${U.tutDone && !U.net ? `<div class="whatnext"><b>What next?</b><span class="mute">You have seen every rule once. Pick one:</span></div><div class="row wrap" style="margin-top:8px"><button class="btn primary" data-act="tut-play">Play a game against a bot</button><button class="btn" data-act="rules">Read the rules</button><button class="btn" data-act="tutorial">Replay the guide</button><button class="btn" data-act="menu">Menu</button><button class="btn" data-act="close">Close</button></div>` : `<div class="row" style="margin-top:14px"><button class="btn primary" data-act="${U.net ? "online-again" : "start"}">Play again</button><button class="btn" data-act="menu">Menu</button><button class="btn" data-act="close">Close</button></div>`}`;
-  return modalShell(h, { wide: true });
+  h += `</tbody></table></div>${U.tut || U.tutDone ? SI.tutScoreExplainer(S) : ""}`;
+  let foot;
+  if (U.tutDone && !U.net) { h += `<div class="callout"><b>What next?</b> You have seen every rule once. Pick one:</div>`; foot = `<button class="btn" data-act="close">Close</button><button class="btn" data-act="menu">Menu</button><button class="btn" data-act="rules">Read the rules</button><button class="btn" data-act="tutorial">Replay the guide</button><button class="btn primary" data-act="tut-play">Play a game against a bot</button>`; }
+  else foot = `<button class="btn" data-act="close">Close</button><button class="btn" data-act="menu">Menu</button><button class="btn primary" data-act="${U.net ? "online-again" : "start"}">Play again</button>`;
+  return modalShell(h, { eyebrow: "Final scores", title: `${esc(P(S.winner).name)} ships the best game!`, sub: why, size: "xl", cls: "resultsm", foot });
 }
 function masterCtx() { return { U, render, toast, SI, E, D, closeModal: () => { U.modal = null; render(); } }; }
 function masterModal() { return modalShell(SI.adminRender ? SI.adminRender(masterCtx()) : '<h2>Master</h2><p class="mute">Loading…</p>', { wide: true }); }
@@ -871,7 +938,7 @@ function studioModal() { // full-screen Data Studio (layout lives in studio.js /
   const extra = U.S && U.screen === "game" ? '<button class="btn" data-act="restart" title="Start a new game right now with these values">Restart game with these values</button>' : "";
   return `<div class="overlay stfs-ov"><div class="modal stfs sf" role="dialog" aria-modal="true" aria-labelledby="sf-h">${SI.renderStudio(U.studio, U.tab, U.sim, extra)}</div></div>`;
 }
-function crisisIntroModal(c) { return modalShell(`<div class="rs-kick" style="text-align:center;margin-bottom:8px">Phase start · a Crisis hits every studio</div><div style="display:flex;justify-content:center">${crisisCardHtml(c)}</div><div class="rs-foot"><button class="btn primary big" data-act="close">Continue</button></div>`, { cls: "crisisov" }); }
+function crisisIntroModal(c) { return modalShell(`<div class="pp-crisis">${crisisCardHtml(c)}</div>`, { eyebrow: "Phase start", title: "A Crisis hits every studio", size: "md", cls: "crisisintro", foot: `<button class="btn primary big" data-act="close">Continue</button>` }); }
 
 /* ---------- copy overrides (Data Studio > Text): swap edited default wording in rendered HTML ---------- */
 SI.copyFix = function (html) {
@@ -894,6 +961,7 @@ function render() {
   if (U.S && U.S.data && E.applyLook) E.applyLook(U.S.data);
   noteRecruits(); noteNotices();
   const keepFocus = document.activeElement && document.activeElement.id; const val = keepFocus ? document.activeElement.value : null;
+  const keepRadio = {}; $root.querySelectorAll(".modal input[type=radio]:checked").forEach(r => { keepRadio[r.name] = r.value; }); // a re-render (toast, bot move) must not reset the player's choices in an open pop-up
   if (U.screen === "gate") $root.innerHTML = SI.copyFix(gateView());
   else if (U.screen === "menu") $root.innerHTML = SI.copyFix(menuView() + (U.modal === "studio" && U.owner ? "\u0001" + studioModal() + "\u0002" : U.modal === "master" && U.owner ? "\u0001" + masterModal() + "\u0002" : U.modal === "cleardata" ? clearDataModal() : ""));
   else if (U.screen === "lobby") $root.innerHTML = SI.copyFix(lobbyView() + (U.modal === "studio" && U.owner ? "\u0001" + studioModal() + "\u0002" : ""));
@@ -925,7 +993,13 @@ function render() {
   }
   if (U.S && U.screen === "game" && !U.tut) SI.an.track(U.S);
   autosave();
-  if (U.toast) $root.insertAdjacentHTML("beforeend", `<div class="toast ${U.toastKind || ""}" role="status" aria-live="polite">${SI.copyFix(esc(U.toast))}${U.toastKind === "undo" && U.undo.length && !(U.S && U.S.over) ? ' <button class="btn sm" data-act="undo">Undo</button>' : ""}</div>`);
+  if (U.toast) $root.insertAdjacentHTML("beforeend", `<div class="toast ${U.toastKind || ""}" role="${U.toastKind ? "status" : "alert"}" aria-live="${U.toastKind ? "polite" : "assertive"}"><span class="t-m">${SI.copyFix(esc(U.toast))}</span>${U.toastKind === "undo" && U.undo.length && !(U.S && U.S.over) ? '<button class="btn sm" data-act="undo">Undo</button>' : ""}</div>`);
+  { // keyboard focus: a pop-up that has just opened takes focus (so Escape, Tab and screen readers work); typing in a field is never interrupted
+    const mods = $root.querySelectorAll(".modal"), key = mods.length ? mods.length + ":" + ((mods[mods.length - 1].querySelector(".mh-h") || mods[mods.length - 1]).textContent || "").slice(0, 40) : "";
+    if (key && key !== U._mk && !$root.contains(document.activeElement.closest && document.activeElement.closest(".modal")) && !(document.activeElement && /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName))) { try { mods[mods.length - 1].focus({ preventScroll: true }); } catch (e) {} }
+    U._mk = key;
+  }
+  Object.keys(keepRadio).forEach(n => { $root.querySelectorAll(".modal input[type=radio]").forEach(r => { if (r.name === n && r.value === keepRadio[n] && !r.disabled) r.checked = true; }); });
   if (keepFocus) { const el = document.getElementById(keepFocus); if (el && val != null) { try { el.value = val; el.focus(); } catch (e) {} } }
   if (U.modal === "studio" && SI.studioAfter) SI.studioAfter();
 }
@@ -1061,9 +1135,11 @@ function resumeRoom() { // rejoin after a page refresh
 }
 
 /* ---------- events ---------- */
+$root.addEventListener("pointerdown", e => { U._pd = e.target; }, true); // a drag that starts inside a pop-up and ends on the backdrop must not close it
 $root.addEventListener("click", e => {
+  const pd = U._pd; U._pd = null;
   const t = e.target.closest("[data-act]"); if (!t) return;
-  if (t.classList.contains("overlay") && e.target !== t) return;
+  if (t.classList.contains("overlay") && (e.target !== t || (pd && pd !== t))) return;
   if (U.tut && (t.dataset.act === "detail") && !t.closest(".coach") && !SI.tutAllowsDetail()) { toast("We will cover that in a moment"); return; }
   const rulesAct = ["rules", "rtab", "rprint", "gamemenu", "menu", "log", "save"].includes(t.dataset.act) || (U.modal === "gamemenu" && ["studio", "master"].includes(t.dataset.act)) || ((U.modal === "rules" || U.modal === "gamemenu") && (t.dataset.act === "close" || t.dataset.act === "overlay"));
   if (U.tut && !rulesAct) { const lm = SI.tutLockMode(); if (lm && !t.closest(".coach") && !(lm === "soft" && t.closest(".overlay"))) return; }
@@ -1156,6 +1232,7 @@ $root.addEventListener("click", e => {
     case "detail": U.detail = { k: t.dataset.k, id: t.dataset.id, p: t.dataset.p }; render(); return;
     case "sel-worker": { const id = +t.dataset.id; U.sel = U.sel === id ? null : id; U.detail = null; render(); return; }
     case "confirm-place": {
+      if (document.querySelector('.modal input[name="crew"]') && !document.querySelector('.modal input[name="crew"]:checked')) { const grp = document.querySelector('.modal .pgrp.need'); if (grp) { grp.classList.add("flash"); grp.scrollIntoView({ block: "nearest" }); } toast("Choose a partner first"); return; }
       const g = n => { const el = document.querySelector('input[name="' + n + '"]:checked'); return el ? el.value : undefined; };
       const d = U.detail; const target = d.k === "sys" ? "sys:" + d.id : "spot:" + d.id; const as = g("as"); const alt = g("alt");
       const o = E.placementOptions(S, pi, P(pi).workers.find(x => x.id === U.sel)).find(x => x.target === target);
@@ -1210,7 +1287,20 @@ $root.addEventListener("change", e => {
   if (t.dataset.seatbot != null) { U.seats[+t.dataset.seatbot].bot = t.value === "1"; return; }
   if (t.dataset.cfg || t.dataset.cfgjson || t.dataset.path || t.dataset.mpath) { if (SI.stu2) SI.stu2.snap(U.studio); const r = SI.studioChange(U.studio, t); if (r !== true) { toast(r || "Invalid value"); } SI.saveDraft(U.studio); (t.dataset.mpath ? t.closest(".mchk") || t : t.type === "checkbox" ? t.closest("label") || t : t).classList.add("dirty"); if (t.type === "checkbox" && t.dataset.cfg) { const lb = t.closest("label"); if (lb) lb.lastChild.textContent = t.checked ? " On" : " Off"; } if (SI.stu2) SI.stu2.refresh(); return; }
 });
-$root.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "pw") tryGate(); if (e.key === "Enter" && e.target.dataset && e.target.dataset.jcode != null) { const b = $root.querySelector('[data-act="online-join"]'); if (b) b.click(); } if (e.key === "Escape" && (U.modal || U.pop || U.detail)) { const xs = $root.querySelectorAll(".modal .x"); if (xs.length) xs[xs.length - 1].click(); } });
+$root.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "pw") tryGate(); if (e.key === "Enter" && e.target.dataset && e.target.dataset.jcode != null) { const b = $root.querySelector('[data-act="online-join"]'); if (b) b.click(); } });
+/* keyboard for every pop-up: Escape closes the top one (focus does not need to be inside it), Enter/Space activate card-style controls, Tab stays inside the pop-up */
+document.addEventListener("keydown", e => {
+  if (!U || U.screen === "gate") return;
+  const mods = $root.querySelectorAll(".modal");
+  if (e.key === "Escape" && (U.modal || U.pop || U.detail || mods.length)) { const xs = $root.querySelectorAll(".modal .x"); if (xs.length) { e.preventDefault(); xs[xs.length - 1].click(); } return; }
+  if ((e.key === "Enter" || e.key === " ") && e.target.getAttribute && e.target.getAttribute("role") === "button" && e.target.dataset.act && e.target.tagName !== "BUTTON") { e.preventDefault(); e.target.click(); return; }
+  if (e.key === "Tab" && mods.length && !$root.querySelector(".coach")) {
+    const m = mods[mods.length - 1], f = Array.from(m.querySelectorAll('button:not([disabled]),[href],input:not([disabled]),select,textarea,[role="button"][tabindex]')).filter(x => x.getClientRects().length);
+    if (!f.length) { e.preventDefault(); m.focus(); return; }
+    const i = f.indexOf(document.activeElement);
+    if (e.shiftKey && (i <= 0)) { e.preventDefault(); f[f.length - 1].focus(); } else if (!e.shiftKey && (i === f.length - 1 || i < 0 && !m.contains(document.activeElement))) { e.preventDefault(); f[0].focus(); }
+  }
+});
 
 // boot: ask the server who this is (cookie role). Without a server (local file / preview) fall back to the older passphrase gate and local Data Studio.
 function loadScript(src) { return new Promise(res => { const el = document.createElement("script"); el.src = src; el.onload = () => res(true); el.onerror = () => res(false); document.head.appendChild(el); }); }
