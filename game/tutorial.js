@@ -141,6 +141,7 @@ let STEPS = [
   doing("r2place", { hl: () => "[data-tut=workers]", done: S => reachedRound(S, 2, "rest"), allow: a => (a.type === "buyws" || a.type === "place" || a.type === "pass" || a.type === "recruit") ? null : MSG("msg_place_pass") }),
   info("burnout", { hl: () => ".pt[data-pid='0'] .st.bo" }),
   /* ---- round 3: strike teams, the first gate ---- */
+  doing("r2done", { hl: () => "[data-tut=done]", done: S => S.round >= 3, allow: a => (a.type === "train" || a.type === "promote") ? MSG("msg_train_later") : null }),
   info("gates", { hl: () => "[data-tut=gates]" }),
   play("r3", { hl: () => null, done: S => S.round >= 4, allow: a => (a.type === "train" || a.type === "promote") ? MSG("msg_train_later") : null }),
   /* ---- production ---- */
