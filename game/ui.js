@@ -686,7 +686,9 @@ function decisionModal(S) {
   switch (d.t) {
     case "keepObj":
       size = "lg"; sub = `Choose your objectives: keep ${S.cfg.objKeep} of ${S.cfg.objDraw} per type. ${objRule}`;
+      h += '<div class="objpick">';
       Object.keys(d.opts).forEach(t => { h += `<div class="pgrp"><div class="pgrp-l">${esc(t)}</div><div class="pgrid">${d.opts[t].map((id, i) => { const o = S.data.objectives[id]; const sel = (U.keep && U.keep[t] === id) || (!U.keep || U.keep[t] == null) && i === 0; return card(o, `data-act="keep" data-t="${t}" data-id="${id}"`, sel); }).join("")}</div></div>`; });
+      h += "</div>";
       foot = `<button class="btn primary" data-act="keep-ok">Confirm objectives</button>`; break;
     case "bid":
       sub = "Secret auction bid";
