@@ -67,12 +67,13 @@ B.decide = function (S) {
   const p = S.players[pi]; const d = S.dq[0];
   W = Object.assign({}, NEUTRAL, S.cfg.botW || {}, ((S.cfg.botPersonas && Object.assign({}, B.personas, S.cfg.botPersonas) || B.personas)[p.persona]) || {}); PF = ((S.cfg.botProfiles && Object.assign({}, B.profiles, S.cfg.botProfiles) || B.profiles)[p.profile]) || null;
   if (PF && PF.w) W = Object.assign(W, PF.w);
+  if (p.pol && p.pol.w) W = Object.assign(W, p.pol.w);
   if (PF) { const q = quirk(S, p), k = PF.quirk; W.prod *= 1 + (q[0] - 0.5) * 2 * k; W.mktg *= 1 + (q[1] - 0.5) * 2 * k; W.hype *= 1 + (q[2] - 0.5) * 2 * k; W.gold *= 1 + (q[3] - 0.5) * 2 * k; W.debt *= 1 + (q[4] - 0.5) * 2 * k; W.gate *= PF.gate; }
   gateFactors(S, p);
   if (d) return decision(S, p, d);
   switch (S.step) {
     case "place": return place(S, p);
-    case "rest": { const b = build(S, p); if (b.type === "build") return b; const m = mile(S, p); if (m.type === "claim") return m; return rest(S, p); }
+    case "rest": { const ct = contractClaim(S, p); if (ct) return ct; const b = build(S, p); if (b.type === "build") return b; const m = mile(S, p); if (m.type === "claim") return m; return rest(S, p); }
   }
   return null;
 };
@@ -133,6 +134,7 @@ function bestPlan(S, p, plans) {
 }
 function fxScore(S, p, w, o) {
   if (!o.ok) return -1e9;
+  if (p.pol) { if (p.pol.train==="none" && o.spot && o.spot.special==="train") return -1e9; if (p.pol.noSys && o.kind==="sys") return -1e9; }
   if (o.kind === "sys") {
     const d = o.def; const fx = E.parseEffect(d.fx || d.each); let v = val(fx) + 1;
     if (fx.per) v += 3; if (fx.stats && fx.stats.debt < 0 && p.debt < 3) v -= 3; return v;
@@ -149,7 +151,9 @@ function fxScore(S, p, w, o) {
   if (spot.special === "convert") v = convGain(S, p, o) * 1.15 * W.convHold;
   if (spot.special === "rd") v = (p.rdBuild || E.resTotal(p) >= 6) ? 2.6 + W.crewCost : 0.2 + W.crewCost;
   if (o.plans) { const pl = bestPlan(S, p, o.plans); v += pl.ids.reduce((t, id) => t + (!spot.r ? 0 : Math.min(p.workers.find(x => x.id === id).lvl === "Sr" ? S.cfg.resSr : S.cfg.resJr, S.cfg.crewPartnerCap == null ? 9 : S.cfg.crewPartnerCap)) * resVal * W.res, 0) - pl.ids.length * W.crewCost; }
-  if (spot.id === "crunch") v -= 1; return v + E.rnd(S) * 0.5;
+  if (spot.id === "crunch") v -= 1;
+  if (S.cfg.specialist && (!S.cfg.specialistSr || w.lvl === "Sr") && !spot.special && !spot.crew && spot.discs[0] !== "ANY" && o.as && o.as[0] === spot.discs[0] && w.fat < 2) v += S.cfg.specialist;
+  return v + E.rnd(S) * 0.5;
 }
 // how much the best rival would value a spot that is still free: taking it away is worth part of that
 function rivalWant(S, p, target) {
@@ -159,6 +163,18 @@ function rivalWant(S, p, target) {
 }
 function convGain(S, p, o) { const rk = E.RES_OF[E.CAT_OF(o.as[0])], rate = S.cfg.convertRate || 3; return Math.floor((p[rk] || 0) / rate); }
 function recruitPick(S, p, bs) {
+  if (p.pol && p.pol.rec==="none") return null;
+  const r0 = recruitPick0(S, p, bs);
+  if (r0 && p.pol && p.pol.rec==="rand") { const ok=[]; S.recruit.forEach((o,i)=>{ if(E.canRecruit(S,p.id,i).ok) ok.push(i); }); if(ok.length) r0.idx = ok[E.rint(S, ok.length)]; }
+  if (r0 && p.pol && typeof p.pol.rec==="string" && p.pol.rec.indexOf("disc:")===0) { const dd=p.pol.rec.slice(5).split(","); let hit=-1; S.recruit.forEach((o,i)=>{ if(hit<0 && dd.indexOf(o.disc)>=0 && E.canRecruit(S,p.id,i).ok) hit=i; }); if(hit>=0) r0.idx=hit; }
+  if (r0 && p.pol && p.pol.rec === "spec") { // informed hiring under cfg.specialist: take the offer that is lead discipline on the most tiles still open this phase, discounting duplicates
+    const sp = E.activeSpots(S).filter(x => !x.special && !x.crew && x.discs[0] !== "ANY"); let bi = -1, bv = -1e9;
+    S.recruit.forEach((o, i) => { if (!E.canRecruit(S, p.id, i).ok) return; const lead = sp.filter(x => x.discs[0] === o.disc).length, have = p.workers.filter(w => w.disc === o.disc).length; const v = lead - have * 1.5 + E.rnd(S) * 0.2; if (v > bv) { bv = v; bi = i; } });
+    if (bi >= 0) r0.idx = bi;
+  }
+  return r0;
+}
+function recruitPick0(S, p, bs) {
   if (!S.recruit) return null;
   const maxW = (S.phase === 0 ? 5 : S.phase === 1 ? 8 : 9) + W.workers + W.recMax, reserve = (S.phase >= 2 ? 3 : 2) + W.recReserve - 2;
   if (p.workers.length >= maxW) return null;
@@ -224,6 +240,7 @@ function bcrunch(S, p, d, free) {
   return undefined;
 }
 function build(S, p) {
+  if (p.pol && p.pol.noBuild) return { type: "done", p: p.id };
   const free = p.freeBuilds > 0;
   let best = null, bs = 0;
   S.data.systems.forEach(d => {
@@ -248,6 +265,12 @@ function rest(S, p) {
   return { type: "done", p: p.id };
 }
 
+function contractClaim(S, p) {
+  if (!S.cfg.contracts || !S.contracts) return null;
+  let best = null, bv = -1;
+  S.contracts.forEach(i => { if (E.contractOk(S, p.id, i)) { const c = S.cfg.contractPool[i]; const v = c.vp + (c.gold || 0) / 4; if (v > bv) { bv = v; best = i; } } });
+  return best != null ? { type: "contract", p: p.id, idx: best } : null;
+}
 function mile(S, p) {
   const m = p.miles.find(id => E.milestoneMet(S, p.id, id));
   if (m != null) return { type: "claim", p: p.id, mile: m };

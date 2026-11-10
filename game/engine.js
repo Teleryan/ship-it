@@ -134,6 +134,7 @@ E.newGame = function (seats, opts) {
   S.decks.sys = {}; S.market = {};
   E.CATS.forEach(cat => { S.decks.sys[cat] = shuffle(S, data.systems.filter(s => s.cat === cat).map(s => s.name)); S.market[cat] = []; });
   refillMarket(S);
+  initContracts(S);
   { const hum = shuffle(S, S.players.filter(p => !p.bot).map(p => p.id)), bots = shuffle(S, S.players.filter(p => p.bot).map(p => p.id)); S.order = hum.concat(bots); } // humans go first against bots; random when everyone is human (or everyone is a bot)
   if (cfg.gatesAtSetup) drawGates(S);
   S.players.forEach(p => {
@@ -725,7 +726,7 @@ function doPlace(S, pi, wid, target, o) {
     if ((p[rk] || 0) < cost) return err("Needs " + cost + " " + RES_NAME[rk]);
     p[rk] -= cost; p.rs.spentRes = (p.rs.spentRes || 0) + cost;
     w.placed = true; w.lvl = "Sr"; w.trained = 0; S.occ[opt.spot.id] = (S.occ[opt.spot.id] || []).concat([pi]);
-    if (c.wsMax) p.wsUsed++;
+    if (c.wsMax) p.wsUsed += wsNeeded(opt.spot);
     p.rs.placed++; p.rs.trains = (p.rs.trains || 0) + 1; p.cs.trainings = (p.cs.trainings || 0) + 1; p.cs.promotions++; p.promos++;
     gain(S, pi, "culture", c.trainCulture || 0);
     log(S, p.name + " trains a Junior " + dn(w.disc) + " into a Senior (-" + cost + " " + RES_NAME[rk] + ", Culture +" + (c.trainCulture || 0) + ")");
@@ -762,10 +763,17 @@ function doPlace(S, pi, wid, target, o) {
   // Sr bonus
   let srb = "";
   if (w.lvl === "Sr" && !spot.special && !spot.r) { const b = o.bonus === "mktg" ? "mktg" : "prod"; gain(S, pi, b, S.cfg.srBonus * mult); srb = " (+" + S.cfg.srBonus + " " + b + ")"; }
-  const exh = over || (plan && plan.ids && plan.ids.some(id => { const q = p.workers.find(x => x.id === id); return q && q.overWhenPlaced; })); const dock = exh && S.cfg.overTileDock ? S.cfg.overTileDock : 0;
+  const exh = over || (plan && plan.ids && plan.ids.some(id => { const q = p.workers.find(x => x.id === id); return q && q.overWhenPlaced; })); let dock = exh && S.cfg.overTileDock ? S.cfg.overTileDock : 0;
+  if (S.cfg.debtDragAt && p.debt >= S.cfg.debtDragAt) dock = Math.max(dock, S.cfg.debtDragAmt || 1); // HEART prototype: Tech Debt drags big tiles (-N on every stat of 2+)
   let removed = 0;
   if (fx.choice) { const pick = fx.choice[o.choice === 1 ? 1 : 0]; removed = applyFx(S, pi, pick, mult, { alt, dock }); }
   else removed = applyFx(S, pi, fx, mult, { alt: alt, dock });
+  // HEART prototype (cfg.specialist): a worker on a tile where its discipline is the tile's LEAD discipline (first listed) gets +N on the tile's main stat
+  if (S.cfg.specialist && (!S.cfg.specialistSr || w.lvl === "Sr") && !spot.special && !spot.crew && spot.discs[0] !== "ANY" && as === spot.discs[0] && !over) {
+    const st = fx.choice ? fx.choice[o.choice === 1 ? 1 : 0].stats : fx.stats; const k = ["prod", "hype", "mktg"].find(x => (st[x] || 0) > 0);
+    if (k) gain(S, pi, k, S.cfg.specialist * mult); else if ((st.debt || 0) < 0) gain(S, pi, "debt", -S.cfg.specialist); else if (spot.r) gain(S, pi, RES_OF[CAT_OF(as)], S.cfg.specialist);
+    p.cs.specialist = (p.cs.specialist || 0) + 1;
+  }
   // discipline perks
   if (as === "ADV" && spot.mkt) gain(S, pi, "hype", 1 * mult);
   if (as === "DES" && p.rs.placed > 1 && !spot.special) {
@@ -993,6 +1001,7 @@ function restAction(S, a, p) {
   const pi = p.id, c = S.cfg;
   switch (a.type) {
     case "claim": return claimMile(S, p, a);
+    case "contract": return claimContract(S, p, a);
     case "done": S.cur++; return { ok: true };
     case "build": return doBuild(S, pi, a.name, a.free, a.crunch, a.crew, a.crunchWorker);
     case "refresh": {
@@ -1269,6 +1278,27 @@ E.milestoneMet = (S, pi, idx) => { const m = S.data.milestones[idx]; const f = M
    OBJECTIVE REQUIREMENTS (parsed from card text)
    ============================================================ */
 const WNAME = { Engineer:"ENG", Artist:"ART", Art:"ART", Design:"DES", Designer:"DES", Analytics:"DATA", DATA:"DATA", PX:"PX", Community:"PX", Adv:"ADV", Advertising:"ADV", QA:"QA", Quality:"QA" };
+
+/* ---------- PUBLIC CONTRACTS (HEART prototype, cfg.contracts, default OFF) ----------
+   A shared row of face-up Contracts. Reuses the gate/objective requirement strings. First studio to MEET one in its Manage step claims it
+   (VP + Gold) and a new one is revealed. Gives every placement a visible, contestable purpose. */
+function initContracts(S) {
+  S.contracts = []; S.contractDeck = []; S.contractLog = [];
+  if (!S.cfg.contracts) return;
+  const pool = (S.cfg.contractPool || []).map((c, i) => i);
+  S.contractDeck = shuffle(S, pool);
+  for (let i = 0; i < (S.cfg.contractSlots || 3); i++) { const c = S.contractDeck.pop(); if (c != null) S.contracts.push(c); }
+}
+E.contractOk = function (S, pi, idx) { const c = S.cfg.contractPool[idx]; if (!c) return false; const p = P(S, pi); if ((p.cs.contracts || 0) >= (S.cfg.contractCap || 99)) return false; return c.reqs.every(r => reqCheck(S, p, r)); };
+function claimContract(S, p, a) {
+  const k = S.contracts.indexOf(a.idx); if (k < 0) return err("That contract is gone");
+  if (!E.contractOk(S, p.id, a.idx)) return err("Requirements not met");
+  const c = S.cfg.contractPool[a.idx];
+  S.contracts.splice(k, 1); const nx = S.contractDeck.pop(); if (nx != null) S.contracts.push(nx);
+  p.vpAdj += c.vp; p.vpContract = (p.vpContract || 0) + c.vp; p.cs.contracts = (p.cs.contracts || 0) + 1; if (c.gold) { S._nt = 1; gain(S, p.id, "gold", c.gold); S._nt = 0; }
+  S.contractLog.push({ round: S.round, p: p.id, name: c.name, vp: c.vp });
+  log(S, p.name + " CLAIMS CONTRACT " + c.name + " (+" + c.vp + " VP" + (c.gold ? ", +" + c.gold + "G" : "") + ")"); return { ok: true };
+}
 function reqCheck(S, p, r) {
   let m;
   if ((m = r.match(/^(\d+)\+\s*(Progress|Product|Marketing|Wishlists|Mktg)(?: value)?$/))) return (/^Pro/.test(m[2]) ? p.prod : p.mktg) >= +m[1];
